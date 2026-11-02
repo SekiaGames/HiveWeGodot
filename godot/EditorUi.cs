@@ -37,6 +37,7 @@ public partial class EditorUi : CanvasLayer
     public event Action<bool>? RegionsToggled;
     public event Action<string>? DoodadTypeSelected;
     public event Action<string>? UnitTypeSelected;
+    public event Action<int, string, int, string>? ObjectValueChanged;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -49,14 +50,150 @@ public partial class EditorUi : CanvasLayer
     private OptionButton doodadPicker = null!;
     private OptionButton unitPicker = null!;
 
+    private PanelContainer objectPanel = null!;
+    private Label objectTitle = null!;
+    private LineEdit objectFilter = null!;
+    private VBoxContainer objectRows = null!;
+    private readonly System.Collections.Generic.List<(Label Label, Control Row)> objectRowCache = new();
+    private int objectCategory = -1;
+    private string objectId = string.Empty;
+
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new(0.18f, 0.19f, 0.22f);
 
     public void Build(TerrainView view)
     {
         BuildPalette(view);
+        BuildObjectPanel();
         BuildToolbar();
         BuildStatus();
+    }
+
+    private void BuildObjectPanel()
+    {
+        objectPanel = new PanelContainer
+        {
+            Visible = false,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+        };
+        var style = new StyleBoxFlat { BgColor = PanelColor };
+        style.SetCornerRadiusAll(0);
+        style.ContentMarginLeft = 10;
+        style.ContentMarginRight = 10;
+        style.ContentMarginTop = 10;
+        style.ContentMarginBottom = 10;
+        objectPanel.AddThemeStyleboxOverride("panel", style);
+        objectPanel.SetAnchorsPreset(Control.LayoutPreset.RightWide);
+        objectPanel.OffsetLeft = -380;
+        objectPanel.OffsetTop = 40;
+        objectPanel.OffsetBottom = -30;
+        AddChild(objectPanel);
+
+        var column = new VBoxContainer();
+        column.AddThemeConstantOverride("separation", 6);
+        objectPanel.AddChild(column);
+
+        objectTitle = SectionTitle("对象属性");
+        column.AddChild(objectTitle);
+
+        objectFilter = new LineEdit { PlaceholderText = "筛选字段" };
+        objectFilter.TextChanged += _ => ApplyObjectFilter();
+        column.AddChild(objectFilter);
+
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        column.AddChild(scroll);
+
+        objectRows = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        objectRows.AddThemeConstantOverride("separation", 2);
+        scroll.AddChild(objectRows);
+    }
+
+    public void ShowObjectProperties(int category, string id, string title)
+    {
+        objectCategory = category;
+        objectId = id;
+        objectTitle.Text = title;
+        objectFilter.Text = string.Empty;
+
+        foreach (Node child in objectRows.GetChildren())
+        {
+            objectRows.RemoveChild(child);
+            child.QueueFree();
+        }
+        objectRowCache.Clear();
+
+        objectPanel.Visible = true;
+
+        int count = HiveCore.ObjectFieldCount(category, id);
+        for (int i = 0; i < count; i++)
+        {
+            int index = i;
+            string label = HiveCore.ObjectFieldLabel(category, i) ?? string.Empty;
+            string value = HiveCore.ObjectValue(category, id, i) ?? string.Empty;
+            string description = HiveCore.ObjectFieldDescription(category, i) ?? string.Empty;
+
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+
+            var name = new Label
+            {
+                Text = label,
+                CustomMinimumSize = new Vector2(210, 0),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                TooltipText = description.Length > 0 ? description : label,
+                Modulate = HiveCore.ObjectValueModified(category, id, i)
+                    ? new Color(0.85f, 0.6f, 1f)
+                    : Colors.White,
+            };
+            row.AddChild(name);
+
+            var edit = new LineEdit
+            {
+                Text = value,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            edit.TextSubmitted += text => CommitObjectValue(name, index, text);
+            edit.FocusExited += () => CommitObjectValue(name, index, edit.Text);
+            row.AddChild(edit);
+
+            objectRows.AddChild(row);
+            objectRowCache.Add((name, row));
+        }
+    }
+
+    public void ClearObjectProperties()
+    {
+        objectPanel.Visible = false;
+        objectCategory = -1;
+        objectId = string.Empty;
+    }
+
+    private void CommitObjectValue(Label label, int index, string text)
+    {
+        if (objectCategory < 0)
+        {
+            return;
+        }
+        if (!HiveCore.SetObjectValue(objectCategory, objectId, index, text))
+        {
+            return;
+        }
+        label.Modulate = new Color(0.85f, 0.6f, 1f);
+        ObjectValueChanged?.Invoke(objectCategory, objectId, index, text);
+    }
+
+    private void ApplyObjectFilter()
+    {
+        string keyword = objectFilter.Text.Trim();
+        foreach (var entry in objectRowCache)
+        {
+            entry.Row.Visible = keyword.Length == 0
+                || entry.Label.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     private void BuildPalette(TerrainView view)

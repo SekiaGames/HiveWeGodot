@@ -45,6 +45,7 @@ public partial class Main : Node3D
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
+    private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private int frames;
     private bool loaded;
 
@@ -125,6 +126,11 @@ public partial class Main : Node3D
         ui.OpenRequested += ShowOpenDialog;
         ui.PathingToggled += view.SetPathingVisible;
         ui.RegionsToggled += view.SetRegionsVisible;
+        ui.ObjectValueChanged += (category, id, index, value) =>
+        {
+            ReloadObjects();
+            ui.SetStatus($"已改 {id} 的属性，Ctrl+S 保存到地图");
+        };
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -704,7 +710,33 @@ public partial class Main : Node3D
         selectionIsUnit = isUnit;
         selection = indices;
         view.ShowSelection(isUnit, indices);
+        ShowObjectPanel(isUnit, indices);
         UpdateStatus();
+    }
+
+    private void ShowObjectPanel(bool isUnit, int[] indices)
+    {
+        if (indices.Length != 1)
+        {
+            ui.ClearObjectProperties();
+            return;
+        }
+
+        int category = 0;
+        string? id = HiveCore.UnitId(indices[0]);
+        if (!isUnit)
+        {
+            id = HiveCore.DoodadId(indices[0]);
+            category = id == null ? -1 : HiveCore.DoodadCategory(id);
+        }
+
+        if (id == null || category < 0)
+        {
+            ui.ClearObjectProperties();
+            return;
+        }
+
+        ui.ShowObjectProperties(category, id, $"{(isUnit ? "单位" : "装饰物")} {id}");
     }
 
     private void PlaceDoodad(Vector3 spot)
@@ -887,6 +919,47 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (objectTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                focus = new Vector3(27f, 0f, 17.5f);
+                distance = 20f;
+                UpdateCamera();
+                SetSelection(false, new[] { 0 });
+
+                string id = HiveCore.DoodadId(0) ?? string.Empty;
+                int category = HiveCore.DoodadCategory(id);
+                int count = HiveCore.ObjectFieldCount(category, id);
+                GD.Print($"属性面板：{id} 分类 {category}，{count} 个字段");
+
+                for (int i = 0; i < count; i++)
+                {
+                    if (HiveCore.ObjectFieldKey(category, i) == "bfxr")
+                    {
+                        string before = HiveCore.ObjectValue(category, id, i) ?? string.Empty;
+                        HiveCore.SetObjectValue(category, id, i, "45");
+                        GD.Print($"固定旋转 {before} -> {HiveCore.ObjectValue(category, id, i)}，"
+                            + $"改过 {HiveCore.ObjectValueModified(category, id, i)}");
+                        break;
+                    }
+                }
+
+                ReloadObjects();
+                SetSelection(false, new[] { 0 });
+            }
+            else if (frames == 14)
+            {
+                Capture(screenshotPath);
+            }
+            else if (frames == 20)
+            {
+                Capture(objectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (selectTest.Length > 0)
         {

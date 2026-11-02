@@ -60,6 +60,21 @@ struct HiveHandle {
 		std::vector<Unit> units;
 	};
 	GroupEdit group;
+
+	struct ObjectField {
+		std::string key;
+		std::string column;
+		int level = 0;
+		std::string label;
+		std::string type;
+		std::string description;
+	};
+	struct ObjectFields {
+		int32_t category = -1;
+		std::string id;
+		std::vector<ObjectField> fields;
+	};
+	ObjectFields object_fields;
 };
 
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
@@ -1914,6 +1929,271 @@ int32_t hive_redo(void* handle) {
 	auto ctx = hive->map->edit_context();
 	hive->map->world_undo.redo(ctx);
 	return 1;
+}
+
+slk::SLK* category_slk(const int32_t category) {
+	switch (category) {
+		case 0:
+			return &units_slk;
+		case 1:
+			return &items_slk;
+		case 2:
+			return &doodads_slk;
+		case 3:
+			return &destructibles_slk;
+		case 4:
+			return &abilities_slk;
+		case 5:
+			return &upgrade_slk;
+		case 6:
+			return &buff_slk;
+		default:
+			return nullptr;
+	}
+}
+
+slk::SLK* category_meta_slk(const int32_t category) {
+	switch (category) {
+		case 0:
+			return &units_meta_slk;
+		case 1:
+			return &items_meta_slk;
+		case 2:
+			return &doodads_meta_slk;
+		case 3:
+			return &destructibles_meta_slk;
+		case 4:
+			return &abilities_meta_slk;
+		case 5:
+			return &upgrade_meta_slk;
+		case 6:
+			return &buff_meta_slk;
+		default:
+			return nullptr;
+	}
+}
+
+const HiveHandle::ObjectFields& build_object_fields(HiveHandle* hive, const int32_t category, const std::string& id) {
+	HiveHandle::ObjectFields& cache = hive->object_fields;
+	if (cache.category == category && cache.id == id) {
+		return cache;
+	}
+
+	cache = HiveHandle::ObjectFields {};
+	cache.category = category;
+	cache.id = id;
+
+	slk::SLK* slk = category_slk(category);
+	slk::SLK* meta = category_meta_slk(category);
+	if (slk == nullptr || meta == nullptr || !slk->row_headers.contains(id)) {
+		return cache;
+	}
+
+	std::string_view id_to_check = id;
+	if (slk->shadow_data.contains(id) && slk->shadow_data.at(id).contains("oldid")) {
+		id_to_check = slk->shadow_data.at(id).at("oldid");
+	}
+	const std::string_view aliasing = slk->data<std::string_view>("code", id);
+
+	for (const auto& [key, index] : meta->row_headers) {
+		const std::string_view use_specific = meta->data<std::string_view>("usespecific", key);
+		if (!use_specific.empty() && !use_specific.contains(id_to_check) && !use_specific.contains(aliasing)) {
+			continue;
+		}
+
+		const std::string_view not_specific = meta->data<std::string_view>("notspecific", key);
+		if (!not_specific.empty() && not_specific.contains(id_to_check) && not_specific.contains(aliasing)) {
+			continue;
+		}
+
+		std::string field_name = to_lowercase_copy(meta->data<std::string_view>("field", key));
+		if (meta->column_headers.contains("data") && meta->data<int>("data", key) > 0) {
+			field_name += static_cast<char>('a' + (meta->data<int>("data", key) - 1));
+		}
+
+		const std::string_view display_name = meta->data<std::string_view>("displayname", key);
+		const std::string category_name = string_replaced(
+			world_edit_data.data<std::string_view>("ObjectEditorCategories", meta->data<std::string_view>("category", key)), "&", "");
+		const std::string_view type = meta->data<std::string_view>("type", key);
+		const std::string_view description = meta->data<std::string_view>("description", key);
+
+		const auto append = [&](std::string column, const int level) {
+			if (!slk->column_headers.contains(column)) {
+				slk->add_column(column);
+			}
+			HiveHandle::ObjectField field;
+			field.key = key;
+			field.column = std::move(column);
+			field.level = level;
+			field.type = type;
+			field.description = description;
+
+			if (level > 0) {
+				field.label = std::format("{} - {} - 第 {} 级 ({})", category_name, display_name, level, key);
+			} else if (category_name.empty()) {
+				field.label = std::format("{} ({})", display_name, key);
+			} else {
+				field.label = std::format("{} - {} ({})", category_name, display_name, key);
+			}
+			cache.fields.push_back(std::move(field));
+		};
+
+		if (meta->column_headers.contains("repeat") && meta->data<int>("repeat", key) > 0) {
+			int iterations = 1;
+			if (slk->column_headers.contains("levels")) {
+				iterations = slk->data<int>("levels", id);
+			} else if (slk->column_headers.contains("numvar")) {
+				iterations = slk->data<int>("numvar", id);
+			} else if (slk->column_headers.contains("maxlevel")) {
+				iterations = slk->data<int>("maxlevel", id);
+			}
+
+			const bool append_index = meta->column_headers.contains("appendindex") && meta->data<int>("appendindex", key) > 0;
+			for (int i = 0; i < iterations; ++i) {
+				std::string name;
+				if (append_index && i == 0) {
+					name = field_name;
+				} else if (append_index) {
+					name = field_name + std::to_string(i);
+				} else {
+					name = field_name + std::to_string(i + 1);
+				}
+				append(std::move(name), i + 1);
+			}
+		} else {
+			append(field_name, 0);
+		}
+	}
+
+	std::ranges::sort(cache.fields, [](const HiveHandle::ObjectField& left, const HiveHandle::ObjectField& right) {
+		return left.label + left.column < right.label + right.column;
+	});
+
+	return cache;
+}
+
+int32_t hive_doodad_category(void* handle, const char* id) {
+	if (handle == nullptr || id == nullptr) {
+		return -1;
+	}
+	if (doodads_slk.row_headers.contains(id)) {
+		return 2;
+	}
+	if (destructibles_slk.row_headers.contains(id)) {
+		return 3;
+	}
+	return -1;
+}
+
+int32_t hive_object_field_count(void* handle, const int32_t category, const char* id) {
+	if (handle == nullptr || id == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(build_object_fields(static_cast<HiveHandle*>(handle), category, id).fields.size());
+}
+
+const char* hive_object_field_key(void* handle, const int32_t category, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(index) >= hive->object_fields.fields.size()) {
+		return nullptr;
+	}
+	return hive->object_fields.fields[static_cast<std::size_t>(index)].key.c_str();
+}
+
+const char* hive_object_field_label(void* handle, const int32_t category, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(index) >= hive->object_fields.fields.size()) {
+		return nullptr;
+	}
+	return hive->object_fields.fields[static_cast<std::size_t>(index)].label.c_str();
+}
+
+const char* hive_object_field_type(void* handle, const int32_t category, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(index) >= hive->object_fields.fields.size()) {
+		return nullptr;
+	}
+	return hive->object_fields.fields[static_cast<std::size_t>(index)].type.c_str();
+}
+
+const char* hive_object_field_description(void* handle, const int32_t category, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(index) >= hive->object_fields.fields.size()) {
+		return nullptr;
+	}
+	return hive->object_fields.fields[static_cast<std::size_t>(index)].description.c_str();
+}
+
+const char* hive_object_value(void* handle, const int32_t category, const char* id, const int32_t index) {
+	if (handle == nullptr || id == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& fields = build_object_fields(hive, category, id);
+	if (static_cast<std::size_t>(index) >= fields.fields.size()) {
+		return nullptr;
+	}
+
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return nullptr;
+	}
+
+	hive->transient_string = slk->data<std::string_view>(fields.fields[static_cast<std::size_t>(index)].column, id);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_object_value(void* handle, const int32_t category, const char* id, const int32_t index, const char* value) {
+	if (handle == nullptr || id == nullptr || value == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& fields = build_object_fields(hive, category, id);
+	if (static_cast<std::size_t>(index) >= fields.fields.size()) {
+		return -1;
+	}
+
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return -1;
+	}
+
+	slk->set_shadow_data(fields.fields[static_cast<std::size_t>(index)].column, id, value);
+	return 0;
+}
+
+int32_t hive_object_value_modified(void* handle, const int32_t category, const char* id, const int32_t index) {
+	if (handle == nullptr || id == nullptr || index < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& fields = build_object_fields(hive, category, id);
+	if (static_cast<std::size_t>(index) >= fields.fields.size()) {
+		return 0;
+	}
+
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return 0;
+	}
+
+	const auto row = slk->shadow_data.find(id);
+	if (row == slk->shadow_data.end()) {
+		return 0;
+	}
+	return row->second.contains(fields.fields[static_cast<std::size_t>(index)].column) ? 1 : 0;
 }
 
 }

@@ -255,6 +255,26 @@ int32_t hive_copy_model_indices(void* handle, int32_t model, int32_t geoset, uin
 int32_t hive_image_info_path(void* handle, const char* path, int32_t* width, int32_t* height);
 int32_t hive_copy_image_path(void* handle, const char* path, uint8_t* out, int32_t capacity);
 
+/* 对象属性。category：0 单位、1 物品、2 装饰物、3 可破坏物、4 技能、5 升级、6 buff。
+   字段列表按 HiveWE 的规则从 meta slk 生成：跳过 useSpecific 对不上的，
+   带 repeat 的按 levels / numvar / maxlevel 展开成多条。 */
+int32_t hive_object_field_count(void* handle, int32_t category, const char* id);
+/* 地图里的装饰物 id 落在哪张表：2 装饰物、3 可破坏物，都不在返回 -1。 */
+int32_t hive_doodad_category(void* handle, const char* id);
+/* meta 里的四字符字段 id，如 uhpm。 */
+const char* hive_object_field_key(void* handle, int32_t category, int32_t index);
+/* 显示名，"分类 - 名称 (key)"。 */
+const char* hive_object_field_label(void* handle, int32_t category, int32_t index);
+/* meta 的 type 列：int / real / unreal / string / bool 等。 */
+const char* hive_object_field_type(void* handle, int32_t category, int32_t index);
+const char* hive_object_field_description(void* handle, int32_t category, int32_t index);
+/* 读当前值。改过的值优先。取不到返回 NULL。 */
+const char* hive_object_value(void* handle, int32_t category, const char* id, int32_t index);
+/* 写值，进 shadow 表，保存时写进 war3map.w3*。返回 0 成功。 */
+int32_t hive_set_object_value(void* handle, int32_t category, const char* id, int32_t index, const char* value);
+/* 该字段是否被改过。 */
+int32_t hive_object_value_modified(void* handle, int32_t category, const char* id, int32_t index);
+
 #ifdef __cplusplus
 }
 #endif

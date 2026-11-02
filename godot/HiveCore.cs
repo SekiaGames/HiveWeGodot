@@ -350,6 +350,33 @@ public static class HiveCore
     private static extern int hive_copy_image_path(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, byte[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_doodad_category(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_object_field_count(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_field_key(IntPtr hive, int category, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_field_label(IntPtr hive, int category, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_field_type(IntPtr hive, int category, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_field_description(IntPtr hive, int category, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_value(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_object_value(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_object_value_modified(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_undo(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -717,6 +744,31 @@ public static class HiveCore
     }
 
     public static int ModelFromUnitClipboard(int index) => hive_model_from_unit_clipboard(handle, index);
+
+    public static int DoodadCategory(string id) => hive_doodad_category(handle, id);
+
+    public static int ObjectFieldCount(int category, string id) => hive_object_field_count(handle, category, id);
+
+    public static string? ObjectFieldKey(int category, int index) => ReadString(hive_object_field_key(handle, category, index));
+
+    public static string? ObjectFieldLabel(int category, int index) => ReadString(hive_object_field_label(handle, category, index));
+
+    public static string? ObjectFieldType(int category, int index) => ReadString(hive_object_field_type(handle, category, index));
+
+    public static string? ObjectFieldDescription(int category, int index)
+        => ReadString(hive_object_field_description(handle, category, index));
+
+    public static string? ObjectValue(int category, string id, int index)
+        => ReadString(hive_object_value(handle, category, id, index));
+
+    public static bool SetObjectValue(int category, string id, int index, string value)
+        => hive_set_object_value(handle, category, id, index, value) == 0;
+
+    public static bool ObjectValueModified(int category, string id, int index)
+        => hive_object_value_modified(handle, category, id, index) != 0;
+
+    private static string? ReadString(IntPtr pointer)
+        => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
 
     public static HiveModelInfo ModelInfo(int model)
     {
