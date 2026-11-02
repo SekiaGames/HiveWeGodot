@@ -212,14 +212,23 @@ class SkinnedMesh: public Resource {
 		}
 
 		if (!mdx->is_valid()) {
+#if HIVE_HEADLESS
+			std::println(stderr, "[模型校验失败] {}", path.string());
+#else
 			throw std::runtime_error(
 				std::format("Mesh {} has severe errors and cannot be rendered. Check them in the model editor.", path.string())
 			);
+#endif
 		}
 
 		mdx->fix_up();
 
 		this->path = path;
+#if HIVE_HEADLESS
+		// 只留 MDX 数据，跳过图元打包与上传。老模型的 material_id 可能越界，
+		// 后面那些 mdx->materials[i.material_id] 会抛异常。
+		return;
+#endif
 
 		size_t vertices = 0;
 		size_t indices = 0;

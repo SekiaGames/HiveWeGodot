@@ -73,6 +73,7 @@ public partial class Main : Node3D
         view = new TerrainView();
         root.AddChild(view);
         view.Build();
+        view.BuildDoodads();
 
         camera = new Camera3D { Fov = 60 };
         root.AddChild(camera);

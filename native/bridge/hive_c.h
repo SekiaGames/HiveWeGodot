@@ -94,6 +94,64 @@ void hive_brush_end(void* handle);
 int32_t hive_undo(void* handle);
 int32_t hive_redo(void* handle);
 
+/* 装饰物。position 是地形坐标系，y 是高度，单位与地形一致；angle 是弧度。 */
+typedef struct HiveDoodad {
+	float x;
+	float y;
+	float z;
+	float angle;
+	float scale_x;
+	float scale_y;
+	float scale_z;
+	int32_t variation;
+	int32_t solid;
+} HiveDoodad;
+
+int32_t hive_copy_doodads(void* handle, HiveDoodad* out, int32_t capacity);
+/* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
+const char* hive_doodad_id(void* handle, int32_t index);
+
+/* 模型网格。顶点、法线、UV 按 geoset 顺序拼成一个数组，索引各自独立。
+   MDX 原始坐标系是 Z 向上，调用方自己转。 */
+typedef struct HiveModelInfo {
+	int32_t geoset_count;
+	int32_t vertex_count;
+	int32_t index_count;
+	float min_x;
+	float min_y;
+	float min_z;
+	float max_x;
+	float max_y;
+	float max_z;
+} HiveModelInfo;
+
+typedef struct HiveGeosetInfo {
+	int32_t vertex_offset;
+	int32_t vertex_count;
+	int32_t index_offset;
+	int32_t index_count;
+	int32_t two_sided;
+	int32_t unshaded;
+	float alpha;
+} HiveGeosetInfo;
+
+/* 打开模型，返回 >= 0 的句柄，失败返回 -1。句柄在 hive_close 前一直有效。 */
+int32_t hive_model_from_doodad(void* handle, int32_t doodad_index);
+int32_t hive_model_from_path(void* handle, const char* path);
+int32_t hive_model_info(void* handle, int32_t model, HiveModelInfo* out);
+int32_t hive_model_geoset(void* handle, int32_t model, int32_t geoset, HiveGeosetInfo* out);
+/* 该 geoset 用的 BLP 路径，没有贴图返回 NULL。 */
+const char* hive_model_geoset_texture(void* handle, int32_t model, int32_t geoset);
+
+int32_t hive_copy_model_positions(void* handle, int32_t model, float* out, int32_t capacity);
+int32_t hive_copy_model_normals(void* handle, int32_t model, float* out, int32_t capacity);
+int32_t hive_copy_model_uvs(void* handle, int32_t model, float* out, int32_t capacity);
+int32_t hive_copy_model_indices(void* handle, int32_t model, int32_t geoset, uint32_t* out, int32_t capacity);
+
+/* 把 BLP / TGA / DDS 解成 RGBA8，返回尺寸或零。 */
+int32_t hive_image_info_path(void* handle, const char* path, int32_t* width, int32_t* height);
+int32_t hive_copy_image_path(void* handle, const char* path, uint8_t* out, int32_t capacity);
+
 #ifdef __cplusplus
 }
 #endif

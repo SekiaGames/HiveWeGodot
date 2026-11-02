@@ -278,6 +278,174 @@ public partial class TerrainView : Node3D
         return false;
     }
 
+    /// War3 模型坐标以 1/128 tile 为单位，地形是一格一单位。
+    private const float ModelScale = 1f / 128f;
+
+    private readonly System.Collections.Generic.Dictionary<int, ArrayMesh?> modelMeshes = new();
+    private readonly System.Collections.Generic.Dictionary<string, Texture2D?> textureCache = new();
+
+    public void BuildDoodads()
+    {
+        HiveDoodad[] doodads = HiveCore.Doodads();
+        var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
+
+        for (int i = 0; i < doodads.Length; i++)
+        {
+            if (doodads[i].Solid == 0)
+            {
+                continue;
+            }
+            int model = HiveCore.ModelFromDoodad(i);
+            if (model < 0)
+            {
+                continue;
+            }
+            if (!byModel.TryGetValue(model, out var list))
+            {
+                list = new System.Collections.Generic.List<int>();
+                byModel[model] = list;
+            }
+            list.Add(i);
+        }
+
+        int placed = 0;
+        foreach (var pair in byModel)
+        {
+            ArrayMesh? mesh = ModelMesh(pair.Key);
+            if (mesh == null)
+            {
+                continue;
+            }
+
+            var multi = new MultiMesh
+            {
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = mesh,
+                InstanceCount = pair.Value.Count,
+            };
+
+            for (int k = 0; k < pair.Value.Count; k++)
+            {
+                HiveDoodad doodad = doodads[pair.Value[k]];
+                Basis basis = Basis.Identity.Rotated(Vector3.Up, -doodad.Angle)
+                    .Scaled(new Vector3(doodad.ScaleX, doodad.ScaleY, doodad.ScaleZ));
+                multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(doodad.X, doodad.Z, doodad.Y)));
+            }
+
+            AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Doodads" });
+            placed += pair.Value.Count;
+        }
+
+        GD.Print($"装饰物 {placed} / {doodads.Length}，{byModel.Count} 种模型");
+    }
+
+    private ArrayMesh? ModelMesh(int model)
+    {
+        if (modelMeshes.TryGetValue(model, out ArrayMesh? cached))
+        {
+            return cached;
+        }
+
+        HiveModelInfo info = HiveCore.ModelInfo(model);
+        if (info.VertexCount == 0 || info.GeosetCount == 0)
+        {
+            modelMeshes[model] = null;
+            return null;
+        }
+
+        float[] positions = HiveCore.ModelPositions(model, info.VertexCount);
+        float[] normals = HiveCore.ModelNormals(model, info.VertexCount);
+        float[] uvs = HiveCore.ModelUvs(model, info.VertexCount);
+
+        var mesh = new ArrayMesh();
+        for (int g = 0; g < info.GeosetCount; g++)
+        {
+            HiveGeosetInfo geoset = HiveCore.ModelGeoset(model, g);
+            if (geoset.IndexCount < 3 || geoset.VertexCount == 0)
+            {
+                continue;
+            }
+
+            Vector3[] vertices = new Vector3[geoset.VertexCount];
+            Vector3[] normalsOut = new Vector3[geoset.VertexCount];
+            Vector2[] texCoords = new Vector2[geoset.VertexCount];
+
+            for (int i = 0; i < geoset.VertexCount; i++)
+            {
+                int p = (geoset.VertexOffset + i) * 3;
+                vertices[i] = new Vector3(positions[p], positions[p + 2], positions[p + 1]) * ModelScale;
+                normalsOut[i] = new Vector3(normals[p], normals[p + 2], normals[p + 1]);
+                int q = (geoset.VertexOffset + i) * 2;
+                texCoords[i] = new Vector2(uvs[q], uvs[q + 1]);
+            }
+
+            uint[] raw = HiveCore.ModelIndices(model, g, geoset.IndexCount);
+            int[] indices = new int[raw.Length];
+            for (int i = 0; i < raw.Length; i++)
+            {
+                indices[i] = (int)raw[i];
+            }
+
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = vertices;
+            arrays[(int)Mesh.ArrayType.Normal] = normalsOut;
+            arrays[(int)Mesh.ArrayType.TexUV] = texCoords;
+            arrays[(int)Mesh.ArrayType.Index] = indices;
+
+            int surface = mesh.GetSurfaceCount();
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            mesh.SurfaceSetMaterial(surface, BuildMaterial(model, g, geoset));
+        }
+
+        if (mesh.GetSurfaceCount() == 0)
+        {
+            modelMeshes[model] = null;
+            return null;
+        }
+
+        modelMeshes[model] = mesh;
+        return mesh;
+    }
+
+    private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info)
+    {
+        var material = new StandardMaterial3D
+        {
+            CullMode = info.TwoSided != 0 ? BaseMaterial3D.CullModeEnum.Disabled : BaseMaterial3D.CullModeEnum.Back,
+            Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+            AlphaScissorThreshold = 0.5f,
+            Roughness = 0.9f,
+            Metallic = 0f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.Linear,
+        };
+
+        if (info.Unshaded != 0)
+        {
+            material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+        }
+
+        string? path = HiveCore.ModelGeosetTexture(model, geoset);
+        if (path != null)
+        {
+            material.AlbedoTexture = TextureAt(path);
+        }
+
+        return material;
+    }
+
+    private Texture2D? TextureAt(string path)
+    {
+        if (textureCache.TryGetValue(path, out Texture2D? cached))
+        {
+            return cached;
+        }
+        Image? image = HiveCore.ImageAt(path);
+        Texture2D? texture = image == null ? null : ImageTexture.CreateFromImage(image);
+        textureCache[path] = texture;
+        return texture;
+    }
+
     public Texture2D? Minimap()
     {
         Image? image = HiveCore.Minimap();

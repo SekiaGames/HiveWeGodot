@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstring>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -47,6 +48,50 @@ inline std::string to_archive_path(std::string_view path) {
 	std::ranges::replace(result, ':', '\\');
 	std::ranges::replace(result, '/', '\\');
 	return result;
+}
+
+/// 逐段按大小写不敏感查找。地图的 slk 里写的是 Doodads\\Terrain\\，磁盘上可能是
+/// Doodads/terrain/，在区分大小写的卷上直接拼路径会找不到。
+inline fs::path resolve_path(const fs::path& root, const std::string& relative) {
+	fs::path current = root;
+	std::size_t start = 0;
+
+	while (start <= relative.size()) {
+		const std::size_t slash = relative.find_first_of("/\\", start);
+		const std::string segment = relative.substr(start, slash == std::string::npos ? std::string::npos : slash - start);
+		if (segment.empty()) {
+			if (slash == std::string::npos) {
+				break;
+			}
+			start = slash + 1;
+			continue;
+		}
+
+		const fs::path direct = current / segment;
+		std::error_code ec;
+		if (fs::exists(direct, ec)) {
+			current = direct;
+		} else {
+			bool matched = false;
+			for (const auto& entry : fs::directory_iterator(current, ec)) {
+				const std::string name = entry.path().filename().string();
+				if (name.size() == segment.size() && strncasecmp(name.c_str(), segment.c_str(), name.size()) == 0) {
+					current = entry.path();
+					matched = true;
+					break;
+				}
+			}
+			if (!matched) {
+				return root / relative;
+			}
+		}
+
+		if (slash == std::string::npos) {
+			break;
+		}
+		start = slash + 1;
+	}
+	return current;
 }
 
 class MPQ {

@@ -298,7 +298,7 @@ PATCHES = [
     ),
     (
         '\t\t\tTRY_OPEN(read_file(root_directory / p));',
-        '\t\t\tTRY_OPEN(read_file(root_directory / string_replaced(p, \"\\\\\", \"/\")));',
+        '\t\t\tTRY_OPEN(read_file(mpq::resolve_path(root_directory, string_replaced(p, "\\\\", "/"))));',
     ),
     (
         'extern const glm::quat ROTATION_IDENTITY',
@@ -347,6 +347,14 @@ PATCHES = [
     (
         '\t\t}\n\n\t\tgameplay_constants.save();',
         '\t\t}\n#endif\n\n\t\tgameplay_constants.save();',
+    ),
+    (
+        '\t\tif (!mdx->is_valid()) {\n\t\t\tthrow std::runtime_error(\n\t\t\t\tstd::format(\"Mesh {} has severe errors and cannot be rendered. Check them in the model editor.\", path.string())\n\t\t\t);\n\t\t}',
+        '\t\tif (!mdx->is_valid()) {\n#if HIVE_HEADLESS\n\t\t\tstd::println(stderr, \"[模型校验失败] {}\", path.string());\n#else\n\t\t\tthrow std::runtime_error(\n\t\t\t\tstd::format(\"Mesh {} has severe errors and cannot be rendered. Check them in the model editor.\", path.string())\n\t\t\t);\n#endif\n\t\t}',
+    ),
+    (
+        '\t\tthis->path = path;\n\n\t\tsize_t vertices = 0;',
+        '\t\tthis->path = path;\n#if HIVE_HEADLESS\n\t\t// 只留 MDX 数据，跳过图元打包与上传。老模型的 material_id 可能越界，\n\t\t// 后面那些 mdx->materials[i.material_id] 会抛异常。\n\t\treturn;\n#endif\n\n\t\tsize_t vertices = 0;',
     ),
     (
         'class Terrain: public QObject {',
