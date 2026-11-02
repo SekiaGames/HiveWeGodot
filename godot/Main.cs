@@ -46,6 +46,9 @@ public partial class Main : Node3D
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
+    private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
+    private string customTestId = string.Empty;
+    private int customTestCategory;
     private int frames;
     private bool loaded;
 
@@ -131,6 +134,8 @@ public partial class Main : Node3D
             ReloadObjects();
             ui.SetStatus($"已改 {id} 的属性，Ctrl+S 保存到地图");
         };
+        ui.NewObjectRequested += CreateObjectFromSelection;
+        ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -714,8 +719,85 @@ public partial class Main : Node3D
         UpdateStatus();
     }
 
-    private void ShowObjectPanel(bool isUnit, int[] indices)
+    private void CreateObjectFromSelection()
     {
+        if (ui.CurrentObject is not { } current)
+        {
+            return;
+        }
+
+        string suggested = HiveCore.UniqueObjectId(current.Id) ?? string.Empty;
+
+        var dialog = new ConfirmationDialog
+        {
+            Title = $"用 {current.Id} 复制出新对象",
+            OkButtonText = "创建",
+            CancelButtonText = "取消",
+        };
+
+        var column = new VBoxContainer();
+        column.AddChild(new Label { Text = "新对象 ID（4 个字符）" });
+        var edit = new LineEdit { Text = suggested, MaxLength = 4 };
+        column.AddChild(edit);
+        dialog.AddChild(column);
+
+        dialog.Confirmed += () =>
+        {
+            string newId = edit.Text.Trim();
+            if (newId.Length != 4)
+            {
+                ui.SetStatus("ID 必须是 4 个字符");
+            }
+            else if (!HiveCore.CreateObject(current.Category, current.Id, newId))
+            {
+                ui.SetStatus($"创建 {newId} 失败，ID 可能已被占用");
+            }
+            else
+            {
+                RefreshPickers();
+                ui.ShowObjectProperties(current.Category, newId, $"自定义 {newId}（原型 {current.Id}）");
+                ui.SetStatus($"已创建 {newId}，可从左侧下拉放置");
+            }
+            dialog.QueueFree();
+        };
+        dialog.Canceled += () => dialog.QueueFree();
+
+        root.AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(360, 180));
+    }
+
+    private void DeleteCustomObject()
+    {
+        if (ui.CurrentObject is not { } current)
+        {
+            return;
+        }
+
+        if (!HiveCore.IsCustomObject(current.Category, current.Id))
+        {
+            ui.SetStatus($"{current.Id} 是基础对象，删不掉");
+            return;
+        }
+
+        if (!HiveCore.DeleteObject(current.Category, current.Id))
+        {
+            ui.SetStatus("删除失败");
+            return;
+        }
+
+        RefreshPickers();
+        ui.ClearObjectProperties();
+        ReloadObjects();
+        ui.SetStatus($"已删除 {current.Id}");
+    }
+
+    private void RefreshPickers()
+    {
+        ui.SetDoodadTypes(HiveCore.DoodadTypes());
+        ui.SetUnitTypes(HiveCore.UnitTypes());
+    }
+
+    private void ShowObjectPanel(bool isUnit, int[] indices)    {
         if (indices.Length != 1)
         {
             ui.ClearObjectProperties();
@@ -919,6 +1001,38 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (customTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                focus = new Vector3(27f, 0f, 17.5f);
+                distance = 20f;
+                UpdateCamera();
+                SetSelection(false, new[] { 0 });
+
+                string source = HiveCore.DoodadId(0) ?? string.Empty;
+                customTestCategory = HiveCore.DoodadCategory(source);
+                customTestId = HiveCore.UniqueObjectId(source) ?? string.Empty;
+
+                bool created = HiveCore.CreateObject(customTestCategory, source, customTestId);
+                GD.Print($"从 {source} 建 {customTestId}：{created}，字段 {HiveCore.ObjectFieldCount(customTestCategory, customTestId)}");
+                RefreshPickers();
+                ui.ShowObjectProperties(customTestCategory, customTestId, $"自定义 {customTestId}（原型 {source}）");
+            }
+            else if (frames == 14)
+            {
+                Capture(screenshotPath);
+            }
+            else if (frames == 20)
+            {
+                bool deleted = HiveCore.DeleteObject(customTestCategory, customTestId);
+                GD.Print($"删掉自定义对象 {customTestId}：{deleted}，剩 {HiveCore.ObjectFieldCount(customTestCategory, customTestId)} 个字段");
+                ui.ClearObjectProperties();
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (objectTest.Length > 0)
         {

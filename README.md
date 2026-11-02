@@ -98,7 +98,7 @@ bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/
 
 左侧面板的「显示路径」会把不可走的格子标红。「装饰物」「单位」两个下拉选类型后，点地图即可放置。
 
-选中单个对象后右侧出现属性面板，列出该类型的全部字段（单位 267 个、可破坏物 52 个），顶部可筛选，改过的字段标紫，Ctrl+S 一并写进地图。
+选中单个对象后右侧出现属性面板，列出该类型的全部字段（单位 267 个、可破坏物 52 个），顶部可筛选，改过的字段标紫，Ctrl+S 一并写进地图。面板顶部的「复制为新对象」会把当前类型整行复制成一个新的四字符对象并记下原型，「删除自定义」把这类对象删掉。
 
 左侧面板可直接点：纹理墙、五个高度工具、加水去水、四种悬崖操作、笔刷尺寸与形状。面板底部是小地图，点哪里相机跳到哪里。
 
@@ -122,6 +122,8 @@ HIVE_SELECT_TEST=/tmp/select_after.png HIVE_SCREENSHOT=/tmp/select.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 框选一片再批量删除
 HIVE_OBJECT_TEST=/tmp/object_after.png HIVE_SCREENSHOT=/tmp/object.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 选中对象改一条属性
+HIVE_CUSTOM_TEST=1 HIVE_SCREENSHOT=/tmp/custom.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 复制出一个自定义对象再删掉
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：

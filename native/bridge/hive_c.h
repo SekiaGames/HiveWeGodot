@@ -275,6 +275,16 @@ int32_t hive_set_object_value(void* handle, int32_t category, const char* id, in
 /* 该字段是否被改过。 */
 int32_t hive_object_value_modified(void* handle, int32_t category, const char* id, int32_t index);
 
+/* 自定义对象：把 source_id 整行复制成 new_id，shadow 里记下 oldid，
+   保存时写进 war3map.w3* 的自定义段。返回 0 成功。 */
+int32_t hive_create_object(void* handle, int32_t category, const char* source_id, const char* new_id);
+/* 删掉一个自定义对象。基础对象删不掉，返回 -1。 */
+int32_t hive_delete_object(void* handle, int32_t category, const char* id);
+/* 是不是自定义对象。 */
+int32_t hive_object_is_custom(void* handle, int32_t category, const char* id);
+/* 生成一个没被占用的四字符 id，首字母大小写跟 source_id 一致。 */
+const char* hive_unique_object_id(void* handle, const char* source_id);
+
 #ifdef __cplusplus
 }
 #endif

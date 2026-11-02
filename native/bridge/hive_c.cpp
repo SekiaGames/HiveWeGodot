@@ -2196,4 +2196,71 @@ int32_t hive_object_value_modified(void* handle, const int32_t category, const c
 	return row->second.contains(fields.fields[static_cast<std::size_t>(index)].column) ? 1 : 0;
 }
 
+int32_t hive_create_object(void* handle, const int32_t category, const char* source_id, const char* new_id) {
+	if (handle == nullptr || source_id == nullptr || new_id == nullptr) {
+		return -1;
+	}
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return -1;
+	}
+	if (!slk->row_headers.contains(source_id) || slk->row_headers.contains(new_id)) {
+		return -1;
+	}
+
+	slk->copy_row(source_id, new_id, true);
+
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->doodad_types.clear();
+	hive->unit_types.clear();
+	hive->object_fields = HiveHandle::ObjectFields {};
+	return 0;
+}
+
+int32_t hive_delete_object(void* handle, const int32_t category, const char* id) {
+	if (handle == nullptr || id == nullptr) {
+		return -1;
+	}
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr || !slk->row_headers.contains(id)) {
+		return -1;
+	}
+	const auto row = slk->shadow_data.find(id);
+	if (row == slk->shadow_data.end() || !row->second.contains("oldid")) {
+		return -1;
+	}
+
+	slk->remove_row(id);
+
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->doodad_types.clear();
+	hive->unit_types.clear();
+	hive->object_fields = HiveHandle::ObjectFields {};
+	return 0;
+}
+
+int32_t hive_object_is_custom(void* handle, const int32_t category, const char* id) {
+	if (handle == nullptr || id == nullptr) {
+		return 0;
+	}
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return 0;
+	}
+	const auto row = slk->shadow_data.find(id);
+	if (row == slk->shadow_data.end()) {
+		return 0;
+	}
+	return row->second.contains("oldid") ? 1 : 0;
+}
+
+const char* hive_unique_object_id(void* handle, const char* source_id) {
+	if (handle == nullptr || source_id == nullptr || source_id[0] == '\0') {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = get_unique_id(!std::islower(static_cast<unsigned char>(source_id[0])));
+	return hive->transient_string.c_str();
+}
+
 }

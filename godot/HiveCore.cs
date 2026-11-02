@@ -377,6 +377,18 @@ public static class HiveCore
     private static extern int hive_object_value_modified(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_create_object(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string sourceId, [MarshalAs(UnmanagedType.LPUTF8Str)] string newId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_delete_object(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_object_is_custom(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_unique_object_id(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string sourceId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_undo(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -766,6 +778,15 @@ public static class HiveCore
 
     public static bool ObjectValueModified(int category, string id, int index)
         => hive_object_value_modified(handle, category, id, index) != 0;
+
+    public static bool CreateObject(int category, string sourceId, string newId)
+        => hive_create_object(handle, category, sourceId, newId) == 0;
+
+    public static bool DeleteObject(int category, string id) => hive_delete_object(handle, category, id) == 0;
+
+    public static bool IsCustomObject(int category, string id) => hive_object_is_custom(handle, category, id) != 0;
+
+    public static string? UniqueObjectId(string sourceId) => ReadString(hive_unique_object_id(handle, sourceId));
 
     private static string? ReadString(IntPtr pointer)
         => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);

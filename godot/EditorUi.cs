@@ -38,6 +38,8 @@ public partial class EditorUi : CanvasLayer
     public event Action<string>? DoodadTypeSelected;
     public event Action<string>? UnitTypeSelected;
     public event Action<int, string, int, string>? ObjectValueChanged;
+    public event Action? NewObjectRequested;
+    public event Action? DeleteObjectRequested;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -95,6 +97,18 @@ public partial class EditorUi : CanvasLayer
 
         objectTitle = SectionTitle("对象属性");
         column.AddChild(objectTitle);
+
+        var buttons = new HBoxContainer();
+        buttons.AddThemeConstantOverride("separation", 4);
+        column.AddChild(buttons);
+
+        var create = new Button { Text = "复制为新对象", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        create.Pressed += () => NewObjectRequested?.Invoke();
+        buttons.AddChild(create);
+
+        var remove = new Button { Text = "删除自定义", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        remove.Pressed += () => DeleteObjectRequested?.Invoke();
+        buttons.AddChild(remove);
 
         objectFilter = new LineEdit { PlaceholderText = "筛选字段" };
         objectFilter.TextChanged += _ => ApplyObjectFilter();
@@ -171,6 +185,9 @@ public partial class EditorUi : CanvasLayer
         objectCategory = -1;
         objectId = string.Empty;
     }
+
+    public (int Category, string Id)? CurrentObject
+        => objectCategory >= 0 && objectId.Length > 0 ? (objectCategory, objectId) : null;
 
     private void CommitObjectValue(Label label, int index, string text)
     {
