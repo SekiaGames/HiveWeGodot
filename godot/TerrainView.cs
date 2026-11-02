@@ -889,7 +889,7 @@ public partial class TerrainView : Node3D
         for (int g = 0; g < info.GeosetCount; g++)
         {
             HiveGeosetInfo geoset = HiveCore.ModelGeoset(model, g);
-            if (geoset.IndexCount < 3 || geoset.VertexCount == 0)
+            if (geoset.IndexCount < 3 || geoset.VertexCount == 0 || geoset.Alpha <= 0.001f)
             {
                 continue;
             }

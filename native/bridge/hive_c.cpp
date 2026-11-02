@@ -114,6 +114,7 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 	float max_y = -1e30f;
 	float max_z = -1e30f;
 
+	int geoset_index = 0;
 	for (const auto& geoset : mdx->geosets) {
 		HiveGeosetInfo info {};
 		info.vertex_offset = static_cast<int32_t>(model->positions.size() / 3);
@@ -121,6 +122,14 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 		info.index_offset = static_cast<int32_t>(model->indices.size());
 		info.index_count = static_cast<int32_t>(geoset.faces.size());
 		info.alpha = 1.f;
+
+		// 几何体动画的静态 alpha，0 表示这一段平时不显示（选中光、出生特效之类）
+		for (const auto& animation : mdx->animations) {
+			if (static_cast<int32_t>(animation.geoset_id) == geoset_index) {
+				info.alpha = animation.alpha;
+				break;
+			}
+		}
 
 		for (std::size_t i = 0; i < geoset.vertices.size(); ++i) {
 			const glm::vec3& vertex = geoset.vertices[i];
@@ -185,6 +194,7 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 
 		model->texture_paths.push_back(texture_path);
 		model->geosets.push_back(info);
+		geoset_index++;
 	}
 
 	model->info.geoset_count = static_cast<int32_t>(model->geosets.size());
