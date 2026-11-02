@@ -93,6 +93,8 @@ HIVE_SCREENSHOT=/tmp/shot.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 存一张截图后退出
 HIVE_AUTOTEST=/tmp/edit HIVE_SCREENSHOT=/tmp/edit \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 自动画三笔再截图
+HIVE_RELOAD_TEST=1 HIVE_SCREENSHOT=/tmp/reload.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 换成 IceCrown 再截图
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：

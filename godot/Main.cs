@@ -29,6 +29,7 @@ public partial class Main : Node3D
 
     private readonly string screenshotPath = OS.GetEnvironment("HIVE_SCREENSHOT");
     private readonly string autoTest = OS.GetEnvironment("HIVE_AUTOTEST");
+    private readonly string reloadTest = OS.GetEnvironment("HIVE_RELOAD_TEST");
     private int frames;
     private bool loaded;
 
@@ -435,6 +436,22 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (reloadTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                string projectRoot = ProjectSettings.GlobalizePath("res://");
+                LoadMap(projectRoot + "../testdata/maps/(12)IceCrown.w3m");
+            }
+            else if (frames == 20)
+            {
+                Capture(screenshotPath);
+                GD.Print($"换图后：{view.Info.Width}×{view.Info.Height}，水面 {view.WetTiles} 格");
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (autoTest.Length == 0 && frames == 14)
         {
