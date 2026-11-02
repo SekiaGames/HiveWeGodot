@@ -326,8 +326,18 @@ public partial class TerrainView : Node3D
     private readonly System.Collections.Generic.Dictionary<int, ArrayMesh?> modelMeshes = new();
     private readonly System.Collections.Generic.Dictionary<string, Texture2D?> textureCache = new();
 
+    private Node3D? doodadRoot;
+
     public void BuildDoodads()
     {
+        if (doodadRoot != null)
+        {
+            RemoveChild(doodadRoot);
+            doodadRoot.QueueFree();
+        }
+        doodadRoot = new Node3D { Name = "Doodads" };
+        AddChild(doodadRoot);
+
         HiveDoodad[] doodads = HiveCore.Doodads();
         var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
 
@@ -374,7 +384,7 @@ public partial class TerrainView : Node3D
                 multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(doodad.X, doodad.Z, doodad.Y)));
             }
 
-            AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Doodads" });
+            doodadRoot.AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Doodads" });
             placed += pair.Value.Count;
         }
 

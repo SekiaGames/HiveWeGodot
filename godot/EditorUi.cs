@@ -19,6 +19,7 @@ public partial class EditorUi : CanvasLayer
         CliffLower,
         CliffLevel,
         CliffRamp,
+        DoodadPlace,
     }
 
     public event Action<int>? TextureSelected;
@@ -32,6 +33,7 @@ public partial class EditorUi : CanvasLayer
     public event Action<Vector2>? MinimapClicked;
     public event Action<bool>? PathingToggled;
     public event Action<bool>? RegionsToggled;
+    public event Action<string>? DoodadTypeSelected;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -41,6 +43,7 @@ public partial class EditorUi : CanvasLayer
     private readonly ButtonGroup shapeGroup = new();
     private SpinBox brushSize = null!;
     private CheckBox pathingToggle = null!;
+    private OptionButton doodadPicker = null!;
 
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new(0.18f, 0.19f, 0.22f);
@@ -144,6 +147,19 @@ public partial class EditorUi : CanvasLayer
         cliffGrid.AddChild(ToolButton("斜坡", ToolMode.CliffRamp));
 
         column.AddChild(Spacer(10));
+        column.AddChild(SectionTitle("装饰物"));
+
+        doodadPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        doodadPicker.ItemSelected += index =>
+        {
+            if (index > 0)
+            {
+                DoodadTypeSelected?.Invoke(doodadPicker.GetItemText((int)index));
+            }
+        };
+        column.AddChild(doodadPicker);
+
+        column.AddChild(Spacer(8));
 
         pathingToggle = new CheckBox { Text = "显示路径" };
         pathingToggle.Toggled += on => PathingToggled?.Invoke(on);
@@ -280,6 +296,16 @@ public partial class EditorUi : CanvasLayer
     public void SetActiveTool(string name) => toolLabel.Text = name;
 
     public void SetBrushSize(int size) => brushSize.Value = size;
+
+    public void SetDoodadTypes(string[] ids)
+    {
+        doodadPicker.Clear();
+        doodadPicker.AddItem($"装饰物（{ids.Length}）", 0);
+        foreach (string id in ids)
+        {
+            doodadPicker.AddItem(id);
+        }
+    }
 
     public void SetPathingChecked(bool on)
     {

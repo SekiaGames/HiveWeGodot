@@ -19,6 +19,7 @@ public partial class Main : Node3D
     private int textureIndex;
     private int brushSize = 8;
     private int brushShape;
+    private string doodadType = string.Empty;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -116,6 +117,14 @@ public partial class Main : Node3D
             UpdateCamera();
         };
 
+        ui.SetDoodadTypes(HiveCore.DoodadTypes());
+        ui.DoodadTypeSelected += id =>
+        {
+            doodadType = id;
+            tool = EditorUi.ToolMode.DoodadPlace;
+            ApplyTool();
+            UpdateStatus();
+        };
         ui.SetBrushSize(brushSize);
         if (OS.GetEnvironment("HIVE_SHOW_PATHING").Length > 0)
         {
@@ -234,6 +243,9 @@ public partial class Main : Node3D
                 HiveCore.SetCliffTool(7, null);
                 name = "悬崖斜坡";
                 break;
+            case EditorUi.ToolMode.DoodadPlace:
+                name = $"放置装饰物 {doodadType}";
+                break;
             default:
                 name = "?";
                 break;
@@ -292,6 +304,15 @@ public partial class Main : Node3D
                 panning = button.Pressed;
                 break;
             case MouseButton.Left:
+                if (button.Pressed && tool == EditorUi.ToolMode.DoodadPlace)
+                {
+                    if (view.Pick(camera, button.Position, out Vector3 spot))
+                    {
+                        PlaceDoodad(spot);
+                    }
+                    break;
+                }
+
                 if (button.Pressed && view.Pick(camera, button.Position, out Vector3 first))
                 {
                     painting = true;
@@ -398,6 +419,24 @@ public partial class Main : Node3D
                 }
                 break;
         }
+    }
+
+    private void PlaceDoodad(Vector3 spot)
+    {
+        if (doodadType.Length == 0)
+        {
+            return;
+        }
+
+        int index = HiveCore.AddDoodad(doodadType, spot.X, spot.Z, spot.Y, 0f);
+        if (index < 0)
+        {
+            ui.SetStatus($"放置 {doodadType} 失败");
+            return;
+        }
+
+        view.BuildDoodads();
+        ui.SetStatus($"已放置 {doodadType} 于 {spot.X:F1}, {spot.Z:F1}");
     }
 
     private void ReloadView()
@@ -516,7 +555,14 @@ public partial class Main : Node3D
         SetBrushSize(8);
         SetBrushShape(0);
 
-        GD.Print($"自动测试：水面 {view.WetTiles} 格");
+        doodadType = "LTlt";
+        for (int i = 0; i < 6; i++)
+        {
+            var spot = new Vector3(86f + i * 3f, 0f, 52f);
+            spot.Y = view.HeightAt(spot.X, spot.Z);
+            PlaceDoodad(spot);
+        }
+        GD.Print($"自动测试：水面 {view.WetTiles} 格，装饰物 {HiveCore.MapInfo.DoodadCount} 个");
         SaveMap();
     }
 

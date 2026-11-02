@@ -128,6 +128,14 @@ typedef struct HiveDoodad {
 } HiveDoodad;
 
 int32_t hive_copy_doodads(void* handle, HiveDoodad* out, int32_t capacity);
+
+/* 可放置的装饰物类型（四字符 id），来自 Doodads.slk。 */
+int32_t hive_doodad_type_count(void* handle);
+const char* hive_doodad_type_id(void* handle, int32_t index);
+/* 放一个装饰物，返回新索引，失败返回 -1。坐标是 tile，angle 是弧度。 */
+int32_t hive_add_doodad(void* handle, const char* id, float x, float y, float z, float angle);
+/* 删掉第 index 个，成功返回 0。 */
+int32_t hive_remove_doodad(void* handle, int32_t index);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
 const char* hive_doodad_id(void* handle, int32_t index);
 

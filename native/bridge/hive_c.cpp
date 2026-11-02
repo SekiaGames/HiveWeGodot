@@ -37,6 +37,7 @@ struct HiveHandle {
 	std::string unpack_dir_string;
 	std::vector<std::shared_ptr<CachedModel>> models;
 	std::unordered_map<std::string, int32_t> model_keys;
+	std::vector<std::string> doodad_types;
 	std::unordered_map<std::string, blp::Image> images;
 	std::string transient_string;
 };
@@ -812,6 +813,72 @@ int32_t hive_model_from_doodad(void* handle, const int32_t doodad_index) {
 	return index;
 }
 
+
+const std::vector<std::string>& doodad_type_ids(HiveHandle* hive) {
+	if (hive->doodad_types.empty()) {
+		for (const auto& [id, row] : doodads_slk.row_headers) {
+			if (id.size() == 4) {
+				hive->doodad_types.push_back(id);
+			}
+		}
+		std::sort(hive->doodad_types.begin(), hive->doodad_types.end());
+	}
+	return hive->doodad_types;
+}
+
+int32_t hive_doodad_type_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(doodad_type_ids(static_cast<HiveHandle*>(handle)).size());
+}
+
+const char* hive_doodad_type_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& ids = doodad_type_ids(static_cast<HiveHandle*>(handle));
+	if (static_cast<std::size_t>(index) >= ids.size()) {
+		return nullptr;
+	}
+	return ids[static_cast<std::size_t>(index)].c_str();
+}
+
+int32_t hive_add_doodad(void* handle, const char* id, const float x, const float y, const float z, const float angle) {
+	if (handle == nullptr || id == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+
+	auto mesh = hive->map->doodads.get_mesh(id, 0);
+	if (!mesh || !mesh->mdx) {
+		return -1;
+	}
+
+	Doodad doodad;
+	doodad.id = id;
+	doodad.variation = 0;
+	doodad.position = glm::vec3(x, y, z);
+	doodad.angle = angle;
+	doodad.scale = glm::vec3(1.f);
+	doodad.init(id, mesh, hive->map->terrain);
+
+	hive->map->doodads.doodads.push_back(std::move(doodad));
+	return static_cast<int32_t>(hive->map->doodads.doodads.size() - 1);
+}
+
+int32_t hive_remove_doodad(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& list = hive->map->doodads.doodads;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list.erase(list.begin() + index);
+	return 0;
+}
 
 int32_t hive_copy_units(void* handle, HiveUnit* out, const int32_t capacity) {
 	if (handle == nullptr || out == nullptr || capacity <= 0) {

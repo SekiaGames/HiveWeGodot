@@ -221,6 +221,18 @@ public static class HiveCore
     private static extern IntPtr hive_doodad_id(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_doodad_type_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_doodad_type_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_add_doodad(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, float x, float y, float z, float angle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_remove_doodad(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_units(IntPtr hive, [Out] HiveUnit[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -472,6 +484,23 @@ public static class HiveCore
         IntPtr pointer = hive_unit_id(handle, index);
         return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
     }
+
+    public static string[] DoodadTypes()
+    {
+        int count = hive_doodad_type_count(handle);
+        string[] names = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            IntPtr pointer = hive_doodad_type_id(handle, i);
+            names[i] = pointer == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
+        }
+        return names;
+    }
+
+    public static int AddDoodad(string id, float x, float y, float z, float angle)
+        => hive_add_doodad(handle, id, x, y, z, angle);
+
+    public static bool RemoveDoodad(int index) => hive_remove_doodad(handle, index) == 0;
 
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 
