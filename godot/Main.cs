@@ -1366,12 +1366,12 @@ public partial class Main : Node3D
                 GD.Print($"队伍色前 {HiveCore.MapInfo.UnitCount} 个单位，起始玩家 {basePlayer}");
                 for (int i = 0; i < 4; i++)
                 {
-                    int placed = HiveCore.AddUnit("ngad", 26f + i * 3f, 22f, 0f, basePlayer + i);
+                    int placed = HiveCore.AddUnit("ngns", 26f + i * 4f, 22f, 0f, basePlayer + i);
                     GD.Print($"玩家 {basePlayer + i} 放到索引 {placed}");
                 }
                 view.BuildUnits();
-                focus = new Vector3(30.5f, 0f, 22f);
-                distance = 12f;
+                focus = new Vector3(32f, 0f, 22f);
+                distance = 22f;
                 UpdateCamera();
             }
             else if (frames == 16)

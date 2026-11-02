@@ -104,6 +104,201 @@ struct HiveHandle {
 	std::mt19937 random_engine {std::random_device {}()};
 };
 
+struct TrackWindow {
+	int start = -1;
+	int end = 0;
+	int left = 0;
+	int right = 0;
+};
+
+template <typename T>
+TrackWindow track_window(const mdx::TrackHeader<T>& header, const int sequence_start, const int sequence_end) {
+	TrackWindow window;
+
+	for (int i = 0; i < static_cast<int>(header.tracks.size()); ++i) {
+		const mdx::Track<T>& track = header.tracks[static_cast<std::size_t>(i)];
+		if (static_cast<int>(track.frame) > sequence_end) {
+			break;
+		}
+		if (static_cast<int>(track.frame) >= sequence_start && window.start == -1) {
+			window.start = i;
+		}
+		window.end = i;
+	}
+
+	if (window.start != -1) {
+		window.left = window.start;
+		window.right = window.end > window.start ? window.left + 1 : window.left;
+	}
+	return window;
+}
+
+/// 和 Skeleton::interpolate_keyframes 同一套：窗口按序列取，越过两端就用首尾帧补，
+/// 时间差为负时加上序列长度。
+template <typename T>
+T sample_track(const mdx::TrackHeader<T>& header, const T& fallback, const int frame, const int sequence_start,
+			   const int sequence_end) {
+	if (header.id == -1 || header.tracks.empty()) {
+		return fallback;
+	}
+
+	TrackWindow window = track_window(header, sequence_start, sequence_end);
+	if (window.start == -1) {
+		return fallback;
+	}
+	if (window.start == window.end) {
+		return header.tracks[static_cast<std::size_t>(window.start)].value;
+	}
+
+	if (static_cast<int>(header.tracks[static_cast<std::size_t>(window.left)].frame) > frame) {
+		window.left = window.start;
+		window.right = window.start + 1;
+	}
+
+	while (static_cast<int>(header.tracks[static_cast<std::size_t>(window.right)].frame) < frame) {
+		window.left = window.right;
+		window.right++;
+
+		if (window.right > window.end) {
+			break;
+		}
+		if (static_cast<int>(header.tracks[static_cast<std::size_t>(window.right)].frame) == frame) {
+			window.left = window.right;
+		}
+	}
+
+	const bool past_end = static_cast<int>(header.tracks[static_cast<std::size_t>(window.end)].frame) < frame;
+	const bool before_start = static_cast<int>(header.tracks[static_cast<std::size_t>(window.start)].frame) > frame;
+	if (past_end || before_start) {
+		window.left = window.end;
+		window.right = window.start;
+	}
+
+	const T ceil_in_tan = header.tracks[static_cast<std::size_t>(window.right)].inTan;
+	const T floor_out_tan = header.tracks[static_cast<std::size_t>(window.left)].outTan;
+	int floor_time = static_cast<int>(header.tracks[static_cast<std::size_t>(window.left)].frame);
+	const int ceil_time = static_cast<int>(header.tracks[static_cast<std::size_t>(window.right)].frame);
+	const T floor_value = header.tracks[static_cast<std::size_t>(window.left)].value;
+	const T ceil_value = header.tracks[static_cast<std::size_t>(window.right)].value;
+
+	int time_between_frames = ceil_time - floor_time;
+	if (time_between_frames < 0) {
+		time_between_frames += sequence_end - sequence_start;
+		if (frame < floor_time) {
+			floor_time = ceil_time;
+		}
+	}
+
+	const float t = time_between_frames == 0
+		? 0.f
+		: (static_cast<float>(frame) - static_cast<float>(floor_time)) / static_cast<float>(time_between_frames);
+
+	return interpolate(floor_value, floor_out_tan, ceil_in_tan, ceil_value, t,
+					   static_cast<int>(header.interpolation_type));
+}
+
+glm::mat4 node_matrix(const mdx::Node& node, const glm::vec3& pivot, const int frame, const int sequence_start,
+					  const int sequence_end) {
+	const glm::vec3 position = sample_track(node.KGTR, glm::vec3(0.f), frame, sequence_start, sequence_end);
+	const glm::quat rotation = sample_track(node.KGRT, glm::quat(1.f, 0.f, 0.f, 0.f), frame, sequence_start, sequence_end);
+	const glm::vec3 scale = sample_track(node.KGSC, glm::vec3(1.f), frame, sequence_start, sequence_end);
+
+	glm::mat4 matrix(1.f);
+	from_rotation_translation_scale_origin(rotation, position, scale, matrix, pivot);
+	return matrix;
+}
+
+/// 取 Stand 序列（没有就第一条）的起始帧，拿不到序列返回 -1。
+int rest_frame(const mdx::MDX& model, int& sequence_start, int& sequence_end) {
+	if (model.sequences.empty()) {
+		return -1;
+	}
+
+	std::size_t index = 0;
+	for (std::size_t i = 0; i < model.sequences.size(); ++i) {
+		if (model.sequences[i].name.starts_with("Stand")) {
+			index = i;
+			break;
+		}
+	}
+
+	sequence_start = static_cast<int>(model.sequences[index].start_frame);
+	sequence_end = static_cast<int>(model.sequences[index].end_frame);
+	return sequence_start;
+}
+
+std::unordered_map<int, glm::mat4> build_node_matrices(mdx::MDX& model, const int frame, const int sequence_start,
+													   const int sequence_end) {
+	std::unordered_map<int, glm::mat4> local;
+	std::unordered_map<int, int> parents;
+
+	model.for_each_node([&](mdx::Node& node) {
+		const auto id = static_cast<std::size_t>(node.id);
+		const glm::vec3 pivot = id < model.pivots.size() ? model.pivots[id] : glm::vec3(0.f);
+		local[static_cast<int>(node.id)] = node_matrix(node, pivot, frame, sequence_start, sequence_end);
+		parents[static_cast<int>(node.id)] = static_cast<int32_t>(node.parent_id);
+	});
+
+	std::unordered_map<int, glm::mat4> world;
+	const std::function<glm::mat4(int)> resolve = [&](const int id) -> glm::mat4 {
+		if (const auto found = world.find(id); found != world.end()) {
+			return found->second;
+		}
+		const auto found = local.find(id);
+		if (found == local.end()) {
+			return glm::mat4(1.f);
+		}
+
+		glm::mat4 result = found->second;
+		const auto parent = parents.find(id);
+		if (parent != parents.end() && parent->second >= 0 && parent->second != id) {
+			result = resolve(parent->second) * result;
+		}
+		world[id] = result;
+		return result;
+	};
+
+	for (const auto& [id, matrix] : local) {
+		resolve(id);
+	}
+	return world;
+}
+
+/// 逐顶点按骨骼矩阵组加权平均，矩阵下标就是节点 id。
+std::vector<glm::vec3> posed_vertices(const mdx::Geoset& geoset, const std::unordered_map<int, glm::mat4>& world) {
+	std::vector<glm::vec3> vertices = geoset.vertices;
+
+	const std::vector<glm::u16vec4> weights = mdx::MDX::matrix_groups_as_skin_weights(geoset);
+	if (weights.size() < vertices.size() * 2) {
+		return vertices;
+	}
+
+	for (std::size_t i = 0; i < vertices.size(); ++i) {
+		const glm::u16vec4 indices = weights[i * 2];
+		const glm::u16vec4 values = weights[i * 2 + 1];
+
+		glm::mat4 skin(0.f);
+		float total = 0.f;
+		for (int j = 0; j < 4; ++j) {
+			if (values[j] == 0) {
+				continue;
+			}
+			const auto found = world.find(static_cast<int>(indices[j]));
+			if (found == world.end()) {
+				continue;
+			}
+			const float weight = static_cast<float>(values[j]) / 255.f;
+			skin += found->second * weight;
+			total += weight;
+		}
+
+		if (total > 0.f) {
+			vertices[i] = glm::vec3(skin * glm::vec4(geoset.vertices[i], 1.f));
+		}
+	}
+	return vertices;
+}
+
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 	auto model = std::make_shared<CachedModel>();
 
@@ -114,6 +309,14 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 	float max_y = -1e30f;
 	float max_z = -1e30f;
 
+	int pose_start = 0;
+	int pose_end = 0;
+	const int pose_frame = rest_frame(*mdx, pose_start, pose_end);
+	std::unordered_map<int, glm::mat4> pose;
+	if (pose_frame >= 0) {
+		pose = build_node_matrices(*mdx, pose_frame, pose_start, pose_end);
+	}
+
 	int geoset_index = 0;
 	for (const auto& geoset : mdx->geosets) {
 		HiveGeosetInfo info {};
@@ -123,26 +326,38 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 		info.index_count = static_cast<int32_t>(geoset.faces.size());
 		info.alpha = 1.f;
 
-		// 几何体动画的静态 alpha，0 表示这一段平时不显示（选中光、出生特效之类）
+		// 几何体动画的 alpha，按姿态帧取值；0 表示这一段平时不显示（选中光、出生特效之类）
 		for (const auto& animation : mdx->animations) {
-			if (static_cast<int32_t>(animation.geoset_id) == geoset_index) {
-				info.alpha = animation.alpha;
-				break;
+			if (static_cast<int32_t>(animation.geoset_id) != geoset_index) {
+				continue;
 			}
+			info.alpha = pose_frame >= 0
+				? sample_track(animation.KGAO, animation.alpha, pose_frame, pose_start, pose_end)
+				: animation.alpha;
+			break;
 		}
 
-		for (std::size_t i = 0; i < geoset.vertices.size(); ++i) {
-			const glm::vec3& vertex = geoset.vertices[i];
+		const std::vector<glm::vec3> posed = pose_frame >= 0 ? posed_vertices(geoset, pose) : geoset.vertices;
+
+		float geoset_min_x = 1e30f;
+		float geoset_min_y = 1e30f;
+		float geoset_min_z = 1e30f;
+		float geoset_max_x = -1e30f;
+		float geoset_max_y = -1e30f;
+		float geoset_max_z = -1e30f;
+
+		for (std::size_t i = 0; i < posed.size(); ++i) {
+			const glm::vec3& vertex = posed[i];
 			model->positions.push_back(vertex.x);
 			model->positions.push_back(vertex.y);
 			model->positions.push_back(vertex.z);
 
-			min_x = std::min(min_x, vertex.x);
-			min_y = std::min(min_y, vertex.y);
-			min_z = std::min(min_z, vertex.z);
-			max_x = std::max(max_x, vertex.x);
-			max_y = std::max(max_y, vertex.y);
-			max_z = std::max(max_z, vertex.z);
+			geoset_min_x = std::min(geoset_min_x, vertex.x);
+			geoset_min_y = std::min(geoset_min_y, vertex.y);
+			geoset_min_z = std::min(geoset_min_z, vertex.z);
+			geoset_max_x = std::max(geoset_max_x, vertex.x);
+			geoset_max_y = std::max(geoset_max_y, vertex.y);
+			geoset_max_z = std::max(geoset_max_z, vertex.z);
 
 			const glm::vec3 normal = i < geoset.normals.size() ? geoset.normals[i] : glm::vec3(0.f, 0.f, 1.f);
 			model->normals.push_back(normal.x);
@@ -168,7 +383,7 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 
 			if (!material.layers.empty()) {
 				const mdx::Layer& layer = material.layers[0];
-				info.alpha = layer.alpha;
+				info.alpha *= layer.alpha;
 				info.unshaded = (layer.shading_flags & mdx::Layer::unshaded) ? 1 : 0;
 				if ((layer.shading_flags & mdx::Layer::two_sided) != 0) {
 					info.two_sided = 1;
@@ -190,6 +405,16 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 					}
 				}
 			}
+		}
+
+		// 隐藏的层不参与包围盒，否则选取框会被选中光那种大平面撑开
+		if (info.alpha > 0.001f && geoset_max_x >= geoset_min_x) {
+			min_x = std::min(min_x, geoset_min_x);
+			min_y = std::min(min_y, geoset_min_y);
+			min_z = std::min(min_z, geoset_min_z);
+			max_x = std::max(max_x, geoset_max_x);
+			max_y = std::max(max_y, geoset_max_y);
+			max_z = std::max(max_z, geoset_max_z);
 		}
 
 		model->texture_paths.push_back(texture_path);
