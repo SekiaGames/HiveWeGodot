@@ -111,6 +111,22 @@ int32_t hive_copy_doodads(void* handle, HiveDoodad* out, int32_t capacity);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
 const char* hive_doodad_id(void* handle, int32_t index);
 
+/* 单位。坐标单位同装饰物：位置是 tile，angle 是弧度。player 是 0..15 的玩家位。 */
+typedef struct HiveUnit {
+	float x;
+	float y;
+	float z;
+	float angle;
+	float scale_x;
+	float scale_y;
+	float scale_z;
+	int32_t player;
+	int32_t variation;
+} HiveUnit;
+
+int32_t hive_copy_units(void* handle, HiveUnit* out, int32_t capacity);
+const char* hive_unit_id(void* handle, int32_t index);
+
 /* 模型网格。顶点、法线、UV 按 geoset 顺序拼成一个数组，索引各自独立。
    MDX 原始坐标系是 Z 向上，调用方自己转。 */
 typedef struct HiveModelInfo {
@@ -137,6 +153,7 @@ typedef struct HiveGeosetInfo {
 
 /* 打开模型，返回 >= 0 的句柄，失败返回 -1。句柄在 hive_close 前一直有效。 */
 int32_t hive_model_from_doodad(void* handle, int32_t doodad_index);
+int32_t hive_model_from_unit(void* handle, int32_t unit_index);
 int32_t hive_model_from_path(void* handle, const char* path);
 int32_t hive_model_info(void* handle, int32_t model, HiveModelInfo* out);
 int32_t hive_model_geoset(void* handle, int32_t model, int32_t geoset, HiveGeosetInfo* out);

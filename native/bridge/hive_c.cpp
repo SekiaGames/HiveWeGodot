@@ -758,6 +758,68 @@ int32_t hive_model_from_doodad(void* handle, const int32_t doodad_index) {
 	return index;
 }
 
+
+int32_t hive_copy_units(void* handle, HiveUnit* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->map->units.units;
+	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
+	for (std::size_t i = 0; i < count; ++i) {
+		out[i].x = source[i].position.x;
+		out[i].y = source[i].position.y;
+		out[i].z = source[i].position.z;
+		out[i].angle = source[i].angle;
+		out[i].scale_x = source[i].scale.x;
+		out[i].scale_y = source[i].scale.y;
+		out[i].scale_z = source[i].scale.z;
+		out[i].player = source[i].player;
+		out[i].variation = source[i].variation;
+	}
+	return static_cast<int32_t>(count);
+}
+
+const char* hive_unit_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->map->units.units;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return nullptr;
+	}
+	return source[static_cast<std::size_t>(index)].id.c_str();
+}
+
+int32_t hive_model_from_unit(void* handle, const int32_t unit_index) {
+	if (handle == nullptr || unit_index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->map->units.units;
+	if (static_cast<std::size_t>(unit_index) >= source.size()) {
+		return -1;
+	}
+
+	const Unit& unit = source[static_cast<std::size_t>(unit_index)];
+	const std::string key = "unit:" + unit.id;
+
+	if (const auto found = hive->model_keys.find(key); found != hive->model_keys.end()) {
+		return found->second;
+	}
+
+	auto mesh = hive->map->units.get_mesh(unit.id);
+	if (!mesh || !mesh->mdx) {
+		hive->model_keys[key] = -1;
+		return -1;
+	}
+
+	hive->models.push_back(build_model(mesh->mdx));
+	const auto index = static_cast<int32_t>(hive->models.size() - 1);
+	hive->model_keys[key] = index;
+	return index;
+}
+
 int32_t hive_model_from_path(void* handle, const char* path) {
 	if (handle == nullptr || path == nullptr) {
 		return -1;

@@ -35,6 +35,20 @@ public struct HiveDoodad
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct HiveUnit
+{
+    public float X;
+    public float Y;
+    public float Z;
+    public float Angle;
+    public float ScaleX;
+    public float ScaleY;
+    public float ScaleZ;
+    public int Player;
+    public int Variation;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct HiveModelInfo
 {
     public int GeosetCount;
@@ -183,7 +197,16 @@ public static class HiveCore
     private static extern IntPtr hive_doodad_id(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_units(IntPtr hive, [Out] HiveUnit[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_unit_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_from_doodad(IntPtr hive, int doodadIndex);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_from_unit(IntPtr hive, int unitIndex);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_info(IntPtr hive, int model, out HiveModelInfo info);
@@ -379,7 +402,27 @@ public static class HiveCore
         return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
     }
 
+    public static HiveUnit[] Units()
+    {
+        HiveMapInfo info = MapInfo;
+        if (info.UnitCount <= 0)
+        {
+            return Array.Empty<HiveUnit>();
+        }
+        HiveUnit[] data = new HiveUnit[info.UnitCount];
+        hive_copy_units(handle, data, data.Length);
+        return data;
+    }
+
+    public static string? UnitId(int index)
+    {
+        IntPtr pointer = hive_unit_id(handle, index);
+        return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
+
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
+
+    public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
 
     public static HiveModelInfo ModelInfo(int model)
     {

@@ -74,6 +74,7 @@ public partial class Main : Node3D
         root.AddChild(view);
         view.Build();
         view.BuildDoodads();
+        view.BuildUnits();
 
         camera = new Camera3D { Fov = 60 };
         root.AddChild(camera);
@@ -466,7 +467,7 @@ public partial class Main : Node3D
             if (frames == 10)
             {
                 focus = new Vector3(96f, 0, 48f);
-                distance = 78f;
+                distance = 42f;
                 UpdateCamera();
             }
             else if (frames == 14)

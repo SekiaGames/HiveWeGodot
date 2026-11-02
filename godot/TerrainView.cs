@@ -339,6 +339,57 @@ public partial class TerrainView : Node3D
         GD.Print($"装饰物 {placed} / {doodads.Length}，{byModel.Count} 种模型");
     }
 
+    public void BuildUnits()
+    {
+        HiveUnit[] units = HiveCore.Units();
+        var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
+
+        for (int i = 0; i < units.Length; i++)
+        {
+            int model = HiveCore.ModelFromUnit(i);
+            if (model < 0)
+            {
+                continue;
+            }
+            if (!byModel.TryGetValue(model, out var list))
+            {
+                list = new System.Collections.Generic.List<int>();
+                byModel[model] = list;
+            }
+            list.Add(i);
+        }
+
+        int placed = 0;
+        foreach (var pair in byModel)
+        {
+            ArrayMesh? mesh = ModelMesh(pair.Key);
+            if (mesh == null)
+            {
+                continue;
+            }
+
+            var multi = new MultiMesh
+            {
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = mesh,
+                InstanceCount = pair.Value.Count,
+            };
+
+            for (int k = 0; k < pair.Value.Count; k++)
+            {
+                HiveUnit unit = units[pair.Value[k]];
+                Basis basis = Basis.Identity.Rotated(Vector3.Up, -unit.Angle)
+                    .Scaled(new Vector3(unit.ScaleX, unit.ScaleY, unit.ScaleZ));
+                multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(unit.X, unit.Z, unit.Y)));
+            }
+
+            AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Units" });
+            placed += pair.Value.Count;
+        }
+
+        GD.Print($"单位 {placed} / {units.Length}，{byModel.Count} 种模型");
+    }
+
     private ArrayMesh? ModelMesh(int model)
     {
         if (modelMeshes.TryGetValue(model, out ArrayMesh? cached))
