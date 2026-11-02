@@ -2263,4 +2263,98 @@ const char* hive_unique_object_id(void* handle, const char* source_id) {
 	return hive->transient_string.c_str();
 }
 
+const char* hive_map_name(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.name);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_name(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.name, value);
+	return 0;
+}
+
+const char* hive_map_author(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.author);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_author(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.author, value);
+	return 0;
+}
+
+const char* hive_map_description(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.description);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_description(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.description, value);
+	return 0;
+}
+
+const char* hive_map_suggested_players(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.suggested_players);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_suggested_players(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.suggested_players, value);
+	return 0;
+}
+
+void hive_map_versions(void* handle, int32_t* out) {
+	if (handle == nullptr || out == nullptr) {
+		return;
+	}
+	const MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	out[0] = info.map_version;
+	out[1] = info.editor_version;
+	out[2] = info.game_version_major;
+	out[3] = info.game_version_minor;
+	out[4] = info.game_version_patch;
+	out[5] = info.game_version_build;
+}
+
+void hive_map_playable_size(void* handle, int32_t* width, int32_t* height) {
+	if (handle == nullptr || width == nullptr || height == nullptr) {
+		return;
+	}
+	const MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	*width = info.playable_width;
+	*height = info.playable_height;
+}
+
 }

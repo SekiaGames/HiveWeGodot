@@ -40,6 +40,7 @@ public partial class EditorUi : CanvasLayer
     public event Action<int, string, int, string>? ObjectValueChanged;
     public event Action? NewObjectRequested;
     public event Action? DeleteObjectRequested;
+    public event Action? MapInfoRequested;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -455,6 +456,8 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(ActionButton("重做", () => RedoRequested?.Invoke()));
         row.AddChild(new VSeparator());
         row.AddChild(ActionButton("保存 w3m", () => SaveRequested?.Invoke()));
+        row.AddChild(new VSeparator());
+        row.AddChild(ActionButton("地图信息", () => MapInfoRequested?.Invoke()));
     }
 
     private void BuildStatus()

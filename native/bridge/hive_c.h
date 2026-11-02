@@ -285,6 +285,20 @@ int32_t hive_object_is_custom(void* handle, int32_t category, const char* id);
 /* 生成一个没被占用的四字符 id，首字母大小写跟 source_id 一致。 */
 const char* hive_unique_object_id(void* handle, const char* source_id);
 
+/* 地图信息。四个文本字段存在 war3map.wts 里，返回的是解析后的内容。 */
+const char* hive_map_name(void* handle);
+int32_t hive_set_map_name(void* handle, const char* value);
+const char* hive_map_author(void* handle);
+int32_t hive_set_map_author(void* handle, const char* value);
+const char* hive_map_description(void* handle);
+int32_t hive_set_map_description(void* handle, const char* value);
+const char* hive_map_suggested_players(void* handle);
+int32_t hive_set_map_suggested_players(void* handle, const char* value);
+/* 6 个 int：地图版本、编辑器版本、游戏主/次/补丁/构建版本。 */
+void hive_map_versions(void* handle, int32_t* out);
+/* 可玩区域尺寸。 */
+void hive_map_playable_size(void* handle, int32_t* width, int32_t* height);
+
 #ifdef __cplusplus
 }
 #endif

@@ -47,6 +47,7 @@ public partial class Main : Node3D
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
+    private readonly string infoTest = OS.GetEnvironment("HIVE_INFO_TEST");
     private string customTestId = string.Empty;
     private int customTestCategory;
     private int frames;
@@ -136,6 +137,7 @@ public partial class Main : Node3D
         };
         ui.NewObjectRequested += CreateObjectFromSelection;
         ui.DeleteObjectRequested += DeleteCustomObject;
+        ui.MapInfoRequested += ShowMapInfoDialog;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -719,6 +721,69 @@ public partial class Main : Node3D
         UpdateStatus();
     }
 
+    private void ShowMapInfoDialog()
+    {
+        var dialog = new AcceptDialog
+        {
+            Title = "地图信息",
+            OkButtonText = "保存并关闭",
+        };
+
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddThemeConstantOverride("h_separation", 10);
+        grid.AddThemeConstantOverride("v_separation", 8);
+
+        var nameEdit = new LineEdit
+        {
+            Text = HiveCore.MapName ?? string.Empty,
+            CustomMinimumSize = new Vector2(340, 0),
+        };
+        var authorEdit = new LineEdit { Text = HiveCore.MapAuthor ?? string.Empty };
+        var suggestedEdit = new LineEdit { Text = HiveCore.MapSuggestedPlayers ?? string.Empty };
+        var descriptionEdit = new TextEdit
+        {
+            Text = HiveCore.MapDescription ?? string.Empty,
+            CustomMinimumSize = new Vector2(340, 100),
+        };
+
+        int[] versions = HiveCore.MapVersions();
+        var (playableWidth, playableHeight) = HiveCore.MapPlayableSize();
+
+        grid.AddChild(new Label { Text = "名称" });
+        grid.AddChild(nameEdit);
+        grid.AddChild(new Label { Text = "作者" });
+        grid.AddChild(authorEdit);
+        grid.AddChild(new Label { Text = "建议玩家" });
+        grid.AddChild(suggestedEdit);
+        grid.AddChild(new Label { Text = "描述" });
+        grid.AddChild(descriptionEdit);
+        grid.AddChild(new Label { Text = "尺寸" });
+        grid.AddChild(new Label
+        {
+            Text = $"{view.Info.Width}×{view.Info.Height}，可玩 {playableWidth}×{playableHeight}",
+        });
+        grid.AddChild(new Label { Text = "版本" });
+        grid.AddChild(new Label
+        {
+            Text = $"地图 {versions[0]}，编辑器 {versions[1]}，游戏 {versions[2]}.{versions[3]}.{versions[4]}.{versions[5]}",
+        });
+
+        dialog.AddChild(grid);
+        dialog.Confirmed += () =>
+        {
+            HiveCore.SetMapName(nameEdit.Text);
+            HiveCore.SetMapAuthor(authorEdit.Text);
+            HiveCore.SetMapSuggestedPlayers(suggestedEdit.Text);
+            HiveCore.SetMapDescription(descriptionEdit.Text);
+            ui.SetStatus("地图信息已改，Ctrl+S 存进地图");
+            dialog.QueueFree();
+        };
+        dialog.Canceled += () => dialog.QueueFree();
+
+        root.AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(600, 420));
+    }
+
     private void CreateObjectFromSelection()
     {
         if (ui.CurrentObject is not { } current)
@@ -1001,6 +1066,21 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (infoTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                ShowMapInfoDialog();
+            }
+            else if (frames == 14)
+            {
+                Capture(screenshotPath);
+                GD.Print($"地图信息：{HiveCore.MapName}，可玩 {HiveCore.MapPlayableSize()}");
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (customTest.Length > 0)
         {

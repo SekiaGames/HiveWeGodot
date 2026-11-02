@@ -389,6 +389,36 @@ public static class HiveCore
     private static extern IntPtr hive_unique_object_id(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string sourceId);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_name(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_name(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_author(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_author(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_description(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_description(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_suggested_players(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_suggested_players(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_map_versions(IntPtr hive, [Out] int[] output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_undo(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -787,6 +817,35 @@ public static class HiveCore
     public static bool IsCustomObject(int category, string id) => hive_object_is_custom(handle, category, id) != 0;
 
     public static string? UniqueObjectId(string sourceId) => ReadString(hive_unique_object_id(handle, sourceId));
+
+    public static string? MapName => ReadString(hive_map_name(handle));
+
+    public static bool SetMapName(string value) => hive_set_map_name(handle, value) == 0;
+
+    public static string? MapAuthor => ReadString(hive_map_author(handle));
+
+    public static bool SetMapAuthor(string value) => hive_set_map_author(handle, value) == 0;
+
+    public static string? MapDescription => ReadString(hive_map_description(handle));
+
+    public static bool SetMapDescription(string value) => hive_set_map_description(handle, value) == 0;
+
+    public static string? MapSuggestedPlayers => ReadString(hive_map_suggested_players(handle));
+
+    public static bool SetMapSuggestedPlayers(string value) => hive_set_map_suggested_players(handle, value) == 0;
+
+    public static int[] MapVersions()
+    {
+        int[] data = new int[6];
+        hive_map_versions(handle, data);
+        return data;
+    }
+
+    public static (int Width, int Height) MapPlayableSize()
+    {
+        hive_map_playable_size(handle, out int width, out int height);
+        return (width, height);
+    }
 
     private static string? ReadString(IntPtr pointer)
         => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
