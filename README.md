@@ -21,6 +21,7 @@
 
 - [`docs/架构.md`](docs/架构.md)：分层处置、Qt 兼容层、第三方替身、C ABI、界面与渲染分工、实施顺序、风险
 - [`docs/HiveWE功能清单.md`](docs/HiveWE功能清单.md)：HiveWE 有哪些编辑能力，各模块完整度
+- [`docs/HiveWE版本与客户端支持.md`](docs/HiveWE版本与客户端支持.md)：各版本对应哪个客户端版本、功能演进、相对官方 WE 的差距
 
 ## 快速开始
 
