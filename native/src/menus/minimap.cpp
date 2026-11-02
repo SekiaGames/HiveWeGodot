@@ -112,7 +112,7 @@ void Minimap::mousePressEvent(QMouseEvent* event) {
 			x = std::clamp(x, 0.f, 1.f);
 			y = std::clamp(y, 0.f, 1.f);
 
-			emit clicked({ x, y });
+			if (clicked) { clicked({ x, y }); }
 		}
 	}
 }
@@ -135,7 +135,7 @@ void Minimap::mouseMoveEvent(QMouseEvent* event) {
 			x = std::clamp(x, 0.f, 1.f);
 			y = std::clamp(y, 0.f, 1.f);
 
-			emit clicked({ x, y });
+			if (clicked) { clicked({ x, y }); }
 		}
 	}
 }

@@ -139,7 +139,7 @@ void UnitBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event) {
 					}
 					selections.emplace(&i);
 				}
-				emit selection_changed();
+				if (selection_changed) { selection_changed(); }
 				break;
 			default:
 				Brush::key_press_event(ctx, event);
@@ -193,7 +193,7 @@ void UnitBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* even
 					} else {
 						selections = {&unit};
 						drag_offsets = {input_handler.mouse_world - unit.position};
-						emit selection_changed();
+						if (selection_changed) { selection_changed(); }
 					}
 					return;
 				}
@@ -256,7 +256,7 @@ void UnitBrush::mouse_move_event(WorldEditContext& ctx, const QMouseEvent* event
 				}
 
 				//selections = units.query_area({ selection_start.x, selection_start.y, size.x, size.y });
-				emit selection_changed();
+				if (selection_changed) { selection_changed(); }
 			}
 		}
 	}
@@ -290,7 +290,7 @@ void UnitBrush::delete_selection() {
 	units.remove_units(selections);
 
 	selections.clear();
-	emit selection_changed();
+	if (selection_changed) { selection_changed(); }
 }
 
 void UnitBrush::copy_selection() {
@@ -314,7 +314,7 @@ void UnitBrush::cut_selection() {
 
 void UnitBrush::clear_selection() {
 	selections.clear();
-	emit selection_changed();
+	if (selection_changed) { selection_changed(); }
 }
 
 void UnitBrush::place_clipboard(WorldEditContext& ctx) {

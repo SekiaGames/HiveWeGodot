@@ -209,6 +209,9 @@ class RenderManager {
 
   public:
 	RenderManager() {
+#if HIVE_HEADLESS
+		return;
+#endif
 		skinned_mesh_globals.init();
 		click_helper = resource_manager.load<SkinnedMesh>("Objects/InvalidObject/InvalidObject.mdx", "", std::nullopt).value();
 		click_helper_skeleton = Skeleton(click_helper->mdx);

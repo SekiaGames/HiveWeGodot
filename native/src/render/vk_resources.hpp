@@ -103,6 +103,9 @@ struct Buffer {
 
 /// Host-visible buffers are persistently mapped and meant for sequential CPU writes
 Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const bool host_visible) {
+#if HIVE_HEADLESS
+	return Buffer {};
+#endif
 	const VkBufferCreateInfo buffer_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.size = size,
@@ -130,6 +133,9 @@ Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, co
 }
 
 void destroy_buffer_deferred(const Buffer& buffer) {
+#if HIVE_HEADLESS
+	return;
+#endif
 	if (buffer.buffer == VK_NULL_HANDLE) {
 		return;
 	}
@@ -175,6 +181,9 @@ void transfer_after_reads_barrier(const VkCommandBuffer cmd) {
 /// Overwrites part of a device-local buffer that frames in flight may still be reading.
 /// The copy waits for all earlier GPU work on the queue, and the call blocks until it is done.
 void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, const VkDeviceSize offset = 0) {
+#if HIVE_HEADLESS
+	return;
+#endif
 	if (data.empty()) {
 		return;
 	}
@@ -196,6 +205,9 @@ void upload_buffer(const Buffer& buffer, const std::vector<T>& data) {
 
 /// Creates a device-local buffer holding `data`. Blocks until the upload is done.
 Buffer create_device_buffer(const std::span<const std::byte> data, const VkBufferUsageFlags usage) {
+#if HIVE_HEADLESS
+	return Buffer {};
+#endif
 	Buffer staging = create_buffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
 	std::memcpy(staging.mapped, data.data(), data.size());
 
@@ -229,6 +241,9 @@ Image create_image(
 	const uint32_t layers = 1,
 	const bool array_view = false
 ) {
+#if HIVE_HEADLESS
+	return Image {};
+#endif
 	const VkImageCreateInfo image_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
@@ -264,6 +279,9 @@ Image create_image(
 }
 
 void destroy_image_deferred(const Image& image) {
+#if HIVE_HEADLESS
+	return;
+#endif
 	if (image.image == VK_NULL_HANDLE) {
 		return;
 	}
@@ -504,6 +522,10 @@ class Bindless {
 	/// Writes a combined image sampler into a free slot and returns the slot. Thread-safe.
 	/// The image must be in SHADER_READ_ONLY_OPTIMAL layout whenever a shader reads the slot.
 	uint32_t add(const VkImageView view, const VkSampler sampler) {
+#if HIVE_HEADLESS
+		std::lock_guard headless_lock(mutex);
+		return next_slot++;
+#endif
 		std::lock_guard lock(mutex);
 
 		uint32_t slot;
@@ -582,6 +604,9 @@ struct PipelineDescription {
 };
 
 VkPipeline create_graphics_pipeline(const PipelineDescription& description) {
+#if HIVE_HEADLESS
+	return VK_NULL_HANDLE;
+#endif
 	const VkDevice device = vk_context.device.device;
 
 	// maintenance5 lets the SPIR-V be passed straight to the pipeline instead of through a VkShaderModule

@@ -92,6 +92,7 @@
 #include "json.hpp"
 #include "binary_reader.hpp"
 #include "casc.hpp"
+#include "mpq.hpp"
 #include "no_init_allocator.hpp"
 #include "utilities.hpp"
 
@@ -111,7 +112,7 @@ class Hierarchy {
 
 	char tileset = 'L';
 	std::string locale = "enus";
-	casc::CASC game_data;
+	mpq::MPQ game_data;
 	json::JSON aliases;
 
 	fs::path map_directory;

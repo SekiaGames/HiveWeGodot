@@ -192,7 +192,16 @@ class SkinnedMesh: public Resource {
 	static constexpr const char* name = "SkinnedMesh";
 
 	explicit SkinnedMesh(const fs::path& path, std::optional<std::pair<int, std::string>> replaceable_id_override) {
-		BinaryReader reader = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"}).value();
+		auto opened = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"});
+		if (!opened) {
+#if HIVE_HEADLESS
+			std::println(stderr, "[悬崖模型缺失] {}", opened.error());
+			return;
+#else
+			throw std::runtime_error(opened.error());
+#endif
+		}
+		BinaryReader reader = std::move(*opened);
 
 		if (mdx::is_mdx(reader)) {
 			mdx = std::make_shared<mdx::MDX>(reader);

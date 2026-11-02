@@ -12,6 +12,9 @@
 | 去 Qt | 完成：靠 `native/include` 的兼容层，核心层源码未改一行 |
 | Vulkan | 保留依赖让 `resources/` 层原样编过，运行期不触碰 |
 | 核心库 | 已出 `libhivewe_core.a`，7.3 MB，6291 个符号 |
+| headless 化 | 完成，`HIVE_HEADLESS` 在 8 处短路 Vulkan 副作用 |
+| 读地图 | 完成：解包 w3m、193×97、7 种纹理、2011 个装饰物、18721 个高度点 |
+| 装饰物模型 | 卡在 `doodads.create()`，1.27 的 MDX 版本 HiveWE 解析器不认 |
 | C ABI | 未开始 |
 | Godot 界面 | 未开始 |
 
@@ -47,6 +50,14 @@ cmake --build build -j8
 ```
 
 产物 `native/build/libhivewe_core.a`。
+
+验证读图（要先装好游戏 MPQ）：
+
+```bash
+./build/hivewe_smoke <游戏目录> <地图.w3m>
+```
+
+或者用 `probe_files` 单独查某个文件在不在 MPQ 里。
 
 ## 目录
 

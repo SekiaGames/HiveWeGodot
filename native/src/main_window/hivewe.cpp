@@ -638,7 +638,7 @@ void HiveWE::save() {
 		return;
 	}
 
-	emit saving_initiated();
+	if (saving_initiated) { saving_initiated(); }
 	map->save(map->filesystem_path);
 }
 
@@ -658,7 +658,7 @@ void HiveWE::save_as() {
 		return;
 	}
 
-	emit saving_initiated();
+	if (saving_initiated) { saving_initiated(); }
 	if (fs::exists(file_name) && fs::equivalent(file_name, map->filesystem_path)) {
 		if (map->save(map->filesystem_path)) {
 			map->is_in_temp_dir = false;
@@ -708,7 +708,7 @@ void HiveWE::export_map() {
 
 	fs::remove(save_dir.toStdString());
 
-	emit saving_initiated();
+	if (saving_initiated) { saving_initiated(); }
 	map->save(map->filesystem_path);
 
 	const uint64_t file_count = std::distance(fs::recursive_directory_iterator {map->filesystem_path}, {});
@@ -790,7 +790,7 @@ void HiveWE::export_map() {
 }
 
 void HiveWE::play_test() {
-	emit saving_initiated();
+	if (saving_initiated) { saving_initiated(); }
 	if (!map->save(map->filesystem_path)) {
 		return;
 	}
@@ -936,7 +936,7 @@ void HiveWE::set_current_custom_tab(QRibbonTab* tab, QString name) {
 	}
 
 	if (current_custom_tab != nullptr) {
-		emit palette_changed(tab);
+		if (palette_changed) { palette_changed(tab); }
 	}
 
 	remove_custom_tab();

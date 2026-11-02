@@ -209,6 +209,7 @@ constexpr uint32_t terrain_flag_regions = 4;
 constexpr uint32_t terrain_flag_brush = 8;
 
 class Terrain: public QObject {
+	friend struct HiveBridge;
 	Q_OBJECT
 
 	static constexpr int write_version = 12;
@@ -609,7 +610,7 @@ class Terrain: public QObject {
 		update_ground_textures({0, 0, width, height});
 		update_water({0, 0, width, height});
 
-		emit minimap_changed(minimap_image());
+		if (minimap_changed) { minimap_changed(minimap_image()); }
 	}
 
 	void save() const {
@@ -834,7 +835,7 @@ class Terrain: public QObject {
 		reload_ground_textures(tilesets);
 
 		update_ground_textures({0, 0, width, height});
-		emit tileset_changed();
+		if (tileset_changed) { tileset_changed(); }
 	}
 
 	/// The texture of the tile point which is influenced by its surroundings.
@@ -1366,7 +1367,7 @@ class Terrain: public QObject {
 			}
 		}
 
-		emit minimap_changed(minimap_image());
+		if (minimap_changed) { minimap_changed(minimap_image()); }
 	}
 
 	/// Resizes the terrain by expanding/shrinking it from all four sides
@@ -1396,11 +1397,11 @@ class Terrain: public QObject {
 
 		re_render(physics);
 
-		emit minimap_changed(minimap_image());
+		if (minimap_changed) { minimap_changed(minimap_image()); }
 	}
 
 	void update_minimap() {
-		emit minimap_changed(minimap_image());
+		if (minimap_changed) { minimap_changed(minimap_image()); }
 	}
 
   private:
@@ -1513,7 +1514,11 @@ class Terrain: public QObject {
 
 		for (const auto& tile_id : tileset_ids) {
 			const auto& texture = *tilesets.terrain_texture(tile_id);
-			ground_textures.push_back(resource_manager.load<GroundTexture>(texture.file_path).value());
+			auto loaded_texture = resource_manager.load<GroundTexture>(texture.file_path);
+			if (!loaded_texture) {
+				std::println(stderr, "[贴图缺失] {}", loaded_texture.error());
+			}
+			ground_textures.push_back(std::move(loaded_texture).value());
 			ground_texture_to_id_map.emplace(tile_id, static_cast<int>(ground_textures.size() - 1));
 			gpu_ground_texture_slots.push_back(ground_textures.back()->slot);
 		}

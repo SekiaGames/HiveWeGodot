@@ -315,7 +315,7 @@ bool RegionPalette::event(QEvent* e) {
 	} else if (e->type() == QEvent::WindowActivate) {
 		selection_mode->enableShortcuts();
 		claim_brush(&brush);
-		emit ribbon_tab_requested(ribbon_tab, "Region Palette");
+		if (ribbon_tab_requested) { ribbon_tab_requested(ribbon_tab, "Region Palette"); }
 		// The regions may have changed (e.g. through undo/redo) while another brush was active
 		update_list();
 	}

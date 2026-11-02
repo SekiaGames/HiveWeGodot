@@ -101,11 +101,11 @@ using OUTCOME_V2_NAMESPACE::result;
 /// In the MDX on disk format static colors are RGB and tracks are BGR
 /// In MDL everything is BGR
 namespace mdx {
-	bool is_mdx(const BinaryReader& reader) {
+	inline bool is_mdx(const BinaryReader& reader) {
 		return reader.buffer.size() >= 4 && std::memcmp(reader.buffer.data(), "MDLX", 4) == 0;
 	}
 
-	extern const std::unordered_map<int, std::string> replaceable_id_to_texture {
+	inline const std::unordered_map<int, std::string> replaceable_id_to_texture {
 		{1, "ReplaceableTextures/TeamColor/TeamColor00"},
 		{2, "ReplaceableTextures/TeamGlow/TeamGlow00"},
 		{11, "ReplaceableTextures/Cliff/Cliff0"},

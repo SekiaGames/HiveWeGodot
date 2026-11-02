@@ -179,7 +179,7 @@ void RegionBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 		for (auto& region : ctx.regions.regions) {
 			selections.emplace(&region);
 		}
-		emit selection_changed();
+		if (selection_changed) { selection_changed(); }
 		return;
 	}
 	Brush::key_press_event(ctx, event);
@@ -191,7 +191,7 @@ void RegionBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 		if (mode == Mode::placement) {
 			if (!selections.empty()) {
 				selections.clear();
-				emit selection_changed();
+				if (selection_changed) { selection_changed(); }
 			}
 
 			// Immediately create the region and drag out its size through the resize machinery
@@ -214,7 +214,7 @@ void RegionBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 			resize_region = &regions.regions.back();
 			resize_edges = { .right = true, .top = true };
 
-			emit regions_changed();
+			if (regions_changed) { regions_changed(); }
 			return;
 		}
 
@@ -227,7 +227,7 @@ void RegionBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 					} else {
 						selections.emplace(region);
 					}
-					emit selection_changed();
+					if (selection_changed) { selection_changed(); }
 					return;
 				}
 			}
@@ -266,7 +266,7 @@ void RegionBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 						select_on_release = true;
 					} else {
 						selections = { under.front() };
-						emit selection_changed();
+						if (selection_changed) { selection_changed(); }
 					}
 					return;
 				}
@@ -358,7 +358,7 @@ void RegionBrush::mouse_move_event(WorldEditContext& ctx, const QMouseEvent* eve
 				selections = query;
 			}
 
-			emit selection_changed();
+			if (selection_changed) { selection_changed(); }
 		}
 	}
 }
@@ -385,7 +385,7 @@ void RegionBrush::mouse_release_event(WorldEditContext& ctx, const QMouseEvent* 
 			world_undo.new_undo_group();
 			world_undo.add_undo_action(std::move(undo));
 
-			emit regions_changed();
+			if (regions_changed) { regions_changed(); }
 		} else if (dragging || resizing) {
 			dragging = false;
 			resizing = false;
@@ -405,7 +405,7 @@ void RegionBrush::mouse_release_event(WorldEditContext& ctx, const QMouseEvent* 
 						}
 					}
 					selections = { target };
-					emit selection_changed();
+					if (selection_changed) { selection_changed(); }
 				}
 			}
 			select_on_release = false;
@@ -432,8 +432,8 @@ void RegionBrush::delete_selection() {
 	regions.remove_regions(selections);
 
 	selections.clear();
-	emit selection_changed();
-	emit regions_changed();
+	if (selection_changed) { selection_changed(); }
+	if (regions_changed) { regions_changed(); }
 }
 
 void RegionBrush::clear_selection() {
@@ -441,7 +441,7 @@ void RegionBrush::clear_selection() {
 	if (creating && resize_region) {
 		regions.remove_region(resize_region);
 		creating = false;
-		emit regions_changed();
+		if (regions_changed) { regions_changed(); }
 	}
 
 	selections.clear();
@@ -450,7 +450,7 @@ void RegionBrush::clear_selection() {
 	resizing = false;
 	resize_region = nullptr;
 	state_undo.reset();
-	emit selection_changed();
+	if (selection_changed) { selection_changed(); }
 }
 
 void RegionBrush::apply(WorldEditContext& ctx, double frame_delta) {

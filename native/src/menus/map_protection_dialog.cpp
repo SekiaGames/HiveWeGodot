@@ -80,12 +80,12 @@ MapProtectionDialog::MapProtectionDialog(QWidget* parent) : QDialog(parent) {
 
 	connect(buttonBox, &QDialogButtonBox::accepted, [&]() {
 		save();
-		emit accept();
+		if (accept) { accept(); }
 		close();
 	});
 
 	connect(buttonBox, &QDialogButtonBox::rejected, [&]() {
-		emit reject();
+		if (reject) { reject(); }
 		close();
 	});
 }

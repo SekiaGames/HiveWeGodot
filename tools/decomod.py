@@ -96,6 +96,7 @@ RE_IMPORT_ANGLE = re.compile(r'^import\s+<([^>]+)>;\s*$')
 RE_IMPORT_QUOTED = re.compile(r'^import\s+"([^"]+)"\s*;\s*$')
 RE_IMPORT_NAMED = re.compile(r'^import\s+([\w.]+)\s*;\s*$')
 RE_MOC = re.compile(r'^#include "[\w/]+\.moc"\n?', re.M)
+RE_EMIT = re.compile(r'^(\s*)emit (?!dataChanged)(\w+)\((.*)\);$', re.M)
 RE_SLOTS = re.compile(r'^(\s*)(?:public|protected|private)?\s*slots:\s*$', re.M)
 RE_EXEC_PAR = re.compile(r'std::(for_each|sort|transform|accumulate)\(\s*std::execution::\w+\s*,\s*')
 
@@ -124,12 +125,119 @@ PATCHES = [
         '  signals:\n\tvoid minimap_changed(Texture minimap);\n\tvoid tileset_changed();',
         '\tstd::function<void(Texture)> minimap_changed;\n\tstd::function<void()> tileset_changed;',
     ),
+    (
+        '\tbool is_mdx(const BinaryReader& reader) {',
+        '\tinline bool is_mdx(const BinaryReader& reader) {',
+    ),
+    (
+        '\textern const std::unordered_map<int, std::string> replaceable_id_to_texture {',
+        '\tinline const std::unordered_map<int, std::string> replaceable_id_to_texture {',
+    ),
+    (
+        '\tRenderManager() {\n\t\tskinned_mesh_globals.init();',
+        '\tRenderManager() {\n#if HIVE_HEADLESS\n\t\treturn;\n#endif\n\t\tskinned_mesh_globals.init();',
+    ),
+    (
+        '\t\t\t\t\tauto res = hierarchy.open_file(path);\n'
+        '\t\t\t\t\treturn std::move(res.value().buffer);',
+        '\t\t\t\t\tauto res = hierarchy.open_file(path);\n'
+        '\t\t\t\t\tif (!res) {\n'
+        '\t\t\t\t\t\treturn std::vector<u8, default_init_allocator<u8>>();\n'
+        '\t\t\t\t\t}\n'
+        '\t\t\t\t\treturn std::move(res.value().buffer);',
+    ),
+    (
+        '\t\t\tif (auto result = load_hierarchy(path, source); !result) {\n'
+        '\t\t\t\tthrow std::runtime_error(result.error());\n'
+        '\t\t\t}',
+        '\t\t\tif (auto result = load_hierarchy(path, source); !result) {\n'
+        '#if HIVE_HEADLESS\n'
+        '\t\t\t\tstd::print(stderr, "[数据缺失] {}\\n", result.error());\n'
+        '\t\t\t\treturn;\n'
+        '#else\n'
+        '\t\t\t\tthrow std::runtime_error(result.error());\n'
+        '#endif\n'
+        '\t\t\t}',
+    ),
+    (
+        'Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const bool host_visible) {',
+        'Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const bool host_visible) {\n'
+        '#if HIVE_HEADLESS\n\treturn Buffer {};\n#endif',
+    ),
+    (
+        '\tconst bool array_view = false\n) {',
+        '\tconst bool array_view = false\n) {\n#if HIVE_HEADLESS\n\treturn Image {};\n#endif',
+    ),
+    (
+        'Image upload_texture(const TextureData& data, const bool generate_mips = true) {',
+        'Image upload_texture(const TextureData& data, const bool generate_mips = true) {\n'
+        '#if HIVE_HEADLESS\n\treturn Image {};\n#endif',
+    ),
+    (
+        '\t\t\tground_textures.push_back(resource_manager.load<GroundTexture>(texture.file_path).value());',
+        '\t\t\tauto loaded_texture = resource_manager.load<GroundTexture>(texture.file_path);\n'
+        '\t\t\tif (!loaded_texture) {\n'
+        '\t\t\t\tstd::println(stderr, "[贴图缺失] {}", loaded_texture.error());\n'
+        '\t\t\t}\n'
+        '\t\t\tground_textures.push_back(std::move(loaded_texture).value());',
+    ),
+    (
+        '\tuint32_t add(const VkImageView view, const VkSampler sampler) {\n\t\tstd::lock_guard lock(mutex);',
+        '\tuint32_t add(const VkImageView view, const VkSampler sampler) {\n'
+        '#if HIVE_HEADLESS\n'
+        '\t\tstd::lock_guard headless_lock(mutex);\n'
+        '\t\treturn next_slot++;\n'
+        '#endif\n'
+        '\t\tstd::lock_guard lock(mutex);',
+    ),
+    (
+        'void destroy_buffer_deferred(const Buffer& buffer) {',
+        'void destroy_buffer_deferred(const Buffer& buffer) {\n#if HIVE_HEADLESS\n\treturn;\n#endif',
+    ),
+    (
+        'Buffer create_device_buffer(const std::span<const std::byte> data, const VkBufferUsageFlags usage) {',
+        'Buffer create_device_buffer(const std::span<const std::byte> data, const VkBufferUsageFlags usage) {\n#if HIVE_HEADLESS\n\treturn Buffer {};\n#endif',
+    ),
+    (
+        'void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, const VkDeviceSize offset = 0) {',
+        'void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, const VkDeviceSize offset = 0) {\n#if HIVE_HEADLESS\n\treturn;\n#endif',
+    ),
+    (
+        'void destroy_image_deferred(const Image& image) {',
+        'void destroy_image_deferred(const Image& image) {\n#if HIVE_HEADLESS\n\treturn;\n#endif',
+    ),
+    (
+        '\t\tBinaryReader reader = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"}).value();',
+        '\t\tauto opened = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"});\n\t\tif (!opened) {\n#if HIVE_HEADLESS\n\t\t\tstd::println(stderr, "[悬崖模型缺失] {}", opened.error());\n\t\t\treturn;\n#else\n\t\t\tthrow std::runtime_error(opened.error());\n#endif\n\t\t}\n\t\tBinaryReader reader = std::move(*opened);',
+    ),
+    (
+        '\tvoid update(const VkExtent2D extent, const std::span<const u8> pixels) {',
+        '\tvoid update(const VkExtent2D extent, const std::span<const u8> pixels) {\n#if HIVE_HEADLESS\n\t\treturn;\n#endif',
+    ),
+    (
+        'class Terrain: public QObject {',
+        'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
+    ),
+    (
+        '#include "casc.hpp"',
+        '#include "casc.hpp"\n#include "mpq.hpp"',
+    ),
+    (
+        '\tcasc::CASC game_data;',
+        '\tmpq::MPQ game_data;',
+    ),
+    (
+        'VkPipeline create_graphics_pipeline(const PipelineDescription& description) {',
+        'VkPipeline create_graphics_pipeline(const PipelineDescription& description) {\n'
+        '#if HIVE_HEADLESS\n\treturn VK_NULL_HANDLE;\n#endif',
+    ),
 ]
 
 
 def apply_patches(text):
     for old, new in PATCHES:
         text = text.replace(old, new)
+    text = RE_EMIT.sub(r'\1if (\2) { \2(\3); }', text)
     text = RE_SLOTS.sub(r'\1public:', text)
     text = RE_EXEC_PAR.sub(r'std::\1(', text)
     return RE_MOC.sub('', text)

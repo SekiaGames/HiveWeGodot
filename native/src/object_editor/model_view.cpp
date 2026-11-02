@@ -218,7 +218,7 @@ ModelView::ModelView(QWidget* parent) : QWidget(parent) {
 	});
 
 	connect(grid, &ModelGridWidget::double_clicked, this, [this](const fs::path& p) {
-		emit doubleClicked(p);
+		if (doubleClicked) { doubleClicked(p); }
 	});
 
 	connect(search, &QLineEdit::textChanged, grid, &ModelGridWidget::set_search);

@@ -223,7 +223,7 @@ bool PathingPalette::event(QEvent* e) {
 	} else if (e->type() == QEvent::WindowActivate) {
 		selection_mode->enableShortcuts();
 		claim_brush(&brush);
-		emit ribbon_tab_requested(ribbon_tab, "Pathing Palette");
+		if (ribbon_tab_requested) { ribbon_tab_requested(ribbon_tab, "Pathing Palette"); }
 	}
 	return QWidget::event(e);
 }

@@ -141,12 +141,12 @@ SettingsEditor::SettingsEditor(QWidget* parent)
 		QString StyleSheet = QLatin1String(file.readAll());
 
 		qApp->setStyleSheet(StyleSheet);
-		emit accept();
+		if (accept) { accept(); }
 		close();
 	});
 
 	connect(ui.buttonBox, &QDialogButtonBox::rejected, [&]() {
-		emit reject();
+		if (reject) { reject(); }
 		close();
 	});
 	show();

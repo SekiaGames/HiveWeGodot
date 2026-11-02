@@ -345,7 +345,7 @@ void TriggerExplorer::deleteSelection() {
 			if (index.isValid()) {
 				TreeItem* item = static_cast<TreeItem*>(index.internalPointer());
 				recursively_delete(triggers, item);
-				emit itemAboutToBeDeleted(item);
+				if (itemAboutToBeDeleted) { itemAboutToBeDeleted(item); }
 
 				dynamic_cast<TreeModel*>(model())->deleteItem(index);
 			}

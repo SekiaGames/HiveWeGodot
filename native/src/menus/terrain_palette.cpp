@@ -168,7 +168,7 @@ bool TerrainPalette::event(QEvent* e) {
 		change_mode_this->setEnabled(true);
 		change_mode_parent->setEnabled(true);
 		claim_brush(&brush);
-		emit ribbon_tab_requested(ribbon_tab, "Terrain Palette");
+		if (ribbon_tab_requested) { ribbon_tab_requested(ribbon_tab, "Terrain Palette"); }
 	}
 	return QWidget::event(e);
 }

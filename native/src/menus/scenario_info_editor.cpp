@@ -239,13 +239,13 @@ ScenarioInfoEditor::ScenarioInfoEditor(QWidget* parent, MapInfo& info, TriggerSt
 	
 	connect(ui.buttonBox, &QDialogButtonBox::accepted, [this]() {
 		if (save()) {
-			emit accept();
+			if (accept) { accept(); }
 			close();
 		}
 	});
 
 	connect(ui.buttonBox, &QDialogButtonBox::rejected, [this]() {
-		emit reject();
+		if (reject) { reject(); }
 		close();
 	});
 

@@ -148,11 +148,11 @@ class UnitSelector : public QWidget {
 
 		connect(units, &QListView::clicked, [&](const QModelIndex& index) {
 			const int row = filter_model->mapToSource(index).row();
-			emit unitSelected(units_slk.index_to_row.at(row));
+			if (unitSelected) { unitSelected(units_slk.index_to_row.at(row)); }
 		});
 		connect(units, &QListView::activated, [&](const QModelIndex& index) {
 			const int row = filter_model->mapToSource(index).row();
-			emit unitSelected(units_slk.index_to_row.at(row));
+			if (unitSelected) { unitSelected(units_slk.index_to_row.at(row)); }
 		});
 	}
 
@@ -173,7 +173,7 @@ class UnitSelector : public QWidget {
 			return;
 		}
 		const int row = filter_model->mapToSource(index).row();
-		emit unitSelected(units_slk.index_to_row.at(row));
+		if (unitSelected) { unitSelected(units_slk.index_to_row.at(row)); }
 	}
 
   signals:

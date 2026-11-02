@@ -216,7 +216,7 @@ QVariant SingleModel::headerData(int section, Qt::Orientation orientation, int r
 
 bool SingleModel::setData(const QModelIndex& index, const QVariant& value, int role) {
 	// Force a header redraw because the header text should change color depending on whether the data field is a custom value or not
-	emit headerDataChanged(Qt::Orientation::Vertical, index.row(), index.row());
+	if (headerDataChanged) { headerDataChanged(Qt::Orientation::Vertical, index.row(), index.row()); }
 	return QAbstractProxyModel::setData(index, value, role);
 }
 

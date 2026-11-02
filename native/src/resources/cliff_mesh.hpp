@@ -122,7 +122,16 @@ class CliffMesh : public Resource {
 	std::vector<glm::vec4> render_jobs;
 
 	explicit CliffMesh(const fs::path& path) {
-		BinaryReader reader = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"}).value();
+		auto opened = hierarchy.open_file(path, Hierarchy::FileSource::all, {".mdx", ".mdl"});
+		if (!opened) {
+#if HIVE_HEADLESS
+			std::println(stderr, "[悬崖模型缺失] {}", opened.error());
+			return;
+#else
+			throw std::runtime_error(opened.error());
+#endif
+		}
+		BinaryReader reader = std::move(*opened);
 
 		mdx::MDX mdx;
 		if (mdx::is_mdx(reader)) {

@@ -580,7 +580,7 @@ bool DoodadPalette::event(QEvent* e) {
 		change_mode_this->setEnabled(true);
 		change_mode_parent->setEnabled(true);
 		claim_brush(&brush);
-		emit ribbon_tab_requested(ribbon_tab, "Doodad Palette");
+		if (ribbon_tab_requested) { ribbon_tab_requested(ribbon_tab, "Doodad Palette"); }
 	}
 
 	return QWidget::event(e);

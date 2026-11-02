@@ -227,7 +227,7 @@ bool UnitPalette::event(QEvent* e) {
 		find_parent->setEnabled(true);
 		selection_mode->enableShortcuts();
 		claim_brush(&brush);
-		emit ribbon_tab_requested(ribbon_tab, "Unit Palette");
+		if (ribbon_tab_requested) { ribbon_tab_requested(ribbon_tab, "Unit Palette"); }
 	}
 	return QWidget::event(e);
 }

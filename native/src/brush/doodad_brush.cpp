@@ -235,7 +235,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 			}
 			i->update(terrain);
 		}
-		emit position_changed();
+		if (position_changed) { position_changed(); }
 
 		doodads.update_doodad_pathing(pre_action_area, pathing_map);
 	}
@@ -249,7 +249,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 					selections.emplace(&i);
 				}
 
-				emit selection_changed();
+				if (selection_changed) { selection_changed(); }
 				break;
 			case Qt::Key_PageUp:
 				if (action == Action::none) {
@@ -259,7 +259,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 					i->position.z += 0.1f;
 					i->update(terrain);
 				}
-				emit position_changed();
+				if (position_changed) { position_changed(); }
 				break;
 			case Qt::Key_PageDown:
 				if (action == Action::none) {
@@ -269,7 +269,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 					i->position.z -= 0.1f;
 					i->update(terrain);
 				}
-				emit position_changed();
+				if (position_changed) { position_changed(); }
 				break;
 			default:
 				Brush::key_press_event(ctx, event);
@@ -284,7 +284,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 					i->scale.z += 0.1f;
 					i->update(terrain);
 				}
-				emit scale_changed();
+				if (scale_changed) { scale_changed(); }
 				break;
 			case Qt::Key_PageDown:
 				if (action == Action::none) {
@@ -294,7 +294,7 @@ void DoodadBrush::key_press_event(WorldEditContext& ctx, const QKeyEvent* event)
 					i->scale.z -= 0.1f;
 					i->update(terrain);
 				}
-				emit scale_changed();
+				if (scale_changed) { scale_changed(); }
 				break;
 			default:
 				Brush::key_press_event(ctx, event);
@@ -345,7 +345,7 @@ void DoodadBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 					} else {
 						selections = {&doodad};
 						drag_offsets = {input_handler.mouse_world - doodad.position};
-						emit selection_changed();
+						if (selection_changed) { selection_changed(); }
 					}
 					return;
 				}
@@ -357,7 +357,7 @@ void DoodadBrush::mouse_press_event(WorldEditContext& ctx, const QMouseEvent* ev
 
 		if (id) {
 			Doodad& doodad = doodads.doodads[id.value()];
-			emit request_doodad_select(doodad.id);
+			if (request_doodad_select) { request_doodad_select(doodad.id); }
 		}
 	}
 	Brush::mouse_press_event(ctx, event, frame_delta);
@@ -400,7 +400,7 @@ void DoodadBrush::mouse_move_event(WorldEditContext& ctx, const QMouseEvent* eve
 					}
 					doodad->update(terrain);
 				}
-				emit position_changed();
+				if (position_changed) { position_changed(); }
 				doodads.update_doodad_pathing(pre_action_area, pathing_map);
 			} else if (event->modifiers() & Qt::ControlModifier) {
 				if (action == Action::none) {
@@ -419,7 +419,7 @@ void DoodadBrush::mouse_move_event(WorldEditContext& ctx, const QMouseEvent* eve
 					i->position = glm::vec3(Doodad::acceptable_position(i->position, i->pathing, i->angle), i->position.z);
 					i->update(terrain);
 				}
-				emit angle_changed();
+				if (angle_changed) { angle_changed(); }
 				doodads.update_doodad_pathing(pre_action_area, pathing_map);
 			} else if (mode == Mode::selection && selection_started) {
 				const glm::vec3 size = input_handler.mouse_world - selection_start;
@@ -436,7 +436,7 @@ void DoodadBrush::mouse_move_event(WorldEditContext& ctx, const QMouseEvent* eve
 					selections.insert(query.begin(), query.end());
 				}
 
-				emit selection_changed();
+				if (selection_changed) { selection_changed(); }
 			}
 		}
 	}
@@ -469,7 +469,7 @@ void DoodadBrush::delete_selection() {
 	doodads.update_doodad_pathing(pre_action_area, pathing_map);
 
 	selections.clear();
-	emit selection_changed();
+	if (selection_changed) { selection_changed(); }
 }
 
 void DoodadBrush::copy_selection() {
@@ -496,7 +496,7 @@ void DoodadBrush::cut_selection() {
 
 void DoodadBrush::clear_selection() {
 	selections.clear();
-	emit selection_changed();
+	if (selection_changed) { selection_changed(); }
 }
 
 void DoodadBrush::place_clipboard(WorldEditContext& ctx) {

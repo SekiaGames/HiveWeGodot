@@ -112,6 +112,9 @@ namespace ini {
 					return std::move(res.value().buffer);
 				} else {
 					auto res = hierarchy.open_file(path);
+					if (!res) {
+						return std::vector<u8, default_init_allocator<u8>>();
+					}
 					return std::move(res.value().buffer);
 				}
 			}();

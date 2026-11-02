@@ -285,7 +285,12 @@ namespace slk {
 			// Rethrow the error string itself so callers (e.g. Map::load's catch) report the real
 			// cause rather than the generic std::bad_expected_access message that .value() would throw.
 			if (auto result = load_hierarchy(path, source); !result) {
+#if HIVE_HEADLESS
+				std::print(stderr, "[数据缺失] {}\n", result.error());
+				return;
+#else
 				throw std::runtime_error(result.error());
+#endif
 			}
 		}
 

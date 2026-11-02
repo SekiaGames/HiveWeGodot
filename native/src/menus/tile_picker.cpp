@@ -162,6 +162,6 @@ void TilePicker::completed() {
 	const TextureButton* to = dynamic_cast<TextureButton*>(to_group->checkedButton());
 	const std::string from_tile = from->texture()->id;
 	const std::string to_tile = to->texture()->id;
-	emit tile_chosen(from_tile, to_tile);
+	if (tile_chosen) { tile_chosen(from_tile, to_tile); }
 	close();
 }
