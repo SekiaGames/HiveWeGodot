@@ -92,6 +92,8 @@ bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/
 | Ctrl+S | 保存到 `output/edited.w3m` |
 | Delete | 删除选中对象（Ctrl+Z 撤销） |
 | Ctrl + 左键拖动 | 旋转选中对象 |
+| Ctrl+C / Ctrl+V | 复制选中装饰物 / 整组贴到鼠标处 |
+| Esc | 取消粘贴 |
 
 左侧面板的「显示路径」会把不可走的格子标红。「装饰物」下拉选类型后，点地图即可放置。
 
@@ -107,6 +109,10 @@ HIVE_AUTOTEST=/tmp/edit HIVE_SCREENSHOT=/tmp/edit \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 自动画三笔再截图
 HIVE_RELOAD_TEST=1 HIVE_SCREENSHOT=/tmp/reload.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 换成 IceCrown 再截图
+HIVE_PICK_TEST=1 HIVE_SCREENSHOT=/tmp/pick.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 拾取、删除、移动、旋转
+HIVE_CLIP_TEST=/tmp/clip_after.png HIVE_SCREENSHOT=/tmp/clip_preview.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 复制粘贴，存预览与放置后两张
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：

@@ -260,6 +260,27 @@ public static class HiveCore
     private static extern int hive_remove_unit(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_selection(IntPtr hive, int[] indices, int count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_clipboard_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_clipboard(IntPtr hive, [Out] HiveDoodad[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_clipboard_anchor(IntPtr hive, [Out] float[] output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_place_clipboard(IntPtr hive, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_clipboard_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_from_clipboard(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_units(IntPtr hive, [Out] HiveUnit[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -564,6 +585,39 @@ public static class HiveCore
     public static bool RemoveDoodad(int index) => hive_remove_doodad(handle, index) == 0;
 
     public static bool RemoveUnit(int index) => hive_remove_unit(handle, index) == 0;
+
+    public static int CopySelection(int[] indices) => hive_copy_selection(handle, indices, indices.Length);
+
+    public static int ClipboardCount => hive_clipboard_count(handle);
+
+    public static HiveDoodad[] Clipboard()
+    {
+        int count = ClipboardCount;
+        if (count <= 0)
+        {
+            return Array.Empty<HiveDoodad>();
+        }
+        HiveDoodad[] data = new HiveDoodad[count];
+        hive_copy_clipboard(handle, data, data.Length);
+        return data;
+    }
+
+    public static Vector2 ClipboardAnchor()
+    {
+        float[] data = new float[2];
+        hive_clipboard_anchor(handle, data);
+        return new Vector2(data[0], data[1]);
+    }
+
+    public static int PlaceClipboard(float x, float y) => hive_place_clipboard(handle, x, y);
+
+    public static string? ClipboardId(int index)
+    {
+        IntPtr pointer = hive_clipboard_id(handle, index);
+        return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
+
+    public static int ModelFromClipboard(int index) => hive_model_from_clipboard(handle, index);
 
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 

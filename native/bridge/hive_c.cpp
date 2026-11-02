@@ -47,6 +47,9 @@ struct HiveHandle {
 	Unit drag_unit;
 	std::unordered_map<std::string, blp::Image> images;
 	std::string transient_string;
+	std::vector<Doodad> clipboard;
+	glm::vec2 clipboard_anchor {0.f};
+	bool clipboard_grid_aligned = false;
 };
 
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
@@ -791,6 +794,25 @@ const char* hive_doodad_id(void* handle, const int32_t index) {
 	return source[static_cast<std::size_t>(index)].id.c_str();
 }
 
+int32_t model_for_doodad(HiveHandle* hive, const std::string& id, const int32_t variation) {
+	const std::string key = id + "#" + std::to_string(variation);
+
+	if (const auto found = hive->model_keys.find(key); found != hive->model_keys.end()) {
+		return found->second;
+	}
+
+	auto mesh = hive->map->doodads.get_mesh(id, variation);
+	if (!mesh || !mesh->mdx) {
+		hive->model_keys[key] = -1;
+		return -1;
+	}
+
+	hive->models.push_back(build_model(mesh->mdx));
+	const auto index = static_cast<int32_t>(hive->models.size() - 1);
+	hive->model_keys[key] = index;
+	return index;
+}
+
 int32_t hive_model_from_doodad(void* handle, const int32_t doodad_index) {
 	if (handle == nullptr || doodad_index < 0) {
 		return -1;
@@ -802,22 +824,7 @@ int32_t hive_model_from_doodad(void* handle, const int32_t doodad_index) {
 	}
 
 	const Doodad& doodad = source[static_cast<std::size_t>(doodad_index)];
-	const std::string key = doodad.id + "#" + std::to_string(doodad.variation);
-
-	if (const auto found = hive->model_keys.find(key); found != hive->model_keys.end()) {
-		return found->second;
-	}
-
-	auto mesh = hive->map->doodads.get_mesh(doodad.id, doodad.variation);
-	if (!mesh || !mesh->mdx) {
-		hive->model_keys[key] = -1;
-		return -1;
-	}
-
-	hive->models.push_back(build_model(mesh->mdx));
-	const auto index = static_cast<int32_t>(hive->models.size() - 1);
-	hive->model_keys[key] = index;
-	return index;
+	return model_for_doodad(hive, doodad.id, doodad.variation);
 }
 
 
@@ -1224,6 +1231,137 @@ int32_t hive_remove_unit(void* handle, const int32_t index) {
 
 	list.erase(list.begin() + index);
 	return 0;
+}
+
+int32_t hive_copy_selection(void* handle, const int32_t* indices, const int32_t count) {
+	if (handle == nullptr || indices == nullptr || count <= 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& list = hive->map->doodads.doodads;
+
+	std::vector<Doodad> picked;
+	glm::vec3 average_position(0.f);
+	bool grid_aligned = false;
+
+	for (int32_t i = 0; i < count; ++i) {
+		const int32_t index = indices[i];
+		if (index < 0 || static_cast<std::size_t>(index) >= list.size()) {
+			continue;
+		}
+		const Doodad& doodad = list[static_cast<std::size_t>(index)];
+		if (doodad.pathing) {
+			grid_aligned = true;
+		}
+		picked.push_back(doodad);
+		average_position += doodad.position;
+	}
+
+	if (picked.empty()) {
+		hive->clipboard.clear();
+		return 0;
+	}
+
+	hive->clipboard_anchor = glm::vec2(average_position) / static_cast<float>(picked.size());
+	hive->clipboard_grid_aligned = grid_aligned;
+	hive->clipboard = std::move(picked);
+	return static_cast<int32_t>(hive->clipboard.size());
+}
+
+int32_t hive_clipboard_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->clipboard.size());
+}
+
+int32_t hive_copy_clipboard(void* handle, HiveDoodad* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->clipboard;
+	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
+	for (std::size_t i = 0; i < count; ++i) {
+		out[i].x = source[i].position.x;
+		out[i].y = source[i].position.y;
+		out[i].z = source[i].position.z;
+		out[i].angle = source[i].angle;
+		out[i].scale_x = source[i].scale.x;
+		out[i].scale_y = source[i].scale.y;
+		out[i].scale_z = source[i].scale.z;
+		out[i].variation = source[i].variation;
+		out[i].solid = source[i].state == Doodad::State::visible_solid ? 1 : 0;
+	}
+	return static_cast<int32_t>(count);
+}
+
+void hive_clipboard_anchor(void* handle, float* out) {
+	if (handle == nullptr || out == nullptr) {
+		return;
+	}
+	const glm::vec2& anchor = static_cast<HiveHandle*>(handle)->clipboard_anchor;
+	out[0] = anchor.x;
+	out[1] = anchor.y;
+}
+
+const char* hive_clipboard_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->clipboard;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return nullptr;
+	}
+	return source[static_cast<std::size_t>(index)].id.c_str();
+}
+
+int32_t hive_model_from_clipboard(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->clipboard;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return -1;
+	}
+	const Doodad& doodad = source[static_cast<std::size_t>(index)];
+	return model_for_doodad(hive, doodad.id, doodad.variation);
+}
+
+int32_t hive_place_clipboard(void* handle, const float x, const float y) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (hive->clipboard.empty()) {
+		return -1;
+	}
+
+	WorldEditContext ctx = hive->map->edit_context();
+	auto action = std::make_unique<DoodadAddAction>();
+	const int32_t first = static_cast<int32_t>(hive->map->doodads.doodads.size());
+	const glm::vec2 mouse(x, y);
+
+	for (const Doodad& source : hive->clipboard) {
+		glm::vec3 final_position(
+			Doodad::acceptable_position(glm::vec2(source.position) + mouse - hive->clipboard_anchor,
+										source.pathing,
+										source.angle,
+										hive->clipboard_grid_aligned),
+			0.f);
+		final_position.z = ctx.terrain.interpolated_height(final_position.x, final_position.y, true);
+
+		Doodad& doodad = ctx.doodads.add_doodad(source);
+		doodad.creation_number = ++Doodad::auto_increment;
+		doodad.position = final_position;
+		doodad.update(ctx.terrain);
+
+		action->doodads.push_back(doodad);
+	}
+
+	hive->map->world_undo.new_undo_group();
+	hive->map->world_undo.add_undo_action(std::move(action));
+	return first;
 }
 
 int32_t hive_copy_units(void* handle, HiveUnit* out, const int32_t capacity) {

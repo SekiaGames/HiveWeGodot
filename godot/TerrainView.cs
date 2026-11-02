@@ -553,6 +553,95 @@ public partial class TerrainView : Node3D
         }
     }
 
+    private sealed class ClipboardGroup
+    {
+        public MultiMesh Multi = null!;
+        public int[] Slots = Array.Empty<int>();
+    }
+
+    private Node3D? clipboardRoot;
+    private readonly System.Collections.Generic.List<ClipboardGroup> clipboardGroups = new();
+    private HiveDoodad[] clipboardData = Array.Empty<HiveDoodad>();
+    private Vector2 clipboardAnchor;
+
+    public void BeginClipboardGhost()
+    {
+        HideClipboardGhost();
+
+        clipboardData = HiveCore.Clipboard();
+        if (clipboardData.Length == 0)
+        {
+            return;
+        }
+        clipboardAnchor = HiveCore.ClipboardAnchor();
+
+        var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
+        for (int i = 0; i < clipboardData.Length; i++)
+        {
+            int model = HiveCore.ModelFromClipboard(i);
+            if (model < 0)
+            {
+                continue;
+            }
+            if (!byModel.TryGetValue(model, out var list))
+            {
+                list = new System.Collections.Generic.List<int>();
+                byModel[model] = list;
+            }
+            list.Add(i);
+        }
+
+        clipboardRoot = new Node3D { Name = "Clipboard" };
+        AddChild(clipboardRoot);
+
+        foreach (var pair in byModel)
+        {
+            ArrayMesh? mesh = ModelMesh(pair.Key);
+            if (mesh == null)
+            {
+                continue;
+            }
+            var multi = new MultiMesh
+            {
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = mesh,
+                InstanceCount = pair.Value.Count,
+            };
+            clipboardRoot.AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Clipboard" });
+            clipboardGroups.Add(new ClipboardGroup { Multi = multi, Slots = pair.Value.ToArray() });
+        }
+
+        GD.Print($"剪贴板预览 {clipboardData.Length} 个对象，{clipboardGroups.Count} 组模型");
+    }
+
+    public void UpdateClipboardGhost(float x, float z)
+    {
+        foreach (ClipboardGroup group in clipboardGroups)
+        {
+            for (int k = 0; k < group.Slots.Length; k++)
+            {
+                HiveDoodad doodad = clipboardData[group.Slots[k]];
+                float px = x + doodad.X - clipboardAnchor.X;
+                float pz = z + doodad.Y - clipboardAnchor.Y;
+                Basis basis = Basis.Identity.Rotated(Vector3.Up, -doodad.Angle)
+                    .Scaled(new Vector3(doodad.ScaleX, doodad.ScaleY, doodad.ScaleZ));
+                group.Multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(px, HeightAt(px, pz), pz)));
+            }
+        }
+    }
+
+    public void HideClipboardGhost()
+    {
+        clipboardGroups.Clear();
+        clipboardData = Array.Empty<HiveDoodad>();
+        if (clipboardRoot != null)
+        {
+            RemoveChild(clipboardRoot);
+            clipboardRoot.QueueFree();
+            clipboardRoot = null;
+        }
+    }
+
     public void SetRegionsVisible(bool visible)
     {
         if (regionRoot != null)

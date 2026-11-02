@@ -139,6 +139,21 @@ int32_t hive_remove_doodad(void* handle, int32_t index);
 /* 删掉第 index 个单位，进撤销栈，成功返回 0。 */
 int32_t hive_remove_unit(void* handle, int32_t index);
 
+/* 剪贴板。copy 把 indices 指向的装饰物整组拷进去，返回拷了几个；
+   中心点取它们的平均位置，放置时这个中心对齐鼠标。 */
+int32_t hive_copy_selection(void* handle, const int32_t* indices, int32_t count);
+int32_t hive_clipboard_count(void* handle);
+/* 剪贴板快照，坐标是复制时的原始位置。 */
+int32_t hive_copy_clipboard(void* handle, HiveDoodad* out, int32_t capacity);
+/* 写 2 个 float：中心点的 x、y。 */
+void hive_clipboard_anchor(void* handle, float* out);
+/* 以 (x, y) 为落点放整组，每个都贴地形，整组算一次撤销。
+   返回第一个新对象的索引，剪贴板为空返回 -1。 */
+int32_t hive_place_clipboard(void* handle, float x, float y);
+/* 剪贴板里第 index 个对象的 id 和模型，用于预览。 */
+const char* hive_clipboard_id(void* handle, int32_t index);
+int32_t hive_model_from_clipboard(void* handle, int32_t index);
+
 /* 射线拾取。origin / direction 用 Godot 坐标（X 水平、Y 高度、Z 水平），
    max_distance 是 tile 单位。返回最近的装饰物或单位索引，没打中返回 -1。
    先做包围盒粗筛，命中后按距离排序取最近的。 */

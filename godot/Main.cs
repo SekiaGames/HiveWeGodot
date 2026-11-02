@@ -24,6 +24,7 @@ public partial class Main : Node3D
     private int selectionIndex = -1;
     private bool draggingObject;
     private bool rotatingObject;
+    private bool pasting;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -36,6 +37,7 @@ public partial class Main : Node3D
     private readonly string autoTest = OS.GetEnvironment("HIVE_AUTOTEST");
     private readonly string reloadTest = OS.GetEnvironment("HIVE_RELOAD_TEST");
     private readonly string pickTest = OS.GetEnvironment("HIVE_PICK_TEST");
+    private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private int frames;
     private bool loaded;
 
@@ -197,6 +199,12 @@ public partial class Main : Node3D
 
     private void ApplyTool()
     {
+        if (pasting)
+        {
+            pasting = false;
+            view.HideClipboardGhost();
+        }
+
         string name;
         switch (tool)
         {
@@ -275,8 +283,10 @@ public partial class Main : Node3D
             ? "无"
             : $"{(selectionIsUnit ? "单位" : "装饰物")} #{selectionIndex} "
               + (selectionIsUnit ? HiveCore.UnitId(selectionIndex) : HiveCore.DoodadId(selectionIndex));
-        ui.SetStatus($"笔刷 {brushSize}　位置 {position}　选中 {selected}　水面 {view.WetTiles} 格　"
-            + "左键绘制　右键拖动　滚轮缩放　Ctrl+S 保存　1-9 选纹理");
+        string hint = pasting
+            ? "左键放下　Esc 取消"
+            : "左键绘制　右键拖动　滚轮缩放　Ctrl+S 保存　Ctrl+C 复制　Ctrl+V 粘贴　1-9 选纹理";
+        ui.SetStatus($"笔刷 {brushSize}　位置 {position}　选中 {selected}　水面 {view.WetTiles} 格　{hint}");
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -316,6 +326,15 @@ public partial class Main : Node3D
                 panning = button.Pressed;
                 break;
             case MouseButton.Left:
+                if (pasting)
+                {
+                    if (button.Pressed)
+                    {
+                        PlaceClipboardAt(button.Position);
+                    }
+                    break;
+                }
+
                 if (tool == EditorUi.ToolMode.Select)
                 {
                     if (button.Pressed)
@@ -403,6 +422,13 @@ public partial class Main : Node3D
             return;
         }
 
+        if (pasting)
+        {
+            view.UpdateClipboardGhost(hit.X, hit.Z);
+            UpdateStatus();
+            return;
+        }
+
         ShowBrush(hit);
 
         if (painting)
@@ -435,6 +461,18 @@ public partial class Main : Node3D
         {
             case Key.Delete:
                 DeleteSelection();
+                break;
+            case Key.Escape:
+                if (pasting)
+                {
+                    CancelPaste();
+                }
+                break;
+            case Key.C when key.CtrlPressed:
+                CopySelectionObjects();
+                break;
+            case Key.V when key.CtrlPressed:
+                StartPaste();
                 break;
             case Key.Z:
                 Undo();
@@ -614,6 +652,76 @@ public partial class Main : Node3D
         ui.SetStatus("已删除，Ctrl+Z 可撤销");
     }
 
+    private void CopySelectionObjects()
+    {
+        if (selectionIndex < 0)
+        {
+            ui.SetStatus("没有选中对象");
+            return;
+        }
+
+        if (selectionIsUnit)
+        {
+            ui.SetStatus("单位还不能复制");
+            return;
+        }
+
+        int count = HiveCore.CopySelection(new[] { selectionIndex });
+        if (count == 0)
+        {
+            ui.SetStatus("复制失败");
+            return;
+        }
+
+        ui.SetStatus($"已复制 {count} 个装饰物，Ctrl+V 放置");
+    }
+
+    private void StartPaste()
+    {
+        int count = HiveCore.ClipboardCount;
+        if (count == 0)
+        {
+            ui.SetStatus("剪贴板是空的");
+            return;
+        }
+
+        pasting = true;
+        view.BeginClipboardGhost();
+        ui.SetStatus($"放置 {count} 个装饰物：左键放下，Esc 取消");
+    }
+
+    private void CancelPaste()
+    {
+        pasting = false;
+        view.HideClipboardGhost();
+        UpdateStatus();
+    }
+
+    private void PlaceClipboardAt(Vector2 screen)
+    {
+        if (!view.Pick(camera, screen, out Vector3 spot))
+        {
+            return;
+        }
+
+        int count = HiveCore.ClipboardCount;
+        int first = HiveCore.PlaceClipboard(spot.X, spot.Z);
+
+        pasting = false;
+        view.HideClipboardGhost();
+
+        if (first < 0)
+        {
+            ui.SetStatus("放置失败");
+            return;
+        }
+
+        selectionIndex = -1;
+        view.ClearSelection();
+        ReloadObjects();
+        ui.SetStatus($"已放置 {count} 个装饰物，Ctrl+Z 可撤销");
+    }
+
     private void ReloadObjects()
     {
         view.BuildDoodads();
@@ -661,6 +769,43 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (clipTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                focus = new Vector3(33f, 0f, 26f);
+                distance = 11f;
+                UpdateCamera();
+                Select(false, 0);
+                CopySelectionObjects();
+                StartPaste();
+                view.UpdateClipboardGhost(35f, 30f);
+            }
+            else if (frames == 16)
+            {
+                Capture(screenshotPath);
+
+                int before = HiveCore.MapInfo.DoodadCount;
+                int count = HiveCore.ClipboardCount;
+                Vector2 screen = camera.UnprojectPosition(new Vector3(33f, view.HeightAt(33f, 26f), 26f));
+                PlaceClipboardAt(screen);
+                int after = HiveCore.MapInfo.DoodadCount;
+                GD.Print($"剪贴板测试：{count} 个放到 {before} -> {after}");
+            }
+            else if (frames == 20)
+            {
+                Capture(clipTest);
+            }
+            else if (frames == 24)
+            {
+                HiveCore.Undo();
+                ReloadObjects();
+                GD.Print($"撤销后 {HiveCore.MapInfo.DoodadCount}");
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (pickTest.Length > 0)
         {
