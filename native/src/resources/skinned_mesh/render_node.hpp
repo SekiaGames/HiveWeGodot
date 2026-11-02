@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "math_operations.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

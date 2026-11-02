@@ -369,4 +369,3 @@ class QRibbon : public QTabWidget {
 	}
 };
 
-#include "qribbon.moc"

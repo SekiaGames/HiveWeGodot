@@ -102,7 +102,7 @@
 #include "vk_context.hpp"
 #include "resource_manager.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "binary_reader.hpp"
 
 namespace fs = std::filesystem;

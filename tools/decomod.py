@@ -3,7 +3,6 @@
 import argparse
 import os
 import re
-import shutil
 
 STD_HEADERS = """#include <algorithm>
 #include <array>
@@ -91,10 +90,49 @@ STD_HEADERS = """#include <algorithm>
 #include <vector>"""
 
 RE_MODULE = re.compile(r'^export module\s+([\w.]+)\s*;\s*$', re.M)
-RE_IMPORT_STD = re.compile(r'^import std;\s*$')
+RE_MODULE_IMPL = re.compile(r'^module\s+([\w.]+)\s*;\s*$')
+RE_IMPORT_STD = re.compile(r'^import std(?:\.compat)?;\s*$')
 RE_IMPORT_ANGLE = re.compile(r'^import\s+<([^>]+)>;\s*$')
 RE_IMPORT_QUOTED = re.compile(r'^import\s+"([^"]+)"\s*;\s*$')
 RE_IMPORT_NAMED = re.compile(r'^import\s+([\w.]+)\s*;\s*$')
+RE_MOC = re.compile(r'^#include "[\w/]+\.moc"\n?', re.M)
+RE_SLOTS = re.compile(r'^(\s*)(?:public|protected|private)?\s*slots:\s*$', re.M)
+RE_EXEC_PAR = re.compile(r'std::(for_each|sort|transform|accumulate)\(\s*std::execution::\w+\s*,\s*')
+
+PATCHES = [
+    (
+        'physical_device.enable_extensions_if_present({VK_KHR_PRESENT_ID_EXTENSION_NAME,'
+        ' VK_KHR_PRESENT_WAIT_EXTENSION_NAME})',
+        'physical_device.enable_extensions_if_present(std::vector<const char*>'
+        ' {VK_KHR_PRESENT_ID_EXTENSION_NAME, VK_KHR_PRESENT_WAIT_EXTENSION_NAME})',
+    ),
+    (
+        '  signals:\n\tvoid size_changed(glm::ivec2 size);\n\tvoid selection_changed();',
+        '\tstd::function<void(glm::ivec2)> size_changed;\n\tstd::function<void()> selection_changed;',
+    ),
+    (
+        '  signals:\n\tvoid angle_changed();\n\tvoid scale_changed();\n\tvoid position_changed();'
+        '\n\tvoid request_doodad_select(std::string id);',
+        '\tstd::function<void()> angle_changed;\n\tstd::function<void()> scale_changed;'
+        '\n\tstd::function<void()> position_changed;\n\tstd::function<void(std::string)> request_doodad_select;',
+    ),
+    (
+        '  signals:\n\tvoid regions_changed();',
+        '\tstd::function<void()> regions_changed;',
+    ),
+    (
+        '  signals:\n\tvoid minimap_changed(Texture minimap);\n\tvoid tileset_changed();',
+        '\tstd::function<void(Texture)> minimap_changed;\n\tstd::function<void()> tileset_changed;',
+    ),
+]
+
+
+def apply_patches(text):
+    for old, new in PATCHES:
+        text = text.replace(old, new)
+    text = RE_SLOTS.sub(r'\1public:', text)
+    text = RE_EXEC_PAR.sub(r'std::\1(', text)
+    return RE_MOC.sub('', text)
 
 
 def collect_modules(src):
@@ -104,7 +142,7 @@ def collect_modules(src):
             if not name.endswith('.ixx'):
                 continue
             path = os.path.join(dirpath, name)
-            text = open(path, encoding='utf-8', errors='ignore').read()
+            text = open(path, encoding='utf-8-sig', errors='ignore').read()
             found = RE_MODULE.search(text)
             if found:
                 modules[found.group(1)] = path
@@ -154,6 +192,12 @@ def rewrite(lines, includes, keep_pragma):
                 pragma_done = True
             continue
 
+        impl = RE_MODULE_IMPL.match(stripped)
+        if impl:
+            module = impl.group(1)
+            out.append(f'#include "{includes.get(module, module + ".hpp")}"')
+            continue
+
         if RE_IMPORT_STD.match(stripped):
             out.append(STD_HEADERS)
             continue
@@ -181,59 +225,56 @@ def rewrite(lines, includes, keep_pragma):
     return out
 
 
-def convert_ixx(path, dst, src, includes):
-    text = open(path, encoding='utf-8', errors='ignore').read()
-    lines = rewrite(strip_export_block(text.split('\n')), includes, keep_pragma=True)
-    if '#pragma once' in lines:
-        lines.remove('#pragma once')
-        lines.insert(0, '#pragma once')
-        lines.insert(1, '')
+def emit(path, dst, src, includes, keep_pragma, suffix):
+    text = open(path, encoding='utf-8-sig', errors='ignore').read()
+    if keep_pragma:
+        lines = rewrite(strip_export_block(text.split('\n')), includes, keep_pragma=True)
+        if '#pragma once' in lines:
+            lines.remove('#pragma once')
+            lines.insert(0, '#pragma once')
+            lines.insert(1, '')
+    else:
+        lines = rewrite(text.split('\n'), includes, keep_pragma=False)
 
+    content = apply_patches('\n'.join(lines))
     rel = os.path.relpath(path, src)
-    out = os.path.join(dst, os.path.splitext(rel)[0] + '.hpp')
+    out = os.path.join(dst, os.path.splitext(rel)[0] + suffix)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
-
-
-def convert_cpp(path, dst, src, includes):
-    text = open(path, encoding='utf-8', errors='ignore').read()
-    lines = rewrite(text.split('\n'), includes, keep_pragma=False)
-    rel = os.path.relpath(path, src)
-    out = os.path.join(dst, rel)
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    with open(out, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
+        f.write(content)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src', required=True, help='HiveWE 的 src 目录')
-    parser.add_argument('--dst', required=True, help='输出目录')
+    parser.add_argument('--src', required=True)
+    parser.add_argument('--dst', required=True)
     args = parser.parse_args()
 
     src = os.path.abspath(args.src)
     dst = os.path.abspath(args.dst)
 
-    if os.path.isdir(dst):
-        shutil.rmtree(dst)
-    os.makedirs(dst)
+    os.makedirs(dst, exist_ok=True)
 
     modules = collect_modules(src)
     includes = build_include_map(modules)
 
     for path in modules.values():
-        convert_ixx(path, dst, src, includes)
+        emit(path, dst, src, includes, keep_pragma=True, suffix='.hpp')
 
     cpp = 0
+    header = 0
     for dirpath, _, files in os.walk(src):
         for name in files:
+            path = os.path.join(dirpath, name)
             if name.endswith('.cpp'):
-                convert_cpp(os.path.join(dirpath, name), dst, src, includes)
+                emit(path, dst, src, includes, keep_pragma=False, suffix='.cpp')
                 cpp += 1
+            elif name.endswith(('.h', '.hpp', '.inl')):
+                emit(path, dst, src, includes, keep_pragma=False, suffix=os.path.splitext(name)[1])
+                header += 1
 
     print(f'{len(modules)} 个模块 → {dst}')
-    print(f'{cpp} 个 cpp 同步改写')
+    print(f'{cpp} 个 cpp、{header} 个头文件同步改写')
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-﻿#include "doodad_brush.h"
+#include "doodad_brush.h"
 
 #include <QKeyEvent>
 #include <volk.h>

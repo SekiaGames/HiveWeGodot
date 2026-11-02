@@ -86,7 +86,7 @@
 #include <variant>
 #include <vector>
 #include "binary_reader.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "utilities.hpp"
 #include <glm/glm.hpp>
 
@@ -111,7 +111,7 @@ void parse_all_mdx() {
 	size_t rows = 0;
 	size_t columns = 0;
 	std::atomic<uint64_t> checked(0);
-	std::for_each(std::execution::seq, paths.begin(), paths.end(), [&](const fs::path& path) {
+	std::for_each(paths.begin(), paths.end(), [&](const fs::path& path) {
 		auto buffer = read_file(path).value();
 		const auto mdx = mdx::MDX(buffer);
 

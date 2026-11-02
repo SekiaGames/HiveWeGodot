@@ -90,7 +90,7 @@
 #include <variant>
 #include <vector>
 #include "types.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "slk.hpp"
 #include "ini.hpp"
 #include "binary_reader.hpp"
@@ -820,7 +820,7 @@ class Map: public QObject {
 		}
 
 		// Animate units
-		std::for_each(std::execution::par_unseq, units.units.begin(), units.units.end(), [&](Unit& i) {
+		std::for_each(units.units.begin(), units.units.end(), [&](Unit& i) {
 			if (i.id == "sloc") {
 				return;
 			} // ToDo handle starting locations
@@ -843,7 +843,7 @@ class Map: public QObject {
 		}
 
 		// Animate doodads
-		std::for_each(std::execution::par_unseq, doodads.doodads.begin(), doodads.doodads.end(), [&](Doodad& i) {
+		std::for_each(doodads.doodads.begin(), doodads.doodads.end(), [&](Doodad& i) {
 			if (i.skeleton.sequence_index == -1) {
 				return;
 			}
@@ -888,7 +888,7 @@ class Map: public QObject {
 
 		if (render_doodads) {
 			doodads_in_view.resize(doodads.doodads.size());
-			std::for_each(std::execution::par_unseq, doodads.doodads.begin(), doodads.doodads.end(), [&](const Doodad& i) {
+			std::for_each(doodads.doodads.begin(), doodads.doodads.end(), [&](const Doodad& i) {
 				doodads_in_view[&i - doodads.doodads.data()] = render_manager.in_view(*i.mesh, i.skeleton, i.skeleton.matrix);
 			});
 			for (size_t k = 0; k < doodads.doodads.size(); k++) {
@@ -966,4 +966,3 @@ class Map: public QObject {
 	);
 };
 
-#include "map.moc"

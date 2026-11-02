@@ -93,7 +93,7 @@
 #include "utilities.hpp"
 #include "math_operations.hpp"
 #include "render_node.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "particle_emitter2_simulation.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

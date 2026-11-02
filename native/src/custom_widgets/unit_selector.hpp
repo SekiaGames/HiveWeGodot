@@ -163,7 +163,7 @@ class UnitSelector : public QWidget {
 	QLineEdit* search;
 	QListView* units;
 
-  public slots:
+  public:
 	void forceSelection() {
 		if (units->selectionModel()->selectedRows().isEmpty()) {
 			return;
@@ -180,4 +180,3 @@ class UnitSelector : public QWidget {
 	void unitSelected(std::string id);
 };
 
-#include "unit_selector.moc"

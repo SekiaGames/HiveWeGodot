@@ -92,7 +92,7 @@
 #include <vector>
 #include "binary_reader.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "camera.hpp"
 #include "resource_manager.hpp"
 #include "vk_context.hpp"

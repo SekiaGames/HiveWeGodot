@@ -1686,9 +1686,7 @@ class Terrain: public QObject {
 		physics.dynamicsWorld->addRigidBody(collision_body, 32, 32);
 	}
 
-  signals:
-	void minimap_changed(Texture minimap);
-	void tileset_changed();
+	std::function<void(Texture)> minimap_changed;
+	std::function<void()> tileset_changed;
 };
 
-#include "terrain.moc"

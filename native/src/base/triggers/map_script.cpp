@@ -2,7 +2,7 @@
 #include <QDir>
 #include <QProcess>
 
-module Triggers;
+#include "triggers.hpp"
 
 #include <algorithm>
 #include <array>

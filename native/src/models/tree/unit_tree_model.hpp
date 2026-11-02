@@ -251,4 +251,3 @@ class UnitTreeModel : public BaseTreeModel {
 	}
 };
 
-#include "unit_tree_model.moc"

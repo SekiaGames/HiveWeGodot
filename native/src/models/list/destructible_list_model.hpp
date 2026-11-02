@@ -189,4 +189,3 @@ class DestructableListFilter: public QSortFilterProxyModel {
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 };
 
-#include "destructible_list_model.moc"

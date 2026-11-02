@@ -265,7 +265,7 @@ class VkContext {
 
 		has_push_descriptor = physical_device.enable_extension_if_present(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 		has_present_wait =
-			physical_device.enable_extensions_if_present({VK_KHR_PRESENT_ID_EXTENSION_NAME, VK_KHR_PRESENT_WAIT_EXTENSION_NAME})
+			physical_device.enable_extensions_if_present(std::vector<const char*> {VK_KHR_PRESENT_ID_EXTENSION_NAME, VK_KHR_PRESENT_WAIT_EXTENSION_NAME})
 			&& physical_device.enable_extension_features_if_present(VkPhysicalDevicePresentIdFeaturesKHR {
 				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR,
 				.presentId = VK_TRUE,

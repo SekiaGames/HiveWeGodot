@@ -64,4 +64,3 @@ class UpgradeListFilter: public QSortFilterProxyModel {
 
 };
 
-#include "upgrade_list_model.moc"

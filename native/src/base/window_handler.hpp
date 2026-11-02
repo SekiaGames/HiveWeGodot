@@ -143,4 +143,3 @@ class WindowHandler : public QObject {
 
 inline WindowHandler window_handler;
 
-#include "window_handler.moc"

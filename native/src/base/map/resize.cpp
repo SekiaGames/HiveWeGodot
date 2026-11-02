@@ -2,7 +2,7 @@
 #include <QObject>
 #include <cassert>
 
-module Map;
+#include "map.hpp"
 
 #include <algorithm>
 #include <array>

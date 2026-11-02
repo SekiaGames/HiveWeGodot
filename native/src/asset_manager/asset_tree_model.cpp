@@ -99,7 +99,7 @@
 #include "qicon_resource.hpp"
 #include "binary_reader.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "unordered_map.hpp"
 #include "utilities.hpp"
 #include "object_editor/object_editor.h"

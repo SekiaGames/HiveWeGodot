@@ -602,7 +602,7 @@ class BaseFilter : public QSortFilterProxyModel {
 		return sourceModel()->data(index0).toString().contains(filterRegularExpression());
 	}
 
-  public slots:
+  public:
 	void setFilterCustom(const bool filter) {
 		beginFilterChange();
 		filterCustom = filter;
@@ -610,4 +610,3 @@ class BaseFilter : public QSortFilterProxyModel {
 	}
 };
 
-#include "base_tree_model.moc"

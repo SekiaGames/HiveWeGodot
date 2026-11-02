@@ -109,8 +109,7 @@ class UnitListFilter: public QSortFilterProxyModel {
   public:
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 
-  public slots:
-
+  public:
 	void setFilterRace(const QString& race) {
   		beginFilterChange();
 		filterRace = race;
@@ -118,4 +117,3 @@ class UnitListFilter: public QSortFilterProxyModel {
 	}
 };
 
-#include "unit_list_model.moc"

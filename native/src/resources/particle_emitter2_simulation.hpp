@@ -85,7 +85,7 @@
 #include <valarray>
 #include <variant>
 #include <vector>
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include <glm/glm.hpp>
 
 struct EmitterPool {

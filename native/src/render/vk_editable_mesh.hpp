@@ -88,7 +88,7 @@
 #include <valarray>
 #include <variant>
 #include <vector>
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "skeleton.hpp"
 #include "resource_manager.hpp"
 #include "particle_emitter2_renderer.hpp"

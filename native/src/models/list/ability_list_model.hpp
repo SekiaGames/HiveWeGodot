@@ -146,4 +146,3 @@ class AbilityListFilter: public QSortFilterProxyModel {
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 };
 
-#include "ability_list_model.moc"

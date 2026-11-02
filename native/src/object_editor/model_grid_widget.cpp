@@ -99,7 +99,7 @@
 #include <vector>
 #include "binary_reader.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "skeleton.hpp"
 #include "vk_editable_mesh.hpp"
 #include "vk_resources.hpp"

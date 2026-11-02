@@ -95,7 +95,7 @@
 #include "skeleton.hpp"
 #include "resource_manager.hpp"
 #include "timer.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "camera.hpp"
 #include "utilities.hpp"
 #include "globals.hpp"
@@ -369,7 +369,7 @@ class RenderManager {
 			for (uint32_t first = 0; first < instance_total; first += chunk_size) {
 				frame_chunks.push_back(first);
 			}
-			std::for_each(std::execution::par, frame_chunks.begin(), frame_chunks.end(), [&](const uint32_t first) {
+			std::for_each(frame_chunks.begin(), frame_chunks.end(), [&](const uint32_t first) {
 				const uint32_t last = std::min(first + chunk_size, instance_total);
 				// The mesh holding instance `first`, then walked forward as the chunk crosses into later meshes
 				auto mesh_it = std::ranges::upper_bound(frame_meshes, first, {}, &SkinnedMesh::frame_instance_offset) - 1;
@@ -436,7 +436,7 @@ class RenderManager {
 			render_opaque(cmd, allocator, frame, true);
 
 			// TRANSPARENT PASS — distance-sorted, coalesce adjacent same-state.
-			std::sort(std::execution::par, skinned_transparent_instances.begin(), skinned_transparent_instances.end(), [](auto& l, auto& r) {
+			std::sort(skinned_transparent_instances.begin(), skinned_transparent_instances.end(), [](auto& l, auto& r) {
 				return l.distance > r.distance;
 			});
 			render_transparent(cmd, allocator, frame, false);

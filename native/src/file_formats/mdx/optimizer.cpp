@@ -2,7 +2,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/norm.hpp>
 
-module MDX;
+#include "mdx.hpp"
 
 #include <algorithm>
 #include <array>

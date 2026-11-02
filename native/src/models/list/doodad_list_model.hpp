@@ -189,4 +189,3 @@ public:
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 };
 
-#include "doodad_list_model.moc"

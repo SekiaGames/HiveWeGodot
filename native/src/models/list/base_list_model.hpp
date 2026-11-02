@@ -82,4 +82,3 @@ class BaseListModel: public QIdentityProxyModel {
 	const slk::SLK& slk;
 };
 
-#include "base_list_model.moc"

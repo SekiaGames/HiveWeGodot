@@ -92,7 +92,7 @@
 #include "binary_reader.hpp"
 #include "resource_manager.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "vk_resources.hpp"
 #include <glm/glm.hpp>
 

@@ -1,4 +1,4 @@
-﻿#include "doodad_palette.h"
+#include "doodad_palette.h"
 
 #include <QRadioButton>
 #include <QCheckBox>
@@ -123,7 +123,7 @@
 #include "globals.hpp"
 #include "window_handler.hpp"
 #include "slk.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "binary_writer.hpp"
 #include "binary_reader.hpp"
 #include "hierarchy.hpp"

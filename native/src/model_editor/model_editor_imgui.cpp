@@ -93,7 +93,7 @@
 #include <valarray>
 #include <variant>
 #include <vector>
-#include "MDX.hpp"
+#include "mdx.hpp"
 
 namespace {
 	const char* blend_mode_name(const uint32_t mode) {

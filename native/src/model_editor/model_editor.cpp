@@ -105,7 +105,7 @@
 #include <vector>
 #include "binary_reader.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "utilities.hpp"
 #include "absl/strings/str_join.h"
 

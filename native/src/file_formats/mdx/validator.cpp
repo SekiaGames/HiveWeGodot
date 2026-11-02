@@ -1,5 +1,5 @@
 
-module MDX;
+#include "mdx.hpp"
 
 #include <algorithm>
 #include <array>

@@ -88,7 +88,7 @@
 #include "binary_reader.hpp"
 #include "camera.hpp"
 #include "hierarchy.hpp"
-#include "MDX.hpp"
+#include "mdx.hpp"
 #include "resource_manager.hpp"
 #include "skeleton.hpp"
 #include "skinned_mesh_globals.hpp"

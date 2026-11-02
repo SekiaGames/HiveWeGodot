@@ -56,7 +56,7 @@ class AspectRatioPixmapLabel : public QLabel {
 	int horizontal_border;
 	int vertical_border;
 
-  public slots:
+  public:
 	void setPixmap(const QPixmap& p) {
 		pixmap = p;
 
@@ -76,4 +76,3 @@ class AspectRatioPixmapLabel : public QLabel {
 	}
 };
 
-#include "aspect_ratio_pixmap_label.moc"

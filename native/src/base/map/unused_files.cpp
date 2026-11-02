@@ -2,7 +2,7 @@
 
 #include <QObject>
 
-module Map;
+#include "map.hpp"
 
 #include <algorithm>
 #include <array>
@@ -88,7 +88,7 @@ module Map;
 #include <valarray>
 #include <variant>
 #include <vector>
-#include "MDX.hpp"
+#include "mdx.hpp"
 
 namespace fs = std::filesystem;
 
@@ -217,7 +217,7 @@ std::vector<FileUsage> Map::get_file_usage() const {
 	hive::unordered_map<std::string, std::unordered_set<std::string>> referenced_resources;
 	std::mutex mutex;
 
-	std::for_each(std::execution::par_unseq, resources.begin(), resources.end(), [&](const auto& resource) {
+	std::for_each(resources.begin(), resources.end(), [&](const auto& resource) {
 		const auto& [path, ids] = resource; // MSVC does not support structured bindings in lambdas atm.
 
 		if (!path.ends_with(".mdx")) {

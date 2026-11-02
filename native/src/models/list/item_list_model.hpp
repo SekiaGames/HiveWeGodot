@@ -61,4 +61,3 @@ public:
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 };
 
-#include "item_list_model.moc"

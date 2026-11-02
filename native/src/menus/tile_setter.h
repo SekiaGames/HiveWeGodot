@@ -1,0 +1,49 @@
+#pragma once
+
+#include <vector>
+#include <QButtonGroup>
+#include <QDialog>
+#include "ui_tile_setter.h"
+
+#include <vector>
+
+#include "flow_layout.hpp"
+#include "tilesets.hpp"
+#include "terrain.hpp"
+#include "map_info.hpp"
+#include "texture_button.hpp"
+
+class TileSetter: public QDialog {
+	Q_OBJECT
+
+  public:
+	TileSetter(QWidget* parent, Terrain& terrain, TilesetData& tilesets, MapInfo& info);
+
+	Terrain& terrain;
+	TilesetData& tilesets;
+	MapInfo& info;
+
+  private:
+	void add_tile();
+	void remove_tile() const;
+	void update_available_tiles();
+	void shift_left() const;
+	void shift_right() const;
+	void save_tiles();
+	void reset_to_default();
+	void update_gui() const;
+	int get_scroll_view_height(QScrollArea* scroll_area, const FlowLayout* layout, const int rows) const;
+	TextureButton* create_tex_button(const TerrainTexture* tex);
+
+	Ui::TileSetter ui;
+
+	// QListWidget* widget_list = new QListWidget;
+
+	QButtonGroup* selected_group = new QButtonGroup;
+	QButtonGroup* available_group = new QButtonGroup;
+
+	FlowLayout* selected_layout = new FlowLayout;
+	FlowLayout* available_layout = new FlowLayout;
+
+	std::vector<int> from_to_id;
+};

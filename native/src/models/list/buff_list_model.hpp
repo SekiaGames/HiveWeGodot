@@ -69,4 +69,3 @@ class BuffListFilter: public QSortFilterProxyModel {
 	using QSortFilterProxyModel::QSortFilterProxyModel;
 };
 
-#include "buff_list_model.moc"

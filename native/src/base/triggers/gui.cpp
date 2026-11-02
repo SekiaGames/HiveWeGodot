@@ -1,4 +1,4 @@
-module Triggers;
+#include "triggers.hpp"
 
 #include <algorithm>
 #include <array>

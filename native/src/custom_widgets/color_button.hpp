@@ -35,8 +35,7 @@ class ColorButton: public QPushButton {
 		return {color.red(), color.green(), color.blue(), color.alpha()};
 	}
 
-  public slots:
-
+  public:
 	void changeColor() {
 		QColorDialog dialog(color, parentWidget());
 		dialog.setOption(QColorDialog::ShowAlphaChannel, true);
@@ -53,4 +52,3 @@ class ColorButton: public QPushButton {
 	QColor color;
 };
 
-#include "color_button.moc"
