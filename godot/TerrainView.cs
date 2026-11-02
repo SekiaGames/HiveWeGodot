@@ -561,32 +561,63 @@ public partial class TerrainView : Node3D
 
     private Node3D? clipboardRoot;
     private readonly System.Collections.Generic.List<ClipboardGroup> clipboardGroups = new();
-    private HiveDoodad[] clipboardData = Array.Empty<HiveDoodad>();
-    private Vector2 clipboardAnchor;
+    private Vector3[] ghostOffsets = Array.Empty<Vector3>();
+    private float[] ghostAngles = Array.Empty<float>();
+    private Vector3[] ghostScales = Array.Empty<Vector3>();
 
-    public void BeginClipboardGhost()
+    public void BeginClipboardGhost(bool isUnit)
     {
         HideClipboardGhost();
 
-        clipboardData = HiveCore.Clipboard();
-        if (clipboardData.Length == 0)
+        Vector2 anchor;
+        var models = new System.Collections.Generic.List<int>();
+        if (isUnit)
+        {
+            HiveUnit[] units = HiveCore.UnitClipboard();
+            anchor = HiveCore.UnitClipboardAnchor();
+            ghostOffsets = new Vector3[units.Length];
+            ghostAngles = new float[units.Length];
+            ghostScales = new Vector3[units.Length];
+            for (int i = 0; i < units.Length; i++)
+            {
+                ghostOffsets[i] = new Vector3(units[i].X - anchor.X, 0f, units[i].Y - anchor.Y);
+                ghostAngles[i] = units[i].Angle;
+                ghostScales[i] = new Vector3(units[i].ScaleX, units[i].ScaleY, units[i].ScaleZ);
+                models.Add(HiveCore.ModelFromUnitClipboard(i));
+            }
+        }
+        else
+        {
+            HiveDoodad[] doodads = HiveCore.Clipboard();
+            anchor = HiveCore.ClipboardAnchor();
+            ghostOffsets = new Vector3[doodads.Length];
+            ghostAngles = new float[doodads.Length];
+            ghostScales = new Vector3[doodads.Length];
+            for (int i = 0; i < doodads.Length; i++)
+            {
+                ghostOffsets[i] = new Vector3(doodads[i].X - anchor.X, 0f, doodads[i].Y - anchor.Y);
+                ghostAngles[i] = doodads[i].Angle;
+                ghostScales[i] = new Vector3(doodads[i].ScaleX, doodads[i].ScaleY, doodads[i].ScaleZ);
+                models.Add(HiveCore.ModelFromClipboard(i));
+            }
+        }
+
+        if (ghostOffsets.Length == 0)
         {
             return;
         }
-        clipboardAnchor = HiveCore.ClipboardAnchor();
 
         var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
-        for (int i = 0; i < clipboardData.Length; i++)
+        for (int i = 0; i < models.Count; i++)
         {
-            int model = HiveCore.ModelFromClipboard(i);
-            if (model < 0)
+            if (models[i] < 0)
             {
                 continue;
             }
-            if (!byModel.TryGetValue(model, out var list))
+            if (!byModel.TryGetValue(models[i], out var list))
             {
                 list = new System.Collections.Generic.List<int>();
-                byModel[model] = list;
+                byModel[models[i]] = list;
             }
             list.Add(i);
         }
@@ -611,7 +642,7 @@ public partial class TerrainView : Node3D
             clipboardGroups.Add(new ClipboardGroup { Multi = multi, Slots = pair.Value.ToArray() });
         }
 
-        GD.Print($"剪贴板预览 {clipboardData.Length} 个对象，{clipboardGroups.Count} 组模型");
+        GD.Print($"剪贴板预览 {ghostOffsets.Length} 个对象，{clipboardGroups.Count} 组模型");
     }
 
     public void UpdateClipboardGhost(float x, float z)
@@ -620,11 +651,10 @@ public partial class TerrainView : Node3D
         {
             for (int k = 0; k < group.Slots.Length; k++)
             {
-                HiveDoodad doodad = clipboardData[group.Slots[k]];
-                float px = x + doodad.X - clipboardAnchor.X;
-                float pz = z + doodad.Y - clipboardAnchor.Y;
-                Basis basis = Basis.Identity.Rotated(Vector3.Up, -doodad.Angle)
-                    .Scaled(new Vector3(doodad.ScaleX, doodad.ScaleY, doodad.ScaleZ));
+                int slot = group.Slots[k];
+                float px = x + ghostOffsets[slot].X;
+                float pz = z + ghostOffsets[slot].Z;
+                Basis basis = Basis.Identity.Rotated(Vector3.Up, -ghostAngles[slot]).Scaled(ghostScales[slot]);
                 group.Multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(px, HeightAt(px, pz), pz)));
             }
         }
@@ -633,7 +663,9 @@ public partial class TerrainView : Node3D
     public void HideClipboardGhost()
     {
         clipboardGroups.Clear();
-        clipboardData = Array.Empty<HiveDoodad>();
+        ghostOffsets = Array.Empty<Vector3>();
+        ghostAngles = Array.Empty<float>();
+        ghostScales = Array.Empty<Vector3>();
         if (clipboardRoot != null)
         {
             RemoveChild(clipboardRoot);

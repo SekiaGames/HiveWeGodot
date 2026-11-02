@@ -293,6 +293,36 @@ public static class HiveCore
     private static extern int hive_model_from_unit(IntPtr hive, int unitIndex);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_unit_type_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_unit_type_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_add_unit(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, float x, float y, float angle, int player);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_unit_selection(IntPtr hive, int[] indices, int count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_unit_clipboard_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_unit_clipboard(IntPtr hive, [Out] HiveUnit[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_unit_clipboard_anchor(IntPtr hive, [Out] float[] output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_place_unit_clipboard(IntPtr hive, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_unit_clipboard_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_from_unit_clipboard(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_info(IntPtr hive, int model, out HiveModelInfo info);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -622,6 +652,54 @@ public static class HiveCore
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 
     public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
+
+    public static string[] UnitTypes()
+    {
+        int count = hive_unit_type_count(handle);
+        string[] names = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            IntPtr pointer = hive_unit_type_id(handle, i);
+            names[i] = pointer == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
+        }
+        return names;
+    }
+
+    public static int AddUnit(string id, float x, float y, float angle, int player)
+        => hive_add_unit(handle, id, x, y, angle, player);
+
+    public static int CopyUnitSelection(int[] indices) => hive_copy_unit_selection(handle, indices, indices.Length);
+
+    public static int UnitClipboardCount => hive_unit_clipboard_count(handle);
+
+    public static HiveUnit[] UnitClipboard()
+    {
+        int count = UnitClipboardCount;
+        if (count <= 0)
+        {
+            return Array.Empty<HiveUnit>();
+        }
+        HiveUnit[] data = new HiveUnit[count];
+        hive_copy_unit_clipboard(handle, data, data.Length);
+        return data;
+    }
+
+    public static Vector2 UnitClipboardAnchor()
+    {
+        float[] data = new float[2];
+        hive_unit_clipboard_anchor(handle, data);
+        return new Vector2(data[0], data[1]);
+    }
+
+    public static int PlaceUnitClipboard(float x, float y) => hive_place_unit_clipboard(handle, x, y);
+
+    public static string? UnitClipboardId(int index)
+    {
+        IntPtr pointer = hive_unit_clipboard_id(handle, index);
+        return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
+
+    public static int ModelFromUnitClipboard(int index) => hive_model_from_unit_clipboard(handle, index);
 
     public static HiveModelInfo ModelInfo(int model)
     {

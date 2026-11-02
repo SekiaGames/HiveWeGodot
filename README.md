@@ -95,7 +95,7 @@ bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/
 | Ctrl+C / Ctrl+V | 复制选中装饰物 / 整组贴到鼠标处 |
 | Esc | 取消粘贴 |
 
-左侧面板的「显示路径」会把不可走的格子标红。「装饰物」下拉选类型后，点地图即可放置。
+左侧面板的「显示路径」会把不可走的格子标红。「装饰物」「单位」两个下拉选类型后，点地图即可放置。
 
 左侧面板可直接点：纹理墙、五个高度工具、加水去水、四种悬崖操作、笔刷尺寸与形状。面板底部是小地图，点哪里相机跳到哪里。
 
@@ -113,6 +113,8 @@ HIVE_PICK_TEST=1 HIVE_SCREENSHOT=/tmp/pick.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 拾取、删除、移动、旋转
 HIVE_CLIP_TEST=/tmp/clip_after.png HIVE_SCREENSHOT=/tmp/clip_preview.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 复制粘贴，存预览与放置后两张
+HIVE_UNIT_TEST=/tmp/unit_after.png HIVE_SCREENSHOT=/tmp/unit_preview.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个单位再复制粘贴
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：

@@ -20,11 +20,13 @@ public partial class Main : Node3D
     private int brushSize = 8;
     private int brushShape;
     private string doodadType = string.Empty;
+    private string unitType = string.Empty;
     private bool selectionIsUnit;
     private int selectionIndex = -1;
     private bool draggingObject;
     private bool rotatingObject;
     private bool pasting;
+    private bool clipboardIsUnit;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -38,6 +40,7 @@ public partial class Main : Node3D
     private readonly string reloadTest = OS.GetEnvironment("HIVE_RELOAD_TEST");
     private readonly string pickTest = OS.GetEnvironment("HIVE_PICK_TEST");
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
+    private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private int frames;
     private bool loaded;
 
@@ -129,6 +132,14 @@ public partial class Main : Node3D
         {
             doodadType = id;
             tool = EditorUi.ToolMode.DoodadPlace;
+            ApplyTool();
+            UpdateStatus();
+        };
+        ui.SetUnitTypes(HiveCore.UnitTypes());
+        ui.UnitTypeSelected += id =>
+        {
+            unitType = id;
+            tool = EditorUi.ToolMode.UnitPlace;
             ApplyTool();
             UpdateStatus();
         };
@@ -262,6 +273,9 @@ public partial class Main : Node3D
             case EditorUi.ToolMode.DoodadPlace:
                 name = $"放置装饰物 {doodadType}";
                 break;
+            case EditorUi.ToolMode.UnitPlace:
+                name = $"放置单位 {unitType}";
+                break;
             default:
                 name = "?";
                 break;
@@ -356,11 +370,18 @@ public partial class Main : Node3D
                     break;
                 }
 
-                if (button.Pressed && tool == EditorUi.ToolMode.DoodadPlace)
+                if (button.Pressed && (tool == EditorUi.ToolMode.DoodadPlace || tool == EditorUi.ToolMode.UnitPlace))
                 {
                     if (view.Pick(camera, button.Position, out Vector3 spot))
                     {
-                        PlaceDoodad(spot);
+                        if (tool == EditorUi.ToolMode.DoodadPlace)
+                        {
+                            PlaceDoodad(spot);
+                        }
+                        else
+                        {
+                            PlaceUnit(spot);
+                        }
                     }
                     break;
                 }
@@ -622,6 +643,24 @@ public partial class Main : Node3D
         ui.SetStatus($"已放置 {doodadType} 于 {spot.X:F1}, {spot.Z:F1}");
     }
 
+    private void PlaceUnit(Vector3 spot)
+    {
+        if (unitType.Length == 0)
+        {
+            return;
+        }
+
+        int index = HiveCore.AddUnit(unitType, spot.X, spot.Z, 0f, 0);
+        if (index < 0)
+        {
+            ui.SetStatus($"放置 {unitType} 失败");
+            return;
+        }
+
+        view.BuildUnits();
+        ui.SetStatus($"已放置 {unitType} 于 {spot.X:F1}, {spot.Z:F1}");
+    }
+
     private void ReloadView()
     {
         view.Reload();
@@ -660,25 +699,23 @@ public partial class Main : Node3D
             return;
         }
 
-        if (selectionIsUnit)
-        {
-            ui.SetStatus("单位还不能复制");
-            return;
-        }
+        int count = selectionIsUnit
+            ? HiveCore.CopyUnitSelection(new[] { selectionIndex })
+            : HiveCore.CopySelection(new[] { selectionIndex });
 
-        int count = HiveCore.CopySelection(new[] { selectionIndex });
         if (count == 0)
         {
             ui.SetStatus("复制失败");
             return;
         }
 
-        ui.SetStatus($"已复制 {count} 个装饰物，Ctrl+V 放置");
+        clipboardIsUnit = selectionIsUnit;
+        ui.SetStatus($"已复制 {count} 个{(selectionIsUnit ? "单位" : "装饰物")}，Ctrl+V 放置");
     }
 
     private void StartPaste()
     {
-        int count = HiveCore.ClipboardCount;
+        int count = clipboardIsUnit ? HiveCore.UnitClipboardCount : HiveCore.ClipboardCount;
         if (count == 0)
         {
             ui.SetStatus("剪贴板是空的");
@@ -686,8 +723,8 @@ public partial class Main : Node3D
         }
 
         pasting = true;
-        view.BeginClipboardGhost();
-        ui.SetStatus($"放置 {count} 个装饰物：左键放下，Esc 取消");
+        view.BeginClipboardGhost(clipboardIsUnit);
+        ui.SetStatus($"放置 {count} 个{(clipboardIsUnit ? "单位" : "装饰物")}：左键放下，Esc 取消");
     }
 
     private void CancelPaste()
@@ -704,8 +741,11 @@ public partial class Main : Node3D
             return;
         }
 
-        int count = HiveCore.ClipboardCount;
-        int first = HiveCore.PlaceClipboard(spot.X, spot.Z);
+        bool isUnit = clipboardIsUnit;
+        int count = isUnit ? HiveCore.UnitClipboardCount : HiveCore.ClipboardCount;
+        int first = isUnit
+            ? HiveCore.PlaceUnitClipboard(spot.X, spot.Z)
+            : HiveCore.PlaceClipboard(spot.X, spot.Z);
 
         pasting = false;
         view.HideClipboardGhost();
@@ -719,7 +759,7 @@ public partial class Main : Node3D
         selectionIndex = -1;
         view.ClearSelection();
         ReloadObjects();
-        ui.SetStatus($"已放置 {count} 个装饰物，Ctrl+Z 可撤销");
+        ui.SetStatus($"已放置 {count} 个{(isUnit ? "单位" : "装饰物")}，Ctrl+Z 可撤销");
     }
 
     private void ReloadObjects()
@@ -769,6 +809,50 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (unitTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                focus = new Vector3(31f, 0f, 21f);
+                distance = 26f;
+                UpdateCamera();
+
+                string id = HiveCore.UnitTypes().Length > 0 ? HiveCore.UnitTypes()[0] : string.Empty;
+                for (int i = 0; i < HiveCore.MapInfo.UnitCount; i++)
+                {
+                    string? existing = HiveCore.UnitId(i);
+                    if (existing != null && existing != "sloc")
+                    {
+                        id = existing;
+                        break;
+                    }
+                }
+                unitType = id;
+                PlaceUnit(new Vector3(31f, view.HeightAt(31f, 21f), 21f));
+                GD.Print($"单位类型 {HiveCore.UnitTypes().Length} 个，用 {id} 放置");
+            }
+            else if (frames == 12)
+            {
+                Select(true, HiveCore.MapInfo.UnitCount - 1);
+                CopySelectionObjects();
+                StartPaste();
+                view.UpdateClipboardGhost(34f, 24f);
+                Capture(screenshotPath);
+            }
+            else if (frames == 18)
+            {
+                Vector2 screen = camera.UnprojectPosition(new Vector3(34f, view.HeightAt(34f, 24f), 24f));
+                PlaceClipboardAt(screen);
+                GD.Print($"单位剪贴板后 {HiveCore.MapInfo.UnitCount} 个单位");
+            }
+            else if (frames == 22)
+            {
+                Capture(unitTest);
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (clipTest.Length > 0)
         {

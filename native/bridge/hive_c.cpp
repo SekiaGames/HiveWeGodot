@@ -50,6 +50,9 @@ struct HiveHandle {
 	std::vector<Doodad> clipboard;
 	glm::vec2 clipboard_anchor {0.f};
 	bool clipboard_grid_aligned = false;
+	std::vector<std::string> unit_types;
+	std::vector<Unit> unit_clipboard;
+	glm::vec2 unit_clipboard_anchor {0.f};
 };
 
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
@@ -1396,24 +1399,14 @@ const char* hive_unit_id(void* handle, const int32_t index) {
 	return source[static_cast<std::size_t>(index)].id.c_str();
 }
 
-int32_t hive_model_from_unit(void* handle, const int32_t unit_index) {
-	if (handle == nullptr || unit_index < 0) {
-		return -1;
-	}
-	auto* hive = static_cast<HiveHandle*>(handle);
-	const auto& source = hive->map->units.units;
-	if (static_cast<std::size_t>(unit_index) >= source.size()) {
-		return -1;
-	}
-
-	const Unit& unit = source[static_cast<std::size_t>(unit_index)];
-	const std::string key = "unit:" + unit.id;
+int32_t model_for_unit(HiveHandle* hive, const std::string& id) {
+	const std::string key = "unit:" + id;
 
 	if (const auto found = hive->model_keys.find(key); found != hive->model_keys.end()) {
 		return found->second;
 	}
 
-	auto mesh = hive->map->units.get_mesh(unit.id);
+	auto mesh = hive->map->units.get_mesh(id);
 	if (!mesh || !mesh->mdx) {
 		hive->model_keys[key] = -1;
 		return -1;
@@ -1423,6 +1416,194 @@ int32_t hive_model_from_unit(void* handle, const int32_t unit_index) {
 	const auto index = static_cast<int32_t>(hive->models.size() - 1);
 	hive->model_keys[key] = index;
 	return index;
+}
+
+int32_t hive_model_from_unit(void* handle, const int32_t unit_index) {
+	if (handle == nullptr || unit_index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->map->units.units;
+	if (static_cast<std::size_t>(unit_index) >= source.size()) {
+		return -1;
+	}
+	return model_for_unit(hive, source[static_cast<std::size_t>(unit_index)].id);
+}
+
+const std::vector<std::string>& unit_type_ids(HiveHandle* hive) {
+	if (hive->unit_types.empty()) {
+		for (const auto& [id, row] : units_slk.row_headers) {
+			if (id.size() == 4) {
+				hive->unit_types.push_back(id);
+			}
+		}
+		std::sort(hive->unit_types.begin(), hive->unit_types.end());
+	}
+	return hive->unit_types;
+}
+
+int32_t hive_unit_type_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(unit_type_ids(static_cast<HiveHandle*>(handle)).size());
+}
+
+const char* hive_unit_type_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& ids = unit_type_ids(static_cast<HiveHandle*>(handle));
+	if (static_cast<std::size_t>(index) >= ids.size()) {
+		return nullptr;
+	}
+	return ids[static_cast<std::size_t>(index)].c_str();
+}
+
+int32_t hive_add_unit(void* handle, const char* id, const float x, const float y, const float angle, const int32_t player) {
+	if (handle == nullptr || id == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	WorldEditContext ctx = hive->map->edit_context();
+
+	auto mesh = ctx.units.get_mesh(id);
+	if (!mesh || !mesh->mdx) {
+		return -1;
+	}
+
+	glm::vec3 position(x, y, ctx.terrain.interpolated_height(x, y, true));
+	Unit& unit = ctx.units.add_unit(id, position);
+	unit.angle = angle;
+	unit.player = player;
+	unit.update();
+
+	auto action = std::make_unique<UnitAddAction>();
+	action->units.push_back(unit);
+
+	hive->map->world_undo.new_undo_group();
+	hive->map->world_undo.add_undo_action(std::move(action));
+
+	return static_cast<int32_t>(ctx.units.units.size() - 1);
+}
+
+int32_t hive_copy_unit_selection(void* handle, const int32_t* indices, const int32_t count) {
+	if (handle == nullptr || indices == nullptr || count <= 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& list = hive->map->units.units;
+
+	std::vector<Unit> picked;
+	glm::vec3 average_position(0.f);
+
+	for (int32_t i = 0; i < count; ++i) {
+		const int32_t index = indices[i];
+		if (index < 0 || static_cast<std::size_t>(index) >= list.size()) {
+			continue;
+		}
+		picked.push_back(list[static_cast<std::size_t>(index)]);
+		average_position += list[static_cast<std::size_t>(index)].position;
+	}
+
+	if (picked.empty()) {
+		hive->unit_clipboard.clear();
+		return 0;
+	}
+
+	hive->unit_clipboard_anchor = glm::vec2(average_position) / static_cast<float>(picked.size());
+	hive->unit_clipboard = std::move(picked);
+	return static_cast<int32_t>(hive->unit_clipboard.size());
+}
+
+int32_t hive_unit_clipboard_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->unit_clipboard.size());
+}
+
+int32_t hive_copy_unit_clipboard(void* handle, HiveUnit* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->unit_clipboard;
+	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
+	for (std::size_t i = 0; i < count; ++i) {
+		out[i].x = source[i].position.x;
+		out[i].y = source[i].position.y;
+		out[i].z = source[i].position.z;
+		out[i].angle = source[i].angle;
+		out[i].scale_x = source[i].scale.x;
+		out[i].scale_y = source[i].scale.y;
+		out[i].scale_z = source[i].scale.z;
+		out[i].player = source[i].player;
+		out[i].variation = source[i].variation;
+	}
+	return static_cast<int32_t>(count);
+}
+
+void hive_unit_clipboard_anchor(void* handle, float* out) {
+	if (handle == nullptr || out == nullptr) {
+		return;
+	}
+	const glm::vec2& anchor = static_cast<HiveHandle*>(handle)->unit_clipboard_anchor;
+	out[0] = anchor.x;
+	out[1] = anchor.y;
+}
+
+const char* hive_unit_clipboard_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->unit_clipboard;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return nullptr;
+	}
+	return source[static_cast<std::size_t>(index)].id.c_str();
+}
+
+int32_t hive_model_from_unit_clipboard(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->unit_clipboard;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return -1;
+	}
+	return model_for_unit(hive, source[static_cast<std::size_t>(index)].id);
+}
+
+int32_t hive_place_unit_clipboard(void* handle, const float x, const float y) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (hive->unit_clipboard.empty()) {
+		return -1;
+	}
+
+	WorldEditContext ctx = hive->map->edit_context();
+	auto action = std::make_unique<UnitAddAction>();
+	const int32_t first = static_cast<int32_t>(ctx.units.units.size());
+	const glm::vec2 mouse(x, y);
+
+	for (const Unit& source : hive->unit_clipboard) {
+		glm::vec2 flat = glm::vec2(source.position) + mouse - hive->unit_clipboard_anchor;
+		glm::vec3 final_position(flat.x, flat.y, ctx.terrain.interpolated_height(flat.x, flat.y, true));
+
+		Unit& unit = ctx.units.add_unit(source);
+		unit.creation_number = ++Unit::auto_increment;
+		unit.position = final_position;
+		unit.update();
+
+		action->units.push_back(unit);
+	}
+
+	hive->map->world_undo.new_undo_group();
+	hive->map->world_undo.add_undo_action(std::move(action));
+	return first;
 }
 
 int32_t hive_model_from_path(void* handle, const char* path) {

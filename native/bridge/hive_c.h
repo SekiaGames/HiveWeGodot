@@ -193,6 +193,21 @@ typedef struct HiveUnit {
 int32_t hive_copy_units(void* handle, HiveUnit* out, int32_t capacity);
 const char* hive_unit_id(void* handle, int32_t index);
 
+/* 可放置的单位类型（四字符 id），来自 Units.slk。 */
+int32_t hive_unit_type_count(void* handle);
+const char* hive_unit_type_id(void* handle, int32_t index);
+/* 放一个单位，高度自动贴地形，进撤销栈。返回新索引，失败返回 -1。 */
+int32_t hive_add_unit(void* handle, const char* id, float x, float y, float angle, int32_t player);
+
+/* 单位的剪贴板，语义同装饰物那套。 */
+int32_t hive_copy_unit_selection(void* handle, const int32_t* indices, int32_t count);
+int32_t hive_unit_clipboard_count(void* handle);
+int32_t hive_copy_unit_clipboard(void* handle, HiveUnit* out, int32_t capacity);
+void hive_unit_clipboard_anchor(void* handle, float* out);
+int32_t hive_place_unit_clipboard(void* handle, float x, float y);
+const char* hive_unit_clipboard_id(void* handle, int32_t index);
+int32_t hive_model_from_unit_clipboard(void* handle, int32_t index);
+
 /* 模型网格。顶点、法线、UV 按 geoset 顺序拼成一个数组，索引各自独立。
    MDX 原始坐标系是 Z 向上，调用方自己转。 */
 typedef struct HiveModelInfo {

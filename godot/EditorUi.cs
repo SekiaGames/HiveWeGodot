@@ -21,6 +21,7 @@ public partial class EditorUi : CanvasLayer
         CliffLevel,
         CliffRamp,
         DoodadPlace,
+        UnitPlace,
     }
 
     public event Action<int>? TextureSelected;
@@ -35,6 +36,7 @@ public partial class EditorUi : CanvasLayer
     public event Action<bool>? PathingToggled;
     public event Action<bool>? RegionsToggled;
     public event Action<string>? DoodadTypeSelected;
+    public event Action<string>? UnitTypeSelected;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -45,6 +47,7 @@ public partial class EditorUi : CanvasLayer
     private SpinBox brushSize = null!;
     private CheckBox pathingToggle = null!;
     private OptionButton doodadPicker = null!;
+    private OptionButton unitPicker = null!;
 
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new(0.18f, 0.19f, 0.22f);
@@ -71,9 +74,20 @@ public partial class EditorUi : CanvasLayer
         panel.OffsetBottom = -30;
         AddChild(panel);
 
-        var column = new VBoxContainer();
+        var outer = new VBoxContainer();
+        outer.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(outer);
+
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        outer.AddChild(scroll);
+
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         column.AddThemeConstantOverride("separation", 8);
-        panel.AddChild(column);
+        scroll.AddChild(column);
 
         column.AddChild(SectionTitle("地面纹理"));
 
@@ -151,7 +165,11 @@ public partial class EditorUi : CanvasLayer
         cliffGrid.AddChild(ToolButton("斜坡", ToolMode.CliffRamp));
 
         column.AddChild(Spacer(10));
-        column.AddChild(SectionTitle("装饰物"));
+        column.AddChild(SectionTitle("对象"));
+
+        var pickers = new HBoxContainer();
+        pickers.AddThemeConstantOverride("separation", 4);
+        column.AddChild(pickers);
 
         doodadPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         doodadPicker.ItemSelected += index =>
@@ -161,7 +179,17 @@ public partial class EditorUi : CanvasLayer
                 DoodadTypeSelected?.Invoke(doodadPicker.GetItemText((int)index));
             }
         };
-        column.AddChild(doodadPicker);
+        pickers.AddChild(doodadPicker);
+
+        unitPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        unitPicker.ItemSelected += index =>
+        {
+            if (index > 0)
+            {
+                UnitTypeSelected?.Invoke(unitPicker.GetItemText((int)index));
+            }
+        };
+        pickers.AddChild(unitPicker);
 
         column.AddChild(Spacer(8));
 
@@ -212,8 +240,7 @@ public partial class EditorUi : CanvasLayer
         }
         column.AddChild(shapeRow);
 
-        column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
-        column.AddChild(SectionTitle("小地图"));
+        column.AddChild(Spacer(10));
 
         minimap = new TextureRect
         {
@@ -239,7 +266,8 @@ public partial class EditorUi : CanvasLayer
                     Mathf.Clamp(local.Y, 0f, 1f) * (view.Info.Height - 1)));
             }
         };
-        column.AddChild(minimap);
+        outer.AddChild(SectionTitle("小地图"));
+        outer.AddChild(minimap);
 
         textureRow = new HBoxContainer();
         column.AddChild(textureRow);
@@ -308,6 +336,16 @@ public partial class EditorUi : CanvasLayer
         foreach (string id in ids)
         {
             doodadPicker.AddItem(id);
+        }
+    }
+
+    public void SetUnitTypes(string[] ids)
+    {
+        unitPicker.Clear();
+        unitPicker.AddItem($"单位（{ids.Length}）", 0);
+        foreach (string id in ids)
+        {
+            unitPicker.AddItem(id);
         }
     }
 
