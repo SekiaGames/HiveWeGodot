@@ -1,0 +1,270 @@
+#pragma once
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "MDX.hpp"
+#include "ParticleEmitter2Simulation.hpp"
+#include "Skeleton.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+struct ParticleVertex {
+	glm::vec3 position;
+	glm::vec2 uv;
+	glm::vec4 color;
+};
+
+namespace {
+	constexpr float kEpsilon = 1e-6f;
+
+	constexpr float corner_xy[4][2] = {
+		{-1.f, 1.f},
+		{-1.f, -1.f},
+		{1.f, 1.f},
+		{1.f, -1.f},
+	};
+
+	int compute_cell(const uint32_t start, const uint32_t end, const uint32_t repeat, const float t) {
+		const float r = (repeat == 0) ? 1.f : static_cast<float>(repeat);
+		const uint32_t initial = (end >= start) ? start : (start + 1);
+		const int delta = (end >= start) ? (end - start + 1) : (end - start - 1);
+		const float eff_t = (r == 1.f) ? t : std::fmod(t * r, 1.f);
+		const float val = static_cast<float>(initial) + static_cast<float>(delta) * eff_t;
+		return std::max(0, static_cast<int>(val));
+	}
+} // namespace
+
+/// World matrix of an emitter's node. Appends the pivot translation, since world_matrices[node.id]
+/// is in skinning convention and omits it at rest; this matches the simulation path.
+glm::mat4 emitter_world_matrix(const mdx::MDX& mdx, const Skeleton& skeleton, const mdx::ParticleEmitter2& e) {
+	return skeleton.world_matrices[e.node.id] * glm::translate(glm::mat4(1.f), mdx.pivots[e.node.id]);
+}
+
+/// Appends the camera-facing quads for every live particle of one emitter to `scratch`, as a triangle list.
+/// Backend independent; `scratch_sort` is reusable storage for far-Z sorting.
+void build_emitter_vertices(
+const mdx::ParticleEmitter2& e,
+const EmitterPool& pool,
+const glm::mat4& emitter_world_matrix,
+const glm::vec3& camera_right,
+const glm::vec3& camera_up,
+const glm::vec3& camera_forward,
+std::vector<ParticleVertex>& scratch,
+std::vector<std::pair<float, size_t>>& scratch_sort
+) {
+	std::vector<size_t> order_indices;
+
+	if ((e.node.flags & mdx::Node::sort_primitives_far_z) != 0) {
+		scratch_sort.clear();
+		scratch_sort.reserve(pool.alive_count);
+		for (size_t i = 0; i < pool.alive_count; ++i) {
+			glm::vec3 wp = pool.positions[i];
+			if ((e.node.flags & mdx::Node::model_space) != 0) {
+				wp = glm::vec3(emitter_world_matrix * glm::vec4(wp, 1.f));
+			}
+			scratch_sort.emplace_back(glm::dot(wp, camera_forward), i);
+		}
+		std::sort(scratch_sort.begin(), scratch_sort.end(), [](const auto& a, const auto& b) {
+			return a.first > b.first;
+		});
+		order_indices.reserve(pool.alive_count);
+		for (const auto& s : scratch_sort) {
+			order_indices.push_back(s.second);
+		}
+	}
+
+	for (size_t k = 0; k < pool.alive_count; ++k) {
+		const size_t i = (e.node.flags & mdx::Node::sort_primitives_far_z) != 0 ? order_indices[k] : k;
+
+		glm::vec3 position = pool.positions[i];
+		glm::vec3 velocity = pool.velocities[i];
+		if ((e.node.flags & mdx::Node::model_space) != 0) {
+			position = glm::vec3(emitter_world_matrix * glm::vec4(position, 1.f));
+			velocity = glm::mat3(emitter_world_matrix) * velocity;
+		}
+
+		float prev_end_time;
+		float end_time;
+		glm::vec3 col_a;
+		glm::vec3 col_b;
+		float alpha_a;
+		float alpha_b;
+		float scale_a;
+		float scale_b;
+		glm::uvec3 head_iv;
+		glm::uvec3 tail_iv;
+		// Either the "birth" phase or "death" phase
+		if (pool.ages[i] <= e.time_middle * e.life_span) {
+			prev_end_time = 0.f;
+			end_time = e.time_middle * e.life_span;
+			col_a = e.start_segment_color;
+			col_b = e.middle_segment_color;
+			alpha_a = static_cast<float>(e.segment_alphas.x) / 255.f;
+			alpha_b = static_cast<float>(e.segment_alphas.y) / 255.f;
+			scale_a = e.segment_scaling.x;
+			scale_b = e.segment_scaling.y;
+			head_iv = e.head_intervals;
+			tail_iv = e.tail_intervals;
+		} else {
+			prev_end_time = e.time_middle * e.life_span;
+			end_time = e.life_span;
+			col_a = e.middle_segment_color;
+			col_b = e.end_segment_color;
+			alpha_a = static_cast<float>(e.segment_alphas.y) / 255.f;
+			alpha_b = static_cast<float>(e.segment_alphas.z) / 255.f;
+			scale_a = e.segment_scaling.y;
+			scale_b = e.segment_scaling.z;
+			head_iv = e.head_decay_intervals;
+			tail_iv = e.tail_decay_intervals;
+		}
+
+		const float span = end_time - prev_end_time;
+		const float raw = span > 0.f ? (pool.ages[i] - prev_end_time) / span : 0.f;
+		const float t = raw * 0.99f + 0.005f;
+
+		const glm::vec3 rgb = glm::mix(col_a, col_b, t);
+		const float alpha = glm::mix(alpha_a, alpha_b, t);
+		const float scale = glm::mix(scale_a, scale_b, t);
+		const glm::vec4 color(rgb, alpha);
+
+		const float inv_cols = 1.f / static_cast<float>(e.columns);
+		const float inv_rows = 1.f / static_cast<float>(e.rows);
+
+		if (e.head_or_tail == 0u || e.head_or_tail == 2u) {
+			const int cell = compute_cell(head_iv.x, head_iv.y, head_iv.z, t);
+			const int col_idx = cell % static_cast<int>(e.columns);
+			const int row_idx = cell / static_cast<int>(e.columns);
+			const float u0 = col_idx * inv_cols;
+			const float v0u = row_idx * inv_rows;
+			const float u1 = u0 + inv_cols;
+			const float v1u = v0u + inv_rows;
+
+			glm::vec3 right = camera_right;
+			glm::vec3 up = camera_up;
+
+			// XYQuad particles lie flat in the XY plane and orient along their horizontal velocity
+			if ((e.node.flags & mdx::Node::xy_quad) != 0) {
+				const glm::vec3 vel_xy(velocity.x, velocity.y, 0.f);
+				const float mag2 = vel_xy.x * vel_xy.x + vel_xy.y * vel_xy.y;
+				if (mag2 > kEpsilon) {
+					up = glm::normalize(vel_xy);
+					right = glm::vec3(velocity.y, -velocity.x, 0.f) / std::sqrt(mag2);
+				} else {
+					// No horizontal velocity to derive a facing from.
+					right = glm::vec3(1.f, 0.f, 0.f);
+					up = glm::vec3(0.f, 1.f, 0.f);
+				}
+			}
+
+			const glm::vec3 ax = right * scale;
+			const glm::vec3 ay = up * scale;
+
+			const glm::vec3 c0 = position + ax * corner_xy[0][0] + ay * corner_xy[0][1];
+			const glm::vec3 c1 = position + ax * corner_xy[1][0] + ay * corner_xy[1][1];
+			const glm::vec3 c2 = position + ax * corner_xy[2][0] + ay * corner_xy[2][1];
+			const glm::vec3 c3 = position + ax * corner_xy[3][0] + ay * corner_xy[3][1];
+
+			// Reference winding: tri 1 = (0,1,2), tri 2 = (2,1,3)
+			// For head: v0=TL, v1=BL, v2=TR, v3=BR, uvs (u0,v0u),(u0,v1u),(u1,v0u),(u1,v1u)
+			scratch.push_back({c0, glm::vec2(u0, v0u), color});
+			scratch.push_back({c1, glm::vec2(u0, v1u), color});
+			scratch.push_back({c2, glm::vec2(u1, v0u), color});
+			scratch.push_back({c2, glm::vec2(u1, v0u), color});
+			scratch.push_back({c1, glm::vec2(u0, v1u), color});
+			scratch.push_back({c3, glm::vec2(u1, v1u), color});
+		}
+
+		if (e.head_or_tail == 1u || e.head_or_tail == 2u) {
+			const glm::vec3 neg_vel = -velocity * e.tail_length;
+			const float neg_vel_mag2 = glm::dot(neg_vel, neg_vel);
+
+			if (neg_vel_mag2 <= kEpsilon) {
+				continue;
+			}
+
+			const glm::vec3 tail_end = position + neg_vel;
+			const glm::vec3 tail_dir = glm::normalize(neg_vel);
+			glm::vec3 perp = glm::cross(tail_dir, camera_forward);
+			if (glm::dot(perp, perp) < kEpsilon) {
+				const glm::vec3 alt_up = (std::abs(tail_dir.z) > 0.999f) ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
+				perp = glm::cross(tail_dir, alt_up);
+				if (glm::dot(perp, perp) <= kEpsilon) {
+					continue;
+				}
+			}
+
+			perp = glm::normalize(perp);
+
+			const int cell = compute_cell(tail_iv.x, tail_iv.y, tail_iv.z, t);
+			const int col_idx = cell % static_cast<int>(e.columns);
+			const int row_idx = cell / static_cast<int>(e.columns);
+			const float u0 = col_idx * inv_cols;
+			const float v0u = row_idx * inv_rows;
+			const float u1 = u0 + inv_cols;
+			const float v1u = v0u + inv_rows;
+
+			const glm::vec3 w = perp * scale;
+			const glm::vec3 hl = position - w;
+			const glm::vec3 hr = position + w;
+			const glm::vec3 tl = tail_end - w;
+			const glm::vec3 tr = tail_end + w;
+
+			// Reference tail emission: hl,hr,tl, tr,tl,hr with UVs hl=(u0,v0),hr=(u0,v1),tl=(u1,v0),tr=(u1,v1)
+			scratch.push_back({hl, glm::vec2(u0, v0u), color});
+			scratch.push_back({hr, glm::vec2(u0, v1u), color});
+			scratch.push_back({tl, glm::vec2(u1, v0u), color});
+			scratch.push_back({tr, glm::vec2(u1, v1u), color});
+			scratch.push_back({tl, glm::vec2(u1, v0u), color});
+			scratch.push_back({hr, glm::vec2(u0, v1u), color});
+		}
+	}
+}

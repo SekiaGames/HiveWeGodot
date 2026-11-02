@@ -1,0 +1,624 @@
+#pragma once
+
+
+#include <tracy/Tracy.hpp>
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "std.compat.hpp"
+#include "Rects.hpp"
+#include "ThreadPool.hpp"
+#include "Terrain.hpp"
+#include "Doodad.hpp"
+#include "BinaryReader.hpp"
+#include "BinaryWriter.hpp"
+#include "Hierarchy.hpp"
+#include "ResourceManager.hpp"
+#include "SkinnedMesh.hpp"
+#include "Skeleton.hpp"
+#include "PathingTexture.hpp"
+#include "Utilities.hpp"
+#include "Globals.hpp"
+#include "MapInfo.hpp"
+#include "UnorderedMap.hpp"
+#include "SLK.hpp"
+#include "PathingMap.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+namespace fs = std::filesystem;
+
+// So we can make a generic that either accepts Doodad or Doodad*
+template<class T>
+concept DoodadLike = std::derived_from<std::remove_pointer_t<T>, Doodad>;
+
+const Doodad& as_doodad(const Doodad* t) {
+	return *t;
+}
+
+const Doodad& as_doodad(const Doodad& t) {
+	return t;
+}
+
+/// A class for that contains doodad and takes care of loading/saving war3map.doo files
+class Doodads {
+	// TODO: this shouldn't be holding these (forever) as the resources will never be released, NOR does it clear cache right now due to object editor usage
+	hive::unordered_map<std::string, std::shared_ptr<SkinnedMesh>> id_to_mesh;
+	std::mutex mesh_mutex;
+
+	static constexpr int write_version = 8;
+	static constexpr int write_subversion = 11;
+	static constexpr int write_special_version = 0;
+
+  public:
+	std::vector<SpecialDoodad> special_doodads;
+	std::vector<Doodad> doodads;
+
+	bool load(const Terrain& terrain, const MapInfo& info) {
+		BinaryReader reader = hierarchy.map_file_read("war3map.doo").value();
+
+		const std::string magic_number = reader.read_string(4);
+		if (magic_number != "W3do") {
+			std::println("Invalid war3map.doo file: Magic number is not W3do");
+			return false;
+		}
+		const uint32_t version = reader.read<uint32_t>();
+		if (version != 7 && version != 8 && version != 13) {
+			std::println("Unknown war3map.doo version: {} Attempting to load but may crash\nPlease send this map to eejin\n", version);
+		}
+
+		// Subversion
+		const uint32_t subversion = reader.read<uint32_t>();
+		// ToDO check subversion
+
+		Doodad::auto_increment = 0;
+		doodads.resize(reader.read<uint32_t>());
+		for (auto&& i : doodads) {
+			i.id = reader.read_string(4);
+			i.variation = reader.read<uint32_t>();
+			i.position = (reader.read<glm::vec3>() - glm::vec3(terrain.offset, 0)) / 128.f;
+			i.angle = reader.read<float>();
+			i.scale = reader.read<glm::vec3>();
+
+			if (info.game_version_major * 100 + info.game_version_minor >= 132) {
+				i.skin_id = reader.read_string(4);
+			} else {
+				i.skin_id = i.id;
+			}
+
+			if (version >= 13) {
+				i.group_id = reader.read<uint32_t>();
+			}
+
+			i.state = static_cast<Doodad::State>(reader.read<uint8_t>());
+			i.life = reader.read<uint8_t>();
+
+			if (version >= 8) {
+				i.item_table_pointer = reader.read<int32_t>();
+				i.item_sets.resize(reader.read<uint32_t>());
+				for (auto&& j : i.item_sets) {
+					j.items.resize(reader.read<uint32_t>());
+					for (auto& [chance, id] : j.items) {
+						id = reader.read_string(4);
+						chance = reader.read<uint32_t>();
+					}
+				}
+			}
+
+			if (version >= 13) {
+				i.unknown = reader.read<uint32_t>();
+			}
+			i.creation_number = reader.read<uint32_t>();
+
+			if (version >= 13) {
+				i.roll = reader.read<float>();
+				i.pitch = reader.read<float>();
+
+				i.lights.resize(reader.read<uint32_t>());
+				for (auto&& j : i.lights) {
+					j.index = reader.read<uint32_t>();
+					j.is_shadow_casting = reader.read<uint32_t>();
+					j.color = reader.read<glm::u8vec4>();
+					j.intensity = reader.read<float>();
+					j.shadow_casting_start = reader.read<float>();
+					j.shadow_casting_end = reader.read<float>();
+					j.quadratic_falloff = reader.read<float>();
+					j.linear_falloff = reader.read<float>();
+					j.damping = reader.read<float>();
+				}
+			}
+
+			Doodad::auto_increment = std::max(Doodad::auto_increment, i.creation_number);
+		}
+
+		// Terrain Doodads
+		const int special_format_version = reader.read<uint32_t>();
+
+		special_doodads.resize(reader.read<uint32_t>());
+		for (auto&& i : special_doodads) {
+			i.id = reader.read_string(4);
+			i.variation = reader.read<uint32_t>();
+			i.position = glm::ivec3(reader.read<glm::ivec2>(), 0);
+			i.old_position = i.position;
+		}
+
+		return true;
+	}
+
+	void save(const Terrain& terrain) const {
+		BinaryWriter writer;
+		writer.write_string("W3do");
+		writer.write<uint32_t>(write_version);
+		writer.write<uint32_t>(write_subversion);
+
+		writer.write<uint32_t>(doodads.size());
+		for (auto&& i : doodads) {
+			writer.write_string(i.id);
+			writer.write<uint32_t>(i.variation);
+			writer.write<glm::vec3>(i.position * 128.f + glm::vec3(terrain.offset, 0));
+			writer.write<float>(i.angle);
+			writer.write<glm::vec3>(i.scale);
+
+			writer.write_string(i.skin_id);
+
+			writer.write<uint8_t>(static_cast<int>(i.state));
+			writer.write<uint8_t>(i.life);
+
+			writer.write<int32_t>(i.item_table_pointer);
+			writer.write<uint32_t>(i.item_sets.size());
+			for (auto&& j : i.item_sets) {
+				writer.write<uint32_t>(j.items.size());
+				for (const auto& [chance, id] : j.items) {
+					writer.write_string(id);
+					writer.write<uint32_t>(chance);
+				}
+			}
+
+			writer.write<uint32_t>(i.creation_number);
+		}
+
+		writer.write<uint32_t>(write_special_version);
+
+		writer.write<uint32_t>(special_doodads.size());
+		for (auto&& i : special_doodads) {
+			writer.write_string(i.id);
+			writer.write<uint32_t>(i.variation);
+			writer.write<glm::ivec2>(glm::ivec2(i.old_position.x, i.old_position.y));
+		}
+
+		hierarchy.map_file_write("war3map.doo", writer.buffer);
+	}
+
+	/// Writes a war3map.doo without any doodads to the current map directory.
+	/// Static because it is used to generate the files of a newly created map before any map is loaded
+	static void save_empty() {
+		BinaryWriter writer;
+		writer.write_string("W3do");
+		writer.write<uint32_t>(write_version);
+		writer.write<uint32_t>(write_subversion);
+		writer.write<uint32_t>(0); // No doodads
+		writer.write<uint32_t>(write_special_version);
+		writer.write<uint32_t>(0); // No special doodads
+
+		hierarchy.map_file_write("war3map.doo", writer.buffer);
+	}
+
+	void create(Terrain& terrain, PathingMap& pathing_map) {
+		ZoneScoped("Creating Doodads");
+		// Phase 1: Pre-load unique meshes to avoid thread pool starvation.
+		// Without this, multiple threads block on shared_future::get() inside ResourceManager
+		// while only 1 thread actually constructs the shared mesh.
+		{
+			std::unordered_set<std::string> seen;
+			std::vector<std::future<void>> mesh_futures;
+
+			for (const auto& i : doodads) {
+				std::string key = i.id + std::to_string(i.variation);
+				if (seen.insert(key).second) {
+					std::string id = i.id;
+					int variation = i.variation;
+					mesh_futures.push_back(thread_pool.submit([this, id, variation] {
+						get_mesh(id, variation);
+					}));
+				}
+			}
+			for (const auto& i : special_doodads) {
+				std::string key = i.id + std::to_string(i.variation);
+				if (seen.insert(key).second) {
+					std::string id = i.id;
+					int variation = i.variation;
+					mesh_futures.push_back(thread_pool.submit([this, id, variation] {
+						get_mesh(id, variation);
+					}));
+				}
+			}
+
+			for (auto& f : mesh_futures) {
+				f.get();
+			}
+		}
+
+		// Phase 2: Init doodads. All meshes are now cached in id_to_mesh,
+		// so get_mesh() returns immediately without blocking in ResourceManager.
+		std::vector<std::future<void>> futures;
+		futures.reserve(doodads.size() + special_doodads.size());
+
+		for (auto& i : doodads) {
+			futures.push_back(thread_pool.submit([&] {
+				i.init(i.id, get_mesh(i.id, i.variation), terrain);
+			}));
+		}
+		for (auto& i : special_doodads) {
+			futures.push_back(thread_pool.submit([&] {
+				i.init(i.id, get_mesh(i.id, i.variation), terrain);
+			}));
+		}
+
+		for (auto& f : futures) {
+			f.get();
+		}
+
+		// Blit doodad pathing
+		for (const auto& i : doodads) {
+			if (!i.pathing) {
+				continue;
+			}
+
+			pathing_map.blit_pathing_texture(i.position, glm::degrees(i.angle) + 90, i.pathing);
+		}
+		pathing_map.upload_dynamic_pathing();
+
+		// Update terrain exists
+		update_special_doodad_pathing(TerrainRect(0, 0, terrain.width, terrain.height), terrain);
+	}
+
+	// Will assign a creation number
+	Doodad& add_doodad(std::string id, const int variation, const glm::vec3 position, const Terrain& terrain) {
+		Doodad doodad;
+		doodad.skin_id = id;
+		doodad.id = std::move(id);
+		doodad.variation = variation;
+		doodad.mesh = get_mesh(doodad.id, variation);
+		doodad.position = position;
+		doodad.scale = {1, 1, 1};
+		doodad.angle = 0;
+		doodad.creation_number = ++Doodad::auto_increment;
+		doodad.skeleton = Skeleton(doodad.mesh->mdx);
+
+		const bool is_doodad = doodads_slk.row_headers.contains(id);
+		const slk::SLK& slk = is_doodad ? doodads_slk : destructibles_slk;
+		const std::string_view pathing_texture_path = slk.data<std::string_view>("pathtex", id);
+
+		// TODO: call Doodad::init() instead?
+		if (!pathing_texture_path.empty()) {
+			if (auto result = resource_manager.load<PathingTexture>(pathing_texture_path)) {
+				doodad.pathing = *result;
+			} else {
+				std::println("Error loading pathing texture for doodad with ID: {} ({})", id, result.error());
+			}
+		}
+
+		doodad.update(terrain);
+
+		doodads.push_back(doodad);
+		return doodads.back();
+	}
+
+	// You will have to manually set a creation number and valid skin ID
+	Doodad& add_doodad(const Doodad& doodad) {
+		doodads.push_back(doodad);
+		return doodads.back();
+	}
+
+	void remove_doodad(Doodad* doodad) {
+		const auto iterator = doodads.begin() + std::distance(doodads.data(), doodad);
+		doodads.erase(iterator);
+	}
+
+	void remove_special_doodad(SpecialDoodad* doodad) {
+		const auto iterator = special_doodads.begin() + std::distance(special_doodads.data(), doodad);
+		special_doodads.erase(iterator);
+	}
+
+	void remove_doodads(const std::unordered_set<Doodad*>& list) {
+		std::erase_if(doodads, [&](Doodad& doodad) {
+			return list.contains(&doodad);
+		});
+	}
+
+	void remove_special_doodads(const std::unordered_set<SpecialDoodad*>& list) {
+		std::erase_if(special_doodads, [&](SpecialDoodad& doodad) {
+			return list.contains(&doodad);
+		});
+	}
+
+	std::vector<Doodad*> query_area(const TerrainRectF& area) {
+		std::vector<Doodad*> result;
+
+		for (auto&& i : doodads) {
+			if (area.contains(i.position.x, i.position.y)) {
+				result.push_back(&i);
+			}
+		}
+		return result;
+	}
+
+	/// Returns an AABB in pathing map tiles (4x4 per whole tile) surrounding the doodads accounting for their pathing maps
+	template<class Container>
+		requires DoodadLike<typename Container::value_type>
+	PathingRect get_pathing_bounding_box(const Container& doodads) const {
+		PathingRect pathing_area;
+		for (const auto& i : doodads) {
+			pathing_area |= as_doodad(i).get_pathing_bounding_box();
+		}
+		return pathing_area;
+	}
+
+	template<class Container>
+		requires DoodadLike<typename Container::value_type>
+	void update_doodad_pathing(const Container& doodads, PathingMap& pathing_map) {
+		const PathingRect update_pathing_area = get_pathing_bounding_box(doodads);
+		update_doodad_pathing(update_pathing_area, pathing_map);
+	}
+
+	/// The input area should be in pathing map tiles.
+	void update_doodad_pathing(const PathingRect& area, PathingMap& pathing_map) {
+		pathing_map.dynamic_clear_area(area);
+
+		const TerrainRectF doodad_area = area.to_terrain_f();
+		// Arbitrarily extend it to find doodads that blit into the space we just cleared
+		// Will break if there is a doodad with a pathing map bigger than this
+		const TerrainRectF new_area = doodad_area.adjusted(-8, -8, 8, 8);
+		const auto doodads_to_blit = query_area(new_area);
+		for (const auto& i : doodads_to_blit) {
+			if (!i->pathing) {
+				continue;
+			}
+			pathing_map.blit_pathing_texture(i->position, glm::degrees(i->angle) + 90, i->pathing);
+		}
+		pathing_map.upload_dynamic_pathing();
+	}
+
+	/// The input area should be in whole tile fractions (of 128 WC3 units).
+	void update_special_doodad_pathing(const TerrainRectF& area, Terrain& terrain) const {
+		TerrainRectF new_area = area.adjusted(-6.f, -6.f, 6.f, 6.f);
+		new_area = new_area.intersected({0, 0, static_cast<float>(terrain.width), static_cast<float>(terrain.height)});
+
+		for (int i = new_area.left(); i < new_area.right(); i++) {
+			for (int j = new_area.top(); j < new_area.bottom(); j++) {
+				terrain.corner_special_doodad[terrain.ci(i, j)] = 0;
+			}
+		}
+
+		new_area = area.adjusted(-6, -6, 6, 6);
+
+		for (const auto& i : special_doodads) {
+			if (!new_area.contains(i.position.x, i.position.y)) {
+				continue;
+			}
+
+			if (!i.pathing) {
+				continue;
+			}
+
+			for (int j = 0; j < i.pathing->width / 4; j++) {
+				for (int k = 0; k < i.pathing->height / 4; k++) {
+					const int x = i.position.x - i.pathing->width / 8.f + j;
+					const int y = i.position.y - i.pathing->height / 8.f + k;
+
+					if (x < 0 || y < 0 || x >= terrain.width || y >= terrain.height) {
+						continue;
+					}
+
+					terrain.corner_special_doodad[terrain.ci(x, y)] = 1;
+				}
+			}
+		}
+
+		terrain.update_ground_exists(area.to_terrain_rect());
+	}
+
+	void process_doodad_field_change(const std::string& id, const std::string& field, const Terrain& terrain) {
+
+		if (field == "file" || field == "numvar") {
+			// id_to_mesh requires a variation too so we will just have to check a bunch of them
+			// ToDo just use the numvar field from the SLKs
+			for (int i = 0; i < 20; i++) {
+				std::lock_guard lock(mesh_mutex);
+				id_to_mesh.erase(id + std::to_string(i));
+			}
+			for (auto& i : doodads) {
+				if (i.id == id) {
+					i.mesh = get_mesh(id, i.variation);
+					i.skeleton = Skeleton(i.mesh->mdx);
+					i.update(terrain);
+				}
+			}
+		}
+
+		if (field == "maxroll" || field == "maxpitch" || field.starts_with("vert") || field == "useclickhelper") {
+			for (auto& i : doodads) {
+				if (i.id == id) {
+					i.update(terrain);
+				}
+			}
+		}
+
+		if (field == "pathtex") {
+			const std::string_view pathing_texture_path = doodads_slk.data<std::string_view>("pathtex", id);
+
+			if (auto result = resource_manager.load<PathingTexture>(pathing_texture_path)) {
+				for (auto& i : doodads) {
+					if (i.id == id) {
+						i.pathing = *result;
+					}
+				}
+			} else {
+				return;
+			}
+		}
+	}
+
+	void process_destructible_field_change(const std::string& id, const std::string& field, const Terrain& terrain) {
+
+		if (field == "file" || field == "numvar") {
+			// id_to_mesh requires a variation too so we will just have to check a bunch of them
+			// ToDo just use the numvar field from the SLKs
+			for (int i = 0; i < 20; i++) {
+				std::lock_guard lock(mesh_mutex);
+				id_to_mesh.erase(id + std::to_string(i));
+			}
+			for (auto& i : doodads) {
+				if (i.id == id) {
+					i.mesh = get_mesh(id, i.variation);
+					i.skeleton = Skeleton(i.mesh->mdx);
+					i.update(terrain);
+					i.skeleton.update(0.016f);
+				}
+			}
+		}
+
+		if (field == "maxroll" || field == "maxpitch" || field.starts_with("color") || field == "useclickhelper") {
+			for (auto& i : doodads) {
+				if (i.id == id) {
+					i.update(terrain);
+				}
+			}
+		}
+
+		if (field == "pathtex") {
+			const std::string_view pathing_texture_path = destructibles_slk.data<std::string_view>("pathtex", id);
+
+			if (auto result = resource_manager.load<PathingTexture>(pathing_texture_path)) {
+				for (auto& i : doodads) {
+					if (i.id == id) {
+						i.pathing = *result;
+					}
+				}
+			} else {
+				return;
+			}
+		}
+	}
+
+	std::shared_ptr<SkinnedMesh> get_mesh(std::string id, const int variation) {
+		const std::string full_id = id + std::to_string(variation);
+		{
+			std::lock_guard lock(mesh_mutex);
+			if (const auto found = id_to_mesh.find(full_id); found != id_to_mesh.end()) {
+				return found->second;
+			}
+		}
+
+		const bool is_doodad = doodads_slk.row_headers.contains(id);
+		const slk::SLK& slk = is_doodad ? doodads_slk : destructibles_slk;
+		const fs::path base_path = string_replaced(slk.data<std::string_view>("file", id), "\\", "/");
+		const auto variations = slk.data<std::string_view>("numvar", id);
+
+		std::string custom_identifier;
+		std::optional<std::pair<int, std::string>> replaceable;
+		if (!is_doodad) {
+			const std::string replaceable_id = destructibles_slk.data("texid", id);
+			const std::string texture_name = destructibles_slk.data("texfile", id);
+			if (is_number(replaceable_id) && texture_name != "_") {
+				custom_identifier = texture_name;
+				replaceable = std::make_pair(std::stoi(replaceable_id), texture_name);
+			}
+		}
+
+		auto load_path = base_path;
+
+		if (variations != "1") {
+			if (is_doodad) {
+				// For doodads the game directly appends the variation number, even if an extension exists
+				load_path.replace_filename(base_path.filename().string() + std::to_string(variation) + ".mdx");
+			} else {
+				// Destructibles get it properly appended to the filename
+				load_path.replace_filename(base_path.stem().string() + std::to_string(variation));
+			}
+		}
+
+		auto result = resource_manager.load<SkinnedMesh>(load_path, custom_identifier, replaceable);
+
+		// Doodads with a variation that fails to load will:
+		// - Load the base if all variations are missing
+		// - Load the sentinel invalid model if at least one variation is present
+		if (!result && is_doodad && variations != "1") {
+			const auto variations_int = slk.data<uint32_t>("numvar", id);
+			bool any_variation_exists = false;
+			for (size_t i = 0; i < variations_int; i++) {
+				auto path = base_path;
+				path.replace_filename(base_path.filename().string() + std::to_string(i) + ".mdx");
+				if (hierarchy.file_exists(path, Hierarchy::FileSource::all, {".mdl", ".mdx"})) {
+					any_variation_exists = true;
+					break;
+				}
+			}
+
+			if (!any_variation_exists) {
+				result = resource_manager.load<SkinnedMesh>(base_path, "", replaceable);
+			}
+		}
+
+		if (!result) {
+			std::println("Invalid model file for {} with file path: {} ({})", id, load_path.string(), result.error());
+			result = resource_manager.load<SkinnedMesh>("Objects/Invalidmodel/Invalidmodel.mdx", "", std::nullopt);
+		}
+
+		auto mesh = result.value();
+		{
+			std::lock_guard lock(mesh_mutex);
+			id_to_mesh.emplace(full_id, mesh);
+		}
+		return mesh;
+	}
+};

@@ -1,1 +1,18 @@
 .DS_Store
+
+# 上游 HiveWE 源码副本，用 tools/fetch_upstream.sh 重新拉取
+native/_upstream/
+
+# 构建产物
+native/build/
+native/lib/
+godot/.godot/
+godot/bin/
+godot/obj/
+
+# 第三方库按需下载，不入库
+third_party/vulkan/
+third_party/volk/
+third_party/vma/
+third_party/vkbootstrap/
+third_party/ankerl/

@@ -1,0 +1,236 @@
+#pragma once
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "Utilities.hpp"
+#include "Hierarchy.hpp"
+#include "Utilities.hpp"
+#include <absl/strings/str_split.h>
+#include "absl/strings/str_join.h"
+#include "UnorderedMap.hpp"
+
+namespace fs = std::filesystem;
+
+namespace ini {
+	class INI {
+	  public:
+		/// header to items to list of values to value
+		hive::unordered_map<std::string, hive::unordered_map<std::string, std::vector<std::string>>> ini_data;
+
+		INI() = default;
+		explicit INI(const fs::path& path, bool local = false) {
+			load(path, local);
+		}
+
+		void load(const fs::path& path, bool local = false) {
+			const auto buffer = [&] {
+				if (local) {
+					auto res = read_file(path);
+					return std::move(res.value().buffer);
+				} else {
+					auto res = hierarchy.open_file(path);
+					return std::move(res.value().buffer);
+				}
+			}();
+
+			std::string_view view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+
+			// Strip byte order marking
+			if (view.starts_with(std::string{ static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) })) {
+				view.remove_prefix(3);
+			}
+
+			std::string_view current_section;
+
+			while (!view.empty()) {
+				size_t eol = view.find('\n');
+				if (eol == std::string_view::npos) {
+					eol = view.size() - 1;
+				}
+
+				if (view.starts_with("//") || view.starts_with(';') || view.starts_with('\n') || view.starts_with('\r')) {
+					view.remove_prefix(eol + 1);
+					continue;
+				}
+
+				if (view.front() == '[') {
+					current_section = view.substr(1, view.find(']') - 1);
+					ini_data.emplace(current_section, hive::unordered_map<std::string, std::vector<std::string>>{});
+				} else {
+					const size_t found = view.find_first_of('=');
+					if (found == std::string_view::npos) {
+						view.remove_prefix(eol + 1);
+						continue;
+					}
+
+					const std::string_view key = view.substr(0, found);
+					std::string_view value = view.substr(found + 1, view.find_first_of("\r\n") - 1 - found);
+
+					// Strip comments from value
+					if (const size_t comment = value.find("//"); comment != std::string_view::npos) {
+						value = value.substr(0, comment);
+					}
+					if (const size_t comment = value.find(';'); comment != std::string_view::npos) {
+						value = value.substr(0, comment);
+					}
+
+					// Trim trailing whitespace from value
+					while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+						value.remove_suffix(1);
+					}
+
+					if (key.empty() || value.empty()) {
+						view.remove_prefix(eol + 1);
+						continue;
+					}
+
+					const auto parts = split_string_escaped(value);
+
+					// Sometimes there are duplicate keys and only the first seen value has to be retained.
+					// E.g. the destructable LTt0 in destructableskin.txt has multiple minScale/maxScale
+					if (auto found = ini_data.find(current_section); found != ini_data.end()) {
+						if (!found->second.contains(key)) {
+							found->second[key] = std::move(parts);
+						}
+					} else {
+						ini_data.at(current_section).emplace(key, std::move(parts));
+					}
+				}
+				view.remove_prefix(eol + 1);
+			}
+		}
+
+		void save(const fs::path& path) {
+			std::fstream stream(path, std::ios::out | std::ios::binary);
+
+			stream << std::string{ static_cast<char>(0xEF), static_cast<char>(0xBB), static_cast<char>(0xBF) };
+			for (auto&& [section, section_data] : ini_data) {
+				stream << '[' << section << ']' << std::endl;
+				for (auto&& [key, values] : section_data) {
+					stream << key << '=' << absl::StrJoin(values, ",") << std::endl;
+				}
+			}
+		}
+
+		/// Replaces all values (not keys) which match one of the keys in substitution INI
+		void substitute(const INI& ini, const std::string_view section) {
+			for (auto&& [section_key, section_value] : ini_data) {
+				for (auto&& [key, value] : section_value) {
+					for (auto&& part : value) {
+						const std::string_view we_string = ini.data<std::string_view>(section, part);
+						if (!we_string.empty()) {
+							part = we_string;
+						}
+					}
+				}
+			}
+		}
+
+		[[nodiscard]] const hive::unordered_map<std::string, std::vector<std::string>>& section(const std::string_view section) const {
+			if (auto found = ini_data.find(section); found != ini_data.end()) {
+				return found->second;
+			} else {
+				throw std::runtime_error("section not found");
+			}
+		}
+
+		/// Sets the data of a whole key
+		void set_whole_data(const std::string_view section, const std::string_view key, std::string value) {
+			ini_data[section][key] = { std::move(value) };
+		}
+
+		[[nodiscard]] const std::vector<std::string>& whole_data(const std::string_view section, const std::string_view key) const {
+			return ini_data.at(section).at(key);
+		}
+
+		[[nodiscard]] bool key_exists(const std::string_view section, const std::string_view key) const {
+			return ini_data.contains(section) && ini_data.at(section).contains(key);
+		}
+
+		[[nodiscard]] bool section_exists(const std::string_view section) const {
+			return ini_data.contains(section);
+		}
+
+		/// To access key data where the value of the key is comma seperated
+		template <typename T = std::string>
+		[[nodiscard]] T data(const std::string_view section, const std::string_view key, const size_t argument = 0) const {
+			const auto sec = ini_data.find(section);
+			if (sec == ini_data.end()) {
+				throw std::runtime_error("section not found");
+			}
+			const auto value = sec->second.find(key);
+			if (value == sec->second.end()) {
+				// Returning an empty value is kind of cursed
+				return T{};
+				// throw std::runtime_error("key not found");
+			}
+
+			if (argument >= value->second.size()) {
+				// Returning an empty value is kind of cursed
+				return T{};
+				// throw std::runtime_error("section argument out of bounds");
+			}
+
+			if constexpr (std::is_same_v<T, std::string_view>) {
+				return value->second[argument];
+			} else if constexpr (std::is_same_v<T, std::string>) {
+				return value->second[argument];
+			} else if constexpr (std::is_same_v<T, int>) {
+				return std::stoi(value->second[argument]);
+			} else if constexpr (std::is_same_v<T, float>) {
+				return std::stof(value->second[argument]);
+			} else  {
+				static_assert(false, "Type not supported. Convert yourself or add conversion here if it makes sense");
+			}
+		}
+	};
+} // namespace ini

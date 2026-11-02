@@ -1,0 +1,573 @@
+#pragma once
+
+
+#include <absl/strings/str_split.h>
+#include <tracy/Tracy.hpp>
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "ThreadPool.hpp"
+#include "Utilities.hpp"
+#include "SkinnedMesh.hpp"
+#include "Skeleton.hpp"
+#include "MapInfo.hpp"
+#include "BinaryReader.hpp"
+#include "BinaryWriter.hpp"
+#include "ResourceManager.hpp"
+#include "Hierarchy.hpp"
+#include "Globals.hpp"
+#include "Terrain.hpp"
+#include "Rects.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+namespace fs = std::filesystem;
+
+struct Unit {
+	static inline int auto_increment;
+
+	std::string id;
+	int variation = 0;
+	glm::vec3 position;
+	float angle;
+	glm::vec3 scale;
+
+	std::string skin_id;
+	uint32_t group_id;
+
+	uint8_t flags = 2;
+	int player = 0;
+
+	uint8_t unknown1 = 0;
+	uint8_t unknown2 = 0;
+	int health = -1;
+	int mana = -1;
+
+	int item_table_pointer = 0xFFFF;
+	std::vector<ItemSet> item_sets;
+
+	int gold = 12500;
+	float target_acquisition = -1;
+
+	int level = 1;
+	int strength = 0;
+	int agility = 0;
+	int intelligence = 0;
+
+	// Slot, ID
+	std::vector<std::pair<uint32_t, std::string>> items;
+
+	// ID, autocast, ability level
+	std::vector<std::tuple<std::string, uint32_t, uint32_t>> abilities;
+
+	int random_type = 0;
+	std::vector<uint8_t> random;
+
+	int custom_color = -1;
+	int waygate = -1;
+	int creation_number;
+
+	float roll;
+	float pitch;
+	std::vector<Light> lights;
+
+	// Auxiliary data
+	Skeleton skeleton;
+	std::shared_ptr<SkinnedMesh> mesh;
+	glm::vec3 color;
+
+	Unit() {
+		creation_number = ++auto_increment;
+	}
+
+	void update() {
+		float model_scale = 0.f;
+		float move_height = 0.f;
+		if (items_slk.row_headers.contains(id)) {
+			model_scale = items_slk.data<float>("scale", id) / 128.f;
+			color.r = items_slk.data<float>("colorr", id) / 255.f;
+			color.g = items_slk.data<float>("colorg", id) / 255.f;
+			color.b = items_slk.data<float>("colorb", id) / 255.f;
+		} else {
+			model_scale = units_slk.data<float>("modelscale", id) / 128.f;
+			move_height = units_slk.data<float>("moveheight", id) / 128.f;
+			color.r = units_slk.data<float>("red", id) / 255.f;
+			color.g = units_slk.data<float>("green", id) / 255.f;
+			color.b = units_slk.data<float>("blue", id) / 255.f;
+		}
+
+		const glm::vec3 final_position = position + glm::vec3(0.f, 0.f, move_height);
+		const glm::vec3 final_scale = glm::vec3(model_scale);
+
+		skeleton.update_location(final_position, angle, final_scale);
+	}
+};
+
+class Units {
+	std::unordered_map<std::string, std::shared_ptr<SkinnedMesh>> id_to_mesh;
+	std::mutex mesh_mutex;
+
+	static constexpr int write_version = 8;
+	static constexpr int write_subversion = 11;
+
+	//static constexpr int mod_table_write_version = 2;
+
+  public:
+	std::vector<Unit> units;
+	std::vector<Unit> items;
+
+	void load(const Terrain& terrain, const MapInfo& info) {
+		BinaryReader reader = hierarchy.map_file_read("war3mapUnits.doo").value();
+
+		const std::string magic_number = reader.read_string(4);
+		if (magic_number != "W3do") {
+			std::cout << "Invalid war3mapUnits.w3e file: Magic number is not W3do\n";
+		}
+		const uint32_t version = reader.read<uint32_t>();
+		if (version != 7 && version != 8 && version != 13) {
+			std::cout << "Unknown war3mapUnits.doo version: " << version
+					  << " Attempting to load but may crash\nPlease send this map to eejin\n";
+		}
+
+		// Subversion
+		const int subversion = reader.read<uint32_t>();
+		if (subversion != 9 && subversion != 11) {
+			std::cout << "Unknown war3mapUnits.doo subversion: " << subversion
+					  << " Attempting to load but may crash\nPlease send this map to eejin\n";
+		}
+
+		const int unit_count = reader.read<uint32_t>();
+		for (int k = 0; k < unit_count; k++) {
+			Unit i;
+			i.id = reader.read_string(4);
+			i.variation = reader.read<uint32_t>();
+			i.position = (reader.read<glm::vec3>() - glm::vec3(terrain.offset, 0)) / 128.f;
+			i.angle = reader.read<float>();
+			i.scale = reader.read<glm::vec3>() / 128.f;
+
+			if (info.game_version_major * 100 + info.game_version_minor >= 132) {
+				i.skin_id = reader.read_string(4);
+			} else {
+				i.skin_id = i.id;
+			}
+
+			if (version >= 13) {
+				i.group_id = reader.read<uint32_t>();
+			}
+
+			i.flags = reader.read<uint8_t>();
+
+			i.player = reader.read<uint32_t>();
+			if (i.player > 11 && info.editor_version < 6060) {
+				i.player += 12;
+			}
+
+			i.unknown1 = reader.read<uint8_t>();
+			i.unknown2 = reader.read<uint8_t>();
+
+			i.health = reader.read<uint32_t>();
+			i.mana = reader.read<uint32_t>();
+
+			if (subversion >= 11) {
+				i.item_table_pointer = reader.read<uint32_t>();
+			}
+
+			i.item_sets.resize(reader.read<uint32_t>());
+			for (auto&& j : i.item_sets) {
+				j.items.resize(reader.read<uint32_t>());
+				for (auto&& [chance, id] : j.items) {
+					id = reader.read_string(4);
+					chance = reader.read<uint32_t>();
+				}
+			}
+
+			i.gold = reader.read<uint32_t>();
+			i.target_acquisition = reader.read<float>();
+
+			i.level = reader.read<uint32_t>();
+
+			if (subversion >= 11) {
+				i.strength = reader.read<uint32_t>();
+				i.agility = reader.read<uint32_t>();
+				i.intelligence = reader.read<uint32_t>();
+			}
+
+			i.items.resize(reader.read<uint32_t>());
+			for (auto&& [slot, id] : i.items) {
+				slot = reader.read<uint32_t>();
+				id = reader.read_string(4);
+			}
+
+			i.abilities.resize(reader.read<uint32_t>());
+			for (auto&& [id, autocast, level] : i.abilities) {
+				id = reader.read_string(4);
+				autocast = reader.read<uint32_t>();
+				level = reader.read<uint32_t>();
+			}
+
+			i.random_type = reader.read<uint32_t>();
+			switch (i.random_type) {
+				case 0:
+					i.random = reader.read_vector<uint8_t>(4);
+					break;
+				case 1:
+					i.random = reader.read_vector<uint8_t>(8);
+					break;
+				case 2:
+					i.random = reader.read_vector<uint8_t>(reader.read<uint32_t>() * 8);
+					break;
+			}
+
+			i.custom_color = reader.read<uint32_t>();
+			i.waygate = reader.read<uint32_t>();
+			i.creation_number = reader.read<uint32_t>();
+
+			if (version >= 13) {
+				i.roll = reader.read<float>();
+				i.pitch = reader.read<float>();
+
+				i.lights.resize(reader.read<uint32_t>());
+				for (auto&& j : i.lights) {
+					j.index = reader.read<uint32_t>();
+					j.is_shadow_casting = reader.read<uint32_t>();
+					j.color = reader.read<glm::u8vec4>();
+					j.intensity = reader.read<float>();
+					j.shadow_casting_start = reader.read<float>();
+					j.shadow_casting_end = reader.read<float>();
+					j.quadratic_falloff = reader.read<float>();
+					j.linear_falloff = reader.read<float>();
+					j.damping = reader.read<float>();
+				}
+			}
+
+			// Either a unit or an item
+			if (units_slk.row_headers.contains(i.id) || i.id == "sloc" || i.id == "uDNR" || i.id == "bDNR") {
+				units.push_back(i);
+			} else {
+				items.push_back(i);
+			}
+
+			Unit::auto_increment = std::max(Unit::auto_increment, i.creation_number);
+		}
+	}
+
+	void save(const Terrain& terrain) const {
+		BinaryWriter writer;
+
+		writer.write_string("W3do");
+		writer.write<uint32_t>(write_version);
+		writer.write<uint32_t>(write_subversion);
+
+		writer.write<uint32_t>(units.size() + items.size());
+
+		auto write_units = [&](const std::vector<Unit>& to_write) {
+			for (auto&& i : to_write) {
+				writer.write_string(i.id);
+				writer.write<uint32_t>(i.variation);
+				writer.write<glm::vec3>(i.position * 128.f + glm::vec3(terrain.offset, 0));
+				writer.write<float>(i.angle);
+				writer.write<glm::vec3>(i.scale * 128.f);
+
+				writer.write_string(i.skin_id);
+
+				writer.write<uint8_t>(i.flags);
+
+				writer.write<uint32_t>(i.player);
+
+				writer.write<uint8_t>(i.unknown1);
+				writer.write<uint8_t>(i.unknown2);
+
+				writer.write<uint32_t>(i.health);
+				writer.write<uint32_t>(i.mana);
+
+				writer.write<uint32_t>(i.item_table_pointer);
+
+				writer.write<uint32_t>(i.item_sets.size());
+				for (auto&& j : i.item_sets) {
+					writer.write<uint32_t>(j.items.size());
+					for (auto&& [chance, id] : j.items) {
+						writer.write_string(id);
+						writer.write<uint32_t>(chance);
+					}
+				}
+
+				writer.write<uint32_t>(i.gold);
+				writer.write<float>(i.target_acquisition);
+				writer.write<uint32_t>(i.level);
+				writer.write<uint32_t>(i.strength);
+				writer.write<uint32_t>(i.agility);
+				writer.write<uint32_t>(i.intelligence);
+
+				writer.write<uint32_t>(i.items.size());
+				for (auto&& [slot, id] : i.items) {
+					writer.write<uint32_t>(slot);
+					writer.write_string(id);
+				}
+
+				writer.write<uint32_t>(i.abilities.size());
+				for (auto&& [id, autocast, level] : i.abilities) {
+					writer.write_string(id);
+					writer.write<uint32_t>(autocast);
+					writer.write<uint32_t>(level);
+				}
+
+				writer.write<uint32_t>(i.random_type);
+				writer.write_vector(i.random);
+
+				writer.write<uint32_t>(i.custom_color);
+				writer.write<uint32_t>(i.waygate);
+				writer.write<uint32_t>(i.creation_number);
+			}
+		};
+
+		write_units(units);
+		write_units(items);
+
+		hierarchy.map_file_write("war3mapUnits.doo", writer.buffer);
+	}
+
+	void update_area(const TerrainRectF& area, const Terrain& terrain) {
+		for (auto&& i : query_area(area)) {
+			i->position.z = terrain.interpolated_height(i->position.x, i->position.y, true);
+			i->update();
+		}
+	}
+
+	void create() {
+		ZoneScoped("Creating Units");
+		// Phase 1: Pre-load unique meshes to avoid thread pool starvation.
+		// Without this, multiple threads block on shared_future::get() inside ResourceManager
+		// while only 1 thread actually constructs the shared mesh.
+		{
+			std::unordered_set<std::string> seen;
+			std::vector<std::future<void>> mesh_futures;
+
+			for (const auto& i : units) {
+				if (i.id == "sloc") {
+					continue;
+				}
+				if (seen.insert(i.id).second) {
+					std::string id = i.id;
+					mesh_futures.push_back(thread_pool.submit([this, id] {
+						get_mesh(id);
+					}));
+				}
+			}
+			for (const auto& i : items) {
+				if (seen.insert(i.id).second) {
+					std::string id = i.id;
+					mesh_futures.push_back(thread_pool.submit([this, id] {
+						get_mesh(id);
+					}));
+				}
+			}
+
+			for (auto& f : mesh_futures) {
+				f.get();
+			}
+		}
+
+		// Phase 2: Init units. All meshes are now cached in id_to_mesh,
+		// so get_mesh() returns immediately without blocking in ResourceManager.
+		std::vector<std::future<void>> futures;
+		futures.reserve(units.size() + items.size());
+
+		for (auto& i : units) {
+			if (i.id == "sloc") {
+				continue;
+			}
+
+			futures.push_back(thread_pool.submit([&] {
+				i.mesh = get_mesh(i.id);
+				i.skeleton = Skeleton(i.mesh->mdx, get_required_animation_names(i.id));
+				i.update();
+			}));
+		}
+		for (auto& i : items) {
+			futures.push_back(thread_pool.submit([&] {
+				i.mesh = get_mesh(i.id);
+				i.skeleton = Skeleton(i.mesh->mdx, get_required_animation_names(i.id));
+				i.update();
+			}));
+		}
+
+		for (auto& f : futures) {
+			f.get();
+		}
+	}
+
+	// Will assign a unique creation number
+	Unit& add_unit(std::string id, glm::vec3 position) {
+		// ToDo change this once Skeleton doesn't use pointers anymore
+		units.push_back(Unit());
+		Unit& unit = units.back();
+		unit.id = id;
+		unit.skin_id = id;
+		unit.mesh = get_mesh(id);
+		unit.position = position;
+		unit.scale = glm::vec3(1.f);
+		unit.angle = 0.f;
+		unit.random = {1, 0, 0, 0};
+		unit.creation_number = ++Unit::auto_increment;
+		unit.skeleton = Skeleton(unit.mesh->mdx, get_required_animation_names(id));
+		unit.update();
+
+		return units.back();
+	}
+
+	// Assumes you will set a unique creation number yourself
+	Unit& add_unit(Unit unit) {
+		units.push_back(unit);
+		return units.back();
+	}
+
+	void remove_unit(Unit* unit) {
+		auto iterator = units.begin() + std::distance(units.data(), unit);
+		units.erase(iterator);
+	}
+
+	[[nodiscard]]
+	std::vector<Unit*> query_area(const TerrainRectF& area) {
+		std::vector<Unit*> result;
+
+		for (auto& i : units) {
+			if (area.contains(i.position.x, i.position.y) && i.id != "sloc") {
+				result.push_back(&i);
+			}
+		}
+		return result;
+	}
+
+	void remove_units(const std::unordered_set<Unit*>& list) {
+		std::erase_if(units, [&](Unit& unit) {
+			return list.contains(&unit);
+		});
+	}
+
+	void remove_items(const std::unordered_set<Unit*>& list) {
+		std::erase_if(items, [&](Unit& item) {
+			return list.contains(&item);
+		});
+	}
+
+	void process_unit_field_change(const std::string& id, const std::string& field) {
+		if (field == "file" || field == "attachmentlinkprops") {
+			id_to_mesh.erase(id);
+			for (auto& i : units) {
+				if (i.id == id) {
+					i.mesh = get_mesh(id);
+					i.skeleton = Skeleton(i.mesh->mdx, get_required_animation_names(id));
+					i.update();
+				}
+			}
+		}
+		if (field == "modelscale" || field == "moveheight" || field == "red" || field == "green" || field == "blue") {
+			for (auto& i : units) {
+				if (i.id == id) {
+					i.update();
+				}
+			}
+		}
+
+		if (field == "colorr" || field == "colorg" || field == "colorb" || field == "scale") {
+			for (auto& i : items) {
+				if (i.id == id) {
+					i.update();
+				}
+			}
+		}
+	}
+
+	void process_item_field_change(const std::string& id, const std::string& field) {
+		if (field == "colorr" || field == "colorg" || field == "colorb" || field == "scale") {
+			for (auto& i : items) {
+				if (i.id == id) {
+					i.update();
+				}
+			}
+		}
+	}
+
+	std::shared_ptr<SkinnedMesh> get_mesh(const std::string& id) {
+		{
+			std::lock_guard lock(mesh_mutex);
+			if (const auto found = id_to_mesh.find(id); found != id_to_mesh.end()) {
+				return found->second;
+			}
+		}
+
+		fs::path mesh_path = units_slk.data<std::string_view>("file", id);
+		if (mesh_path.empty()) {
+			mesh_path = items_slk.data<std::string_view>("file", id);
+		}
+		mesh_path = fs::path(string_replaced(mesh_path.string(), "\\", "/"));
+
+		auto result = resource_manager.load<SkinnedMesh>(mesh_path, "", std::nullopt);
+		if (!result) {
+			std::println("Missing model file for {} with file path: {} ({})", id, mesh_path.string(), result.error());
+			result = resource_manager.load<SkinnedMesh>("Objects/Invalidmodel/Invalidmodel.mdx", "", std::nullopt);
+		}
+
+		auto mesh = result.value();
+		{
+			std::lock_guard lock(mesh_mutex);
+			id_to_mesh.emplace(id, mesh);
+		}
+		return mesh;
+	}
+
+	static std::vector<std::string> get_required_animation_names(const std::string& id) {
+		std::string animation_names_string = units_slk.data("attachmentlinkprops", id);
+		to_lowercase(animation_names_string);
+		return absl::StrSplit(animation_names_string, ",", absl::SkipEmpty());
+	}
+};

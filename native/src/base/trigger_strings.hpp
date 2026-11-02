@@ -1,0 +1,173 @@
+#pragma once
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "types.hpp"
+#include "BinaryReader.hpp"
+#include "BinaryWriter.hpp"
+#include "Hierarchy.hpp"
+
+class TriggerStrings {
+	std::map<std::string, std::string> strings; // ToDo change back to unordered_map?
+
+	size_t next_id = 0;
+
+  public:
+	void load() {
+		BinaryReader reader = hierarchy.map_file_read("war3map.wts").value();
+
+		std::stringstream file;
+		file.write(reinterpret_cast<char*>(reader.buffer.data()), reader.buffer.size());
+
+		std::string key;
+		std::string line;
+		while (std::getline(file, line)) {
+			if (line.empty() || line.substr(0, 2) == "//") {
+				continue;
+			}
+			if (line.back() == '\r') {
+				line.pop_back();
+			}
+
+			if (line.empty()) {
+				continue;
+			}
+
+			line.erase(std::remove_if(line.begin(), line.end(), [](char c) { return c == '\r'; }), line.end());
+
+			if (line.front() == '{') {
+				std::string value;
+				bool first = true;
+				while (std::getline(file, line) && !line.empty() && line.front() != '}') {
+					if (line.back() == '\r') {
+						line.pop_back();
+					}
+					value += (first ? "" : "\n") + line;
+					first = false;
+				}
+				strings.emplace(key, value);
+			} else {
+				size_t found = line.find(' ') + 1;
+				size_t id = 0;
+				std::from_chars(line.data() + found, line.data() + line.size(), id);
+				next_id = std::max(next_id, id);
+				int padsize = std::max(0, 3 - ((int)line.size() - (int)found));
+				key = "TRIGSTR_" + std::string(padsize, '0') + line.substr(found);
+			}
+		}
+	}
+
+	void save() const {
+		BinaryWriter writer;
+
+		writer.write<u8>(0xEF);
+		writer.write<u8>(0xBB);
+		writer.write<u8>(0xBF);
+
+		std::stringstream file;
+		for (auto&& [key, value] : strings) {
+			auto found = key.find('_') + 1;
+			std::string final_key = "STRING " + key.substr(found);
+
+			// Remove leading zeroes
+			while (final_key.front() == '0') {
+				final_key.erase(final_key.begin());
+			}
+
+			std::string final_value = value;
+			// Insert carriage returns
+			auto it = final_value.begin();
+			while (it != final_value.end()) {
+				if (*it == '\n') {
+					it = final_value.insert(it, '\r');
+					it++;
+				}
+				it++;
+			}
+
+			writer.write_string(final_key);
+			writer.write_string("\r\n{\r\n");
+			writer.write_string(final_value);
+			writer.write_string("\r\n}\r\n\r\n");
+		}
+
+		hierarchy.map_file_write("war3map.wts", writer.buffer);
+	}
+
+	std::string_view string(const std::string_view key) const {
+		const auto found = strings.find(std::string(key));
+
+		if (found == strings.end()) {
+			return {};
+		}
+
+		return found->second;
+	}
+
+	/// If the key exists then the correspending string in the trigger string file is set
+	/// If the key does not exist AND the key empty AND the value is not empty then a string reference is created and assigned to the key variable
+	void set_string(std::string& key, const std::string& value) {
+		if (key.rfind("TRIGSTR_", 0) != 0) {
+			if (key.empty() && !value.empty()) {
+				key = std::format("TRIGSTR_{:03}", ++next_id);
+				strings[key] = value;
+				std::cout << "Creating key: " << key << "  " << value << "\n";
+
+				return;
+			}
+			std::cout << "Invalid TRIGSTR set: " << key << " " << value << "\n";
+			return;
+		}
+
+		strings[key] = value;
+	}
+};

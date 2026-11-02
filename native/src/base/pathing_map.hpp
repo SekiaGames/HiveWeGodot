@@ -1,0 +1,371 @@
+#pragma once
+
+
+#include <cstdint>
+#include <volk.h>
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "Rects.hpp"
+#include "BinaryReader.hpp"
+#include "BinaryWriter.hpp"
+#include "PathingTexture.hpp"
+#include "Hierarchy.hpp"
+#include "VkResources.hpp"
+#include "VkTexture.hpp"
+#include <glm/glm.hpp>
+
+class PathingMap {
+	static constexpr int write_version = 0;
+
+  public:
+	int width;
+	int height;
+
+	enum Flags {
+		unwalkable = 0b00000010,
+		unflyable = 0b00000100,
+		unbuildable = 0b00001000,
+		harvestable = 0b00010000,
+		blight = 0b00100000,
+		water = 0b01000000,
+		amphibious = 0b10000000
+	};
+
+	/// R8_UINT images of the cells, sampled by the terrain shaders for the pathing overlay
+	std::unique_ptr<UpdatableTexture> texture_static;
+	std::unique_ptr<UpdatableTexture> texture_dynamic;
+	std::vector<uint8_t> pathing_cells_static;
+	std::vector<uint8_t> pathing_cells_dynamic;
+
+	bool load(size_t terrain_width, size_t terrain_height) {
+		BinaryReader reader = hierarchy.map_file_read("war3map.wpm").value();
+		const std::string magic_number = reader.read_string(4);
+		if (magic_number != "MP3W") {
+			std::print("Invalid war3map.wpm magic number, expected MP3W but got {}", magic_number);
+			return false;
+		}
+
+		const int version = reader.read<uint32_t>();
+		if (version != 0) {
+			std::print("Unknown war3map.wpm version, expected 0 but got {}. Attempting to load, but may crash.\n", version);
+		}
+
+		width = reader.read<uint32_t>();
+		height = reader.read<uint32_t>();
+
+		if (width == 0 || height == 0) {
+			resize(terrain_width * 4, terrain_height * 4);
+			return true;
+		}
+
+		pathing_cells_static = reader.read_vector<uint8_t>(width * height);
+		pathing_cells_dynamic.resize(width * height);
+
+		recreate_textures();
+
+		return true;
+	}
+
+	void save() const {
+		BinaryWriter writer;
+		writer.write_string("MP3W");
+		writer.write<uint32_t>(write_version);
+		writer.write<uint32_t>(width);
+		writer.write<uint32_t>(height);
+		writer.write_vector<uint8_t>(pathing_cells_static);
+
+		hierarchy.map_file_write("war3map.wpm", writer.buffer);
+	}
+
+	/// Converts the 3-byte RGB array to the pathing map
+	/// data.size() should be width * height * 3
+	bool from_rgb(const std::span<uint8_t> data) {
+		if (data.size() != pathing_cells_static.size() * 3) {
+			return false;
+		}
+
+		for (size_t i = 0; i < data.size(); i += 3) {
+			pathing_cells_static[i / 3] =
+				(data[i] > 250) * Flags::unwalkable + (data[i + 1] > 250) * Flags::unflyable + (data[i + 2] > 250) * Flags::unbuildable;
+		}
+
+		upload_static_pathing();
+
+		return true;
+	}
+
+	/// Converts the internal data (a bitflag array) to a 3-byte RGB array
+	[[nodiscard]]
+	std::vector<uint8_t> to_rgb() const {
+		std::vector<uint8_t> data;
+		data.reserve(width * height);
+
+		for (const auto cell : pathing_cells_static) {
+			data.push_back(cell & unwalkable ? 255 : 0);
+			data.push_back(cell & unflyable ? 255 : 0);
+			data.push_back(cell & unbuildable ? 255 : 0);
+		}
+
+		return data;
+	}
+
+	/// Clears an area with zeroes.
+	/// Expects input in pathing tiles.
+	void dynamic_clear_area(const PathingRect& area) {
+		const PathingRect t = area.intersected({0, 0, width, height});
+		// +1 because of a Qt quirk of .bottom() and .right()
+		for (int j = t.top(); j < t.bottom() + 1; j++) {
+			for (int i = t.left(); i < t.right() + 1; i++) {
+				pathing_cells_dynamic[j * width + i] = 0;
+			}
+		}
+	}
+
+	/// Checks for every cell on the supplied pathing_texture where (pathing_texture & mask == true) whether (existing_pathing & mask == true) and if so returns false
+	/// Expects position in whole grid tiles
+	/// Rotation in multiples of 90
+	[[nodiscard]]
+	bool is_area_free(
+		const glm::vec2 position,
+		const int rotation,
+		const std::shared_ptr<PathingTexture>& pathing_texture,
+		const uint8_t mask
+	) const {
+		const int div_w = (rotation % 180) ? pathing_texture->height : pathing_texture->width;
+		const int div_h = (rotation % 180) ? pathing_texture->width : pathing_texture->height;
+		for (int j = 0; j < pathing_texture->height; j++) {
+			for (int i = 0; i < pathing_texture->width; i++) {
+				int x = i;
+				int y = j;
+
+				switch (rotation) {
+					case 90:
+						x = pathing_texture->height - 1 - j;
+						y = i;
+						break;
+					case 180:
+						x = pathing_texture->width - 1 - i;
+						y = pathing_texture->height - 1 - j;
+						break;
+					case 270:
+						x = j;
+						y = pathing_texture->width - 1 - i;
+						break;
+				}
+
+				// Width and height for centering change if rotation is not divisible by 180
+				const int xx = position.x * 4 + x - div_w / 2;
+				const int yy = position.y * 4 + y - div_h / 2;
+
+				if (xx < 0 || xx > width - 1 || yy < 0 || yy > height - 1) {
+					continue;
+				}
+
+				const unsigned int index = ((pathing_texture->height - 1 - j) * pathing_texture->width + i) * pathing_texture->channels;
+
+				const uint8_t pathing_texture_mask = (pathing_texture->data[index] > 250) * Flags::unwalkable
+					| (pathing_texture->data[index + 1] > 250) * Flags::unflyable
+					| (pathing_texture->data[index + 2] > 250) * Flags::unbuildable;
+
+				if (pathing_texture_mask & mask && pathing_cells_dynamic[yy * width + xx] && mask) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/// Returns whether all cells in the radius around position do not match (pathing & mask == true)
+	/// Expects position in whole grid tiles
+	bool is_area_free(const glm::vec2 position, const float radius, const uint8_t mask) const {
+		const glm::vec2 minimum = glm::max((position - glm::vec2(radius)) * 4.f, glm::vec2(0.0f));
+		const glm::vec2 maximum = glm::min((position + glm::vec2(radius)) * 4.f, glm::vec2(width, height));
+
+		for (int y = minimum.y; y < maximum.y; y++) {
+			for (int x = minimum.x; x < maximum.x; x++) {
+				if (pathing_cells_dynamic[y * width + x] & mask) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/// Blits a pathing texture to the specified location on the pathing map. Manually call update_dynamic() afterwards to upload the changes to the GPU
+	/// Expects position in whole grid tiles and draws the texture centered around this position
+	/// Rotation in multiples of 90
+	/// Blits the texture upside down, as image rows run top to bottom while pathing map rows run bottom to top
+	void blit_pathing_texture(const glm::vec2 position, const int rotation, const std::shared_ptr<PathingTexture>& pathing_texture) {
+		const int div_w = (rotation % 180) ? pathing_texture->height : pathing_texture->width;
+		const int div_h = (rotation % 180) ? pathing_texture->width : pathing_texture->height;
+		for (int j = 0; j < pathing_texture->height; j++) {
+			for (int i = 0; i < pathing_texture->width; i++) {
+				int x = i;
+				int y = j;
+
+				switch (rotation) {
+					case 90:
+						x = pathing_texture->height - 1 - j;
+						y = i;
+						break;
+					case 180:
+						x = pathing_texture->width - 1 - i;
+						y = pathing_texture->height - 1 - j;
+						break;
+					case 270:
+						x = j;
+						y = pathing_texture->width - 1 - i;
+						break;
+				}
+
+				// Width and height for centering change if rotation is not divisible by 180
+				const int xx = position.x * 4 + x - div_w / 2;
+				const int yy = position.y * 4 + y - div_h / 2;
+
+				if (xx < 0 || xx > width - 1 || yy < 0 || yy > height - 1) {
+					continue;
+				}
+
+				const unsigned int index = ((pathing_texture->height - 1 - j) * pathing_texture->width + i) * pathing_texture->channels;
+
+				uint8_t bytes = (pathing_texture->data[index] > 250) * Flags::unwalkable
+					| (pathing_texture->data[index + 1] > 250) * Flags::unflyable
+					| (pathing_texture->data[index + 2] > 250) * Flags::unbuildable;
+
+				pathing_cells_dynamic[yy * width + xx] |= bytes;
+			}
+		}
+	}
+
+	void upload_static_pathing() {
+		texture_static->update(extent(), pathing_cells_static);
+	}
+
+	void upload_dynamic_pathing() {
+		texture_dynamic->update(extent(), pathing_cells_dynamic);
+	}
+
+	void resize(size_t new_width, size_t new_height) {
+		width = new_width;
+		height = new_height;
+
+		pathing_cells_static.resize(width * height);
+		pathing_cells_dynamic.resize(width * height);
+
+		recreate_textures();
+	}
+
+	void resize(int delta_left, int delta_right, int delta_top, int delta_bottom) {
+		const int new_width = width + delta_left + delta_right;
+		const int new_height = height + delta_top + delta_bottom;
+
+		// sanity check
+		if (new_width <= 0 || new_height <= 0) {
+			return;
+		}
+
+		if (new_width % 4 != 0 || new_height % 4 != 0) {
+			return;
+		}
+
+		// store old data and dimensions
+		std::vector<uint8_t> old_static = std::move(pathing_cells_static);
+		std::vector<uint8_t> old_dynamic = std::move(pathing_cells_dynamic);
+		const int old_width = width;
+		const int old_height = height;
+
+		// create new vectors with new dimensions
+		pathing_cells_static.resize(new_width * new_height);
+		pathing_cells_dynamic.resize(new_width * new_height);
+
+		// copy old data to new, with padding/trimming
+		for (int y = 0; y < new_height; y++) {
+			for (int x = 0; x < new_width; x++) {
+				// calculate source coordinates in old array
+				int src_x = x - delta_left;
+				int src_y = y - delta_bottom;
+
+				// clamp to old map boundaries for padding
+				// this handles both padding (uses edge values) and trimming (offsets source)
+				src_x = std::clamp(src_x, 0, old_width - 1);
+				src_y = std::clamp(src_y, 0, old_height - 1);
+
+				// copy from old to new
+				const int old_index = src_y * old_width + src_x;
+				const int new_index = y * new_width + x;
+
+				pathing_cells_static[new_index] = old_static[old_index];
+				pathing_cells_dynamic[new_index] = old_dynamic[old_index];
+			}
+		}
+
+		// update dimensions
+		width = new_width;
+		height = new_height;
+
+		// recreate textures with new data
+		recreate_textures();
+	}
+
+  private:
+	VkExtent2D extent() const {
+		return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+	}
+
+	void recreate_textures() {
+		texture_static = std::make_unique<UpdatableTexture>(VK_FORMAT_R8_UINT, bindless.nearest_sampler, 1);
+		texture_dynamic = std::make_unique<UpdatableTexture>(VK_FORMAT_R8_UINT, bindless.nearest_sampler, 1);
+		upload_static_pathing();
+		upload_dynamic_pathing();
+	}
+};

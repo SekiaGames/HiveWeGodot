@@ -1,0 +1,871 @@
+#pragma once
+
+
+#include <QMessageBox>
+
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <print>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <set>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include "types.hpp"
+#include "BinaryReader.hpp"
+#include "BinaryWriter.hpp"
+#include "Hierarchy.hpp"
+#include "TriggerStrings.hpp"
+#include "Utilities.hpp"
+#include "Paths.hpp"
+#include <nlohmann/json.hpp>
+#include <glm/glm.hpp>
+
+enum class PlayerType {
+	human,
+	computer,
+	neutral,
+	rescuable
+};
+
+enum class PlayerRace {
+	selectable,
+	human,
+	orc,
+	undead,
+	night_elf
+};
+
+struct PlayerData {
+	int internal_number;
+	PlayerType type;
+	PlayerRace race;
+	int hud_skin = 1;
+	int fixed_start_position;
+	std::string name;
+	glm::vec2 starting_position;
+	uint32_t ally_low_priorities_flags;
+	uint32_t ally_high_priorities_flags;
+	uint32_t enemy_low_priorities_flags = 0;
+	uint32_t enemy_high_priorities_flags = 0;
+};
+
+struct ForceData {
+	bool allied;
+	bool allied_victory;
+	bool share_vision;
+	bool share_unit_control;
+	bool share_advanced_unit_control;
+	int player_masks;
+	std::string name;
+};
+
+struct UpgradeAvailability {
+	int player_flags;
+	std::string id;
+	int level;
+	int availability;
+};
+
+struct TechAvailability {
+	int player_flags;
+	std::string id;
+};
+
+struct RandomUnitLine {
+	int chance;
+	std::vector<std::string> ids;
+};
+
+struct RandomUnitTable {
+	int creation_number;
+	std::string name;
+	std::vector<int> positions;
+	std::vector<RandomUnitLine> lines;
+};
+
+struct RandomItemTable {
+	int creation_number;
+	std::string name;
+	std::vector<ItemSet> item_sets;
+};
+
+class MapInfo {
+  public:
+	int map_version;
+	int editor_version;
+	int game_version_major;
+	int game_version_minor;
+	int game_version_patch;
+	int game_version_build;
+	std::string name;
+	std::string author;
+	std::string description;
+	std::string suggested_players;
+
+	glm::vec2 camera_left_bottom;
+	glm::vec2 camera_right_top;
+	glm::vec2 camera_left_top;
+	glm::vec2 camera_right_bottom;
+
+	glm::ivec4 camera_complements;
+
+	int playable_width;
+	int playable_height;
+
+	int all_flags;
+	bool hide_minimap_preview;
+	bool modif_ally_priorities;
+	bool melee_map;
+	bool unknown;
+	bool masked_area_partially_visible;
+	bool fixed_player_settings;
+	bool custom_forces;
+	bool custom_techtree;
+	bool custom_abilities;
+	bool custom_upgrades;
+	bool unknown2;
+	bool cliff_shore_waves;
+	bool rolling_shore_waves;
+	bool use_terrain_fog;
+	bool requires_expansion;
+	bool item_classification;
+	bool water_tinting;
+	bool accurate_probability_for_calculations;
+	bool custom_ability_skins;
+	bool disable_deny_icon;
+	bool force_default_zoom;
+	bool force_max_zoom;
+	bool force_min_zoom;
+	bool override_hd_water_color;
+	bool alpha_tile_default_minimap_color;
+	bool dynamic_minimap;
+
+	int loading_screen_number;
+	int loading_screen_source = 128;
+	std::string loading_screen_model;
+	std::string loading_screen_text;
+	std::string loading_screen_title;
+	std::string loading_screen_subtitle;
+
+	int game_data_set;
+
+	std::string prologue_screen_model;
+	std::string prologue_text;
+	std::string prologue_title;
+	std::string prologue_subtitle;
+
+	int fog_style;
+	float fog_start_z_height;
+	float fog_end_z_height;
+	float fog_density;
+	glm::u8vec4 fog_color;
+
+	int weather_id;
+
+	int unknown_fog1 = 0;
+	float fog_linear_start = 10000.f;
+	float fog_linear_end = 10000.f;
+	float fog_max_opacity = 1.f;
+	int unknown_fog2 = 0;
+	int unknown_fog3 = 0;
+
+	std::string custom_sound_environment;
+	char custom_light_tileset;
+	glm::u8vec4 water_color;
+
+	bool lua = false;
+	uint32_t supported_modes = 3;
+	uint32_t game_data_version = 1;
+
+	uint32_t default_cam_distance = 1250;
+	uint32_t max_cam_distance = 1250;
+	uint32_t min_cam_distance = 1250;
+
+	uint32_t water_min_opacity = 0;
+	uint32_t water_max_opacity = 100;
+	uint32_t water_reflectivity = 10;
+	uint32_t water_emissivity = 0;
+	uint32_t water_edge_softness = 50;
+	uint32_t water_waves_vertex_displacement = 20;
+	uint32_t water_waves_normal_map_strength = 100;
+	uint32_t water_tinting_color = 0;
+	uint32_t water_env_map_reflectivity = 100;
+	uint32_t unknown_post_water = 0xFFFFFFFF;
+
+	std::vector<PlayerData> players;
+	std::vector<ForceData> forces;
+	std::vector<UpgradeAvailability> available_upgrades;
+	std::vector<TechAvailability> available_tech;
+	std::vector<RandomUnitTable> random_unit_tables;
+	std::vector<RandomItemTable> random_item_tables;
+
+	static constexpr int write_version = 39;
+	static constexpr int write_editor_version = 7000;
+	static constexpr int write_game_version_major = 3;
+	static constexpr int write_game_version_minor = 0;
+	static constexpr int write_game_version_patch = 0;
+	static constexpr int write_game_version_build = 24268;
+
+	// hiveWE specific data
+	char custom_ambience_tileset;
+
+	void load() {
+		load_w3i();
+		load_hive();
+	}
+
+	void save(char tileset) const {
+		// save data
+		save_w3i(tileset);
+		save_hive();
+	}
+
+	/// For creating new maps from scratch
+	/// Camera bounds and playable size are not set here; call update_map_bounds_info once the terrain dimensions are known.
+	void load_defaults(TriggerStrings& trigger_strings) {
+		map_version = 1;
+		editor_version = write_editor_version;
+		game_version_major = write_game_version_major;
+		game_version_minor = write_game_version_minor;
+		game_version_patch = write_game_version_patch;
+		game_version_build = write_game_version_build;
+
+		name.clear();
+		author.clear();
+		description.clear();
+		suggested_players.clear();
+		trigger_strings.set_string(name, "Just another Warcraft III map");
+		trigger_strings.set_string(author, "Unknown");
+		trigger_strings.set_string(description, "Nondescript");
+		trigger_strings.set_string(suggested_players, "Any");
+
+		hide_minimap_preview = false;
+		modif_ally_priorities = false;
+		melee_map = false;
+		unknown = false;
+		masked_area_partially_visible = true;
+		fixed_player_settings = false;
+		custom_forces = false;
+		custom_techtree = false;
+		custom_abilities = false;
+		custom_upgrades = false;
+		unknown2 = true;
+		cliff_shore_waves = true;
+		rolling_shore_waves = true;
+		use_terrain_fog = false;
+		requires_expansion = false;
+		item_classification = true;
+		water_tinting = false;
+		accurate_probability_for_calculations = false;
+		custom_ability_skins = false;
+		disable_deny_icon = false;
+		force_default_zoom = false;
+		force_max_zoom = false;
+		force_min_zoom = false;
+		override_hd_water_color = false;
+		alpha_tile_default_minimap_color = false;
+		dynamic_minimap = false;
+
+		loading_screen_number = -1;
+		loading_screen_source = 128;
+		loading_screen_model.clear();
+		loading_screen_text.clear();
+		loading_screen_title.clear();
+		loading_screen_subtitle.clear();
+
+		game_data_set = 2;
+
+		prologue_screen_model.clear();
+		prologue_text.clear();
+		prologue_title.clear();
+		prologue_subtitle.clear();
+
+		fog_style = 0;
+		fog_start_z_height = 3000.f;
+		fog_end_z_height = 5000.f;
+		fog_density = 0.5f;
+		fog_color = {0, 0, 0, 255};
+		unknown_fog1 = 0;
+		fog_linear_start = 10000.f;
+		fog_linear_end = 10000.f;
+		fog_max_opacity = 1.f;
+		unknown_fog2 = 0;
+		unknown_fog3 = 0;
+
+		weather_id = 0;
+		custom_sound_environment.clear();
+		custom_light_tileset = 0;
+		water_color = {255, 255, 255, 255};
+
+		lua = false;
+		supported_modes = 3;
+		game_data_version = 2;
+
+		default_cam_distance = 1250;
+		max_cam_distance = 1250;
+		min_cam_distance = 1250;
+
+		water_min_opacity = 0;
+		water_max_opacity = 100;
+		water_reflectivity = 10;
+		water_emissivity = 0;
+		water_edge_softness = 50;
+		water_waves_vertex_displacement = 20;
+		water_waves_normal_map_strength = 100;
+		water_tinting_color = 0;
+		water_env_map_reflectivity = 100;
+		unknown_post_water = 0xFFFFFFFF;
+
+		players = {PlayerData {
+			.internal_number = 0,
+			.type = PlayerType::human,
+			.race = PlayerRace::human,
+			.fixed_start_position = 0,
+			.name = "",
+			.starting_position = {0.f, 0.f},
+			.ally_low_priorities_flags = 0,
+			.ally_high_priorities_flags = 0,
+			.enemy_low_priorities_flags = 0,
+			.enemy_high_priorities_flags = 0,
+		} };
+		trigger_strings.set_string(players[0].name, "Player 1");
+
+		forces = { ForceData {
+			.allied = false,
+			.allied_victory = false,
+			.share_vision = false,
+			.share_unit_control = false,
+			.share_advanced_unit_control = false,
+			.player_masks = static_cast<int>(0xFFFFFFFF),
+			.name = "",
+		} };
+		trigger_strings.set_string(forces[0].name, "Force 1");
+
+		available_upgrades.clear();
+		available_tech.clear();
+		random_unit_tables.clear();
+		random_item_tables.clear();
+	}
+
+	void update_map_bounds_info(
+		int unplayable_left,
+		int unplayable_right,
+		int unplayable_top,
+		int unplayable_bottom,
+		int terrain_width,
+		int terrain_height,
+		float terrain_offset_x,
+		float terrain_offset_y
+	) {
+		// update unplayable area in map info
+		camera_complements[0] = unplayable_left;
+		camera_complements[1] = unplayable_right;
+		camera_complements[2] = unplayable_bottom;
+		camera_complements[3] = unplayable_top;
+
+		// update playable map area
+		playable_width = terrain_width - 1 - camera_complements[0] - camera_complements[1];
+		playable_height = terrain_height - 1 - camera_complements[2] - camera_complements[3];
+
+		// compute camera bounds based on complements and terrain offset
+		// these bounds are used in the generated JASS script
+		camera_left_bottom.x = (camera_complements[0] + 4) * 128.f + terrain_offset_x;
+		camera_left_bottom.y = (camera_complements[2] + 2) * 128.f + terrain_offset_y;
+
+		camera_right_top.x = (terrain_width - 1 - camera_complements[1] - 4) * 128.f + terrain_offset_x;
+		camera_right_top.y = (terrain_height - 1 - camera_complements[3] - 2) * 128.f + terrain_offset_y;
+
+		camera_left_top.x = (camera_complements[0] + 4) * 128.f + terrain_offset_x;
+		camera_left_top.y = (terrain_height - 1 - camera_complements[3] - 2) * 128.f + terrain_offset_y;
+
+		camera_right_bottom.x = (terrain_width - 1 - camera_complements[1] - 4) * 128.f + terrain_offset_x;
+		camera_right_bottom.y = (camera_complements[2] + 2) * 128.f + terrain_offset_y;
+	}
+
+  private:
+	void save_hive() const {
+		nlohmann::json root;
+
+		root["custom_ambience_sound"] = static_cast<uint8_t>(custom_ambience_tileset);
+
+		// dump, also create parent directory if it doesn't exist
+		const auto pathing_file = paths::map_info_extras_file(hierarchy.map_directory);
+		std::filesystem::create_directories(pathing_file.parent_path());
+		std::ofstream file(pathing_file);
+		if (file) {
+			file << root.dump(1, '\t') << '\n';
+		} else {
+			QMessageBox::critical(nullptr, "Error saving map data", QString("Failed to save %1").arg(pathing_file.string().c_str()));
+		}
+	}
+
+	void save_w3i(char tileset) const {
+		BinaryWriter writer;
+
+		writer.write(write_version);
+		writer.write(map_version);
+		writer.write(write_editor_version);
+		writer.write(write_game_version_major);
+		writer.write(write_game_version_minor);
+		writer.write(write_game_version_patch);
+		writer.write(write_game_version_build);
+		writer.write_c_string(name);
+		writer.write_c_string(author);
+		writer.write_c_string(description);
+		writer.write_c_string(suggested_players);
+
+		writer.write(camera_left_bottom);
+		writer.write(camera_right_top);
+		writer.write(camera_left_top);
+		writer.write(camera_right_bottom);
+
+		writer.write(camera_complements);
+
+		writer.write(playable_width);
+		writer.write(playable_height);
+
+		const int flags = hide_minimap_preview * 0x0001 | modif_ally_priorities * 0x0002 | melee_map * 0x0004 | unknown * 0x0008
+			| masked_area_partially_visible * 0x0010 | fixed_player_settings * 0x0020 | custom_forces * 0x0040 | custom_techtree * 0x0080
+			| custom_abilities * 0x0100 | custom_upgrades * 0x0200 | unknown2 * 0x0400 | cliff_shore_waves * 0x0800
+			| rolling_shore_waves * 0x1000 | use_terrain_fog * 0x2000 | requires_expansion * 0x4000 | item_classification * 0x8000 | water_tinting * 0x10000
+			| accurate_probability_for_calculations * 0x20000 | custom_ability_skins * 0x40000 | disable_deny_icon * 0x80000
+			| force_default_zoom * 0x100000 | force_max_zoom * 0x200000 | force_min_zoom * 0x400000 | override_hd_water_color * 0x800000
+			| alpha_tile_default_minimap_color * 0x1000000 | dynamic_minimap * 0x2000000;
+
+		writer.write(flags);
+
+		writer.write(tileset);
+
+		writer.write(loading_screen_number);
+		writer.write(loading_screen_source);
+		writer.write_c_string(loading_screen_model);
+		writer.write_c_string(loading_screen_text);
+		writer.write_c_string(loading_screen_title);
+		writer.write_c_string(loading_screen_subtitle);
+
+		writer.write(game_data_set);
+
+		writer.write_c_string(prologue_screen_model);
+		writer.write_c_string(prologue_text);
+		writer.write_c_string(prologue_title);
+		writer.write_c_string(prologue_subtitle);
+
+		writer.write(fog_style);
+		writer.write(fog_start_z_height);
+		writer.write(fog_end_z_height);
+		writer.write(fog_density);
+		writer.write(fog_color);
+
+		writer.write(weather_id);
+
+		writer.write(unknown_fog1);
+		writer.write(fog_linear_start);
+		writer.write(fog_linear_end);
+		writer.write(fog_max_opacity);
+		writer.write(unknown_fog2);
+		writer.write(unknown_fog3);
+
+		writer.write_c_string(custom_sound_environment);
+		writer.write(custom_light_tileset);
+		writer.write(water_color);
+
+		writer.write(static_cast<uint32_t>(lua));
+
+		writer.write(supported_modes);
+		writer.write(game_data_version);
+
+		writer.write(default_cam_distance);
+		writer.write(max_cam_distance);
+		writer.write(min_cam_distance);
+
+		writer.write(water_min_opacity);
+		writer.write(water_max_opacity);
+		writer.write(water_reflectivity);
+		writer.write(water_emissivity);
+		writer.write(water_edge_softness);
+		writer.write(water_waves_vertex_displacement);
+		writer.write(water_waves_normal_map_strength);
+		writer.write(water_tinting_color);
+		writer.write(water_env_map_reflectivity);
+		writer.write(unknown_post_water);
+
+		writer.write<uint32_t>(players.size());
+		for (const auto& i : players) {
+			writer.write(i.internal_number);
+			writer.write(static_cast<int>(i.type) + 1);
+			writer.write(static_cast<int>(i.race));
+			writer.write(i.hud_skin);
+			writer.write(i.fixed_start_position);
+			writer.write_c_string(i.name);
+			writer.write(i.starting_position);
+			writer.write(i.ally_low_priorities_flags);
+			writer.write(i.ally_high_priorities_flags);
+			writer.write(i.enemy_low_priorities_flags);
+			writer.write(i.enemy_high_priorities_flags);
+		}
+
+		writer.write<uint32_t>(forces.size());
+		for (const auto& i : forces) {
+			const uint32_t force_flags = i.allied * 0b00000001 | i.allied_victory * 0b00000010 | i.share_vision * 0b00000100
+				| i.share_unit_control * 0b00010000 | i.share_advanced_unit_control * 0b00100000;
+			writer.write(force_flags);
+
+			writer.write(i.player_masks);
+			writer.write_c_string(i.name);
+		}
+
+		writer.write<uint32_t>(available_upgrades.size());
+		for (const auto& i : available_upgrades) {
+			writer.write(i.player_flags);
+			writer.write_string(i.id);
+			writer.write(i.level);
+			writer.write(i.availability);
+		}
+
+		writer.write<uint32_t>(available_tech.size());
+		for (const auto& i : available_tech) {
+			writer.write(i.player_flags);
+			writer.write_string(i.id);
+		}
+
+		writer.write<uint32_t>(random_unit_tables.size());
+		for (const auto& i : random_unit_tables) {
+			writer.write(i.creation_number);
+			writer.write_c_string(i.name);
+			writer.write_vector(i.positions);
+
+			writer.write<uint32_t>(i.lines.size());
+			for (const auto& j : i.lines) {
+				writer.write(j.chance);
+				writer.write_vector(j.ids);
+			}
+		}
+
+		writer.write<uint32_t>(random_item_tables.size());
+		for (const auto& i : random_item_tables) {
+			writer.write(i.creation_number);
+			writer.write_c_string(i.name);
+
+			writer.write<uint32_t>(i.item_sets.size());
+			for (const auto& j : i.item_sets) {
+				writer.write<uint32_t>(j.items.size());
+				for (const auto& [chance, id] : j.items) {
+					writer.write(chance);
+					writer.write_string(id);
+				}
+			}
+		}
+
+		hierarchy.map_file_write("war3map.w3i", writer.buffer);
+	}
+
+	void load_hive() {
+		if (std::ifstream file(paths::map_info_extras_file(hierarchy.map_directory)); file.is_open()) {
+			try {
+				const nlohmann::json root = nlohmann::json::parse(file);
+
+				// load data
+				custom_ambience_tileset = static_cast<char>(root.value("custom_ambience_sound", 0));
+
+			} catch (const std::exception& e) {
+				// throw an error message if the json is corrupted or failed to load for some reason
+				QMessageBox::critical(
+					nullptr,
+					"Error loading map info",
+					QString("Failed to load %1:\n%2")
+						.arg(paths::map_info_extras_file(hierarchy.map_directory).string().c_str())
+						.arg(e.what())
+				);
+			}
+		}
+	}
+
+	void load_w3i() {
+		BinaryReader reader = hierarchy.map_file_read("war3map.w3i").value();
+
+		const int version = reader.read<uint32_t>();
+
+		if (version != 39 && version != 33 && version != 32 && version != 31 && version != 28 && version != 25 && version != 18 && version != 15) {
+			std::cout << "Unknown war3map.w3i version\n";
+		}
+
+		if (version >= 18) {
+			map_version = reader.read<uint32_t>();
+			editor_version = reader.read<uint32_t>();
+
+			if (version >= 28) {
+				game_version_major = reader.read<uint32_t>();
+				game_version_minor = reader.read<uint32_t>();
+				game_version_patch = reader.read<uint32_t>();
+				game_version_build = reader.read<uint32_t>();
+			}
+		}
+		name = reader.read_c_string();
+		author = reader.read_c_string();
+		description = reader.read_c_string();
+		suggested_players = reader.read_c_string();
+
+		camera_left_bottom = reader.read<glm::vec2>();
+		camera_right_top = reader.read<glm::vec2>();
+		camera_left_top = reader.read<glm::vec2>();
+		camera_right_bottom = reader.read<glm::vec2>();
+
+		camera_complements = reader.read<glm::ivec4>();
+
+		playable_width = reader.read<uint32_t>();
+		playable_height = reader.read<uint32_t>();
+
+		const int flags = reader.read<uint32_t>();
+		hide_minimap_preview = flags & 0x0001;
+		modif_ally_priorities = flags & 0x0002;
+		melee_map = flags & 0x0004;
+		unknown = flags & 0x0008; // playable map size was large
+		masked_area_partially_visible = flags & 0x0010;
+		fixed_player_settings = flags & 0x0020;
+		custom_forces = flags & 0x0040;
+		custom_techtree = flags & 0x0080;
+		custom_abilities = flags & 0x0100;
+		custom_upgrades = flags & 0x0200;
+		unknown2 = flags & 0x0400; // has properties menu been opened
+		cliff_shore_waves = flags & 0x0800;
+		rolling_shore_waves = flags & 0x1000;
+		use_terrain_fog = flags & 0x2000; // has terrain fog
+		requires_expansion = flags & 0x4000; // requires expansion
+		item_classification = flags & 0x8000;
+		water_tinting = flags & 0x10000;
+		accurate_probability_for_calculations = flags & 0x20000;
+		custom_ability_skins = flags & 0x40000;
+		disable_deny_icon = flags & 0x80000;
+		force_default_zoom = flags & 0x100000;
+		force_max_zoom = flags & 0x200000;
+		force_min_zoom = flags & 0x400000;
+		override_hd_water_color = flags & 0x800000;
+		alpha_tile_default_minimap_color = flags & 0x1000000;
+		dynamic_minimap = flags & 0x2000000;
+
+		// Tileset
+		reader.advance(1);
+
+		if (version >= 25) { // TFT
+			loading_screen_number = reader.read<uint32_t>();
+			if (version >= 39) {
+				loading_screen_source = reader.read<uint32_t>();
+			}
+			loading_screen_model = reader.read_c_string();
+			loading_screen_text = reader.read_c_string();
+			loading_screen_title = reader.read_c_string();
+			loading_screen_subtitle = reader.read_c_string();
+
+			game_data_set = reader.read<uint32_t>();
+
+			prologue_screen_model = reader.read_c_string();
+			prologue_text = reader.read_c_string();
+			prologue_title = reader.read_c_string();
+			prologue_subtitle = reader.read_c_string();
+
+			fog_style = reader.read<uint32_t>();
+			fog_start_z_height = reader.read<float>();
+			fog_end_z_height = reader.read<float>();
+			fog_density = reader.read<float>();
+			fog_color = reader.read<glm::u8vec4>();
+
+			weather_id = reader.read<uint32_t>();
+
+			if (version >= 39) {
+				unknown_fog1 = reader.read<uint32_t>();
+				fog_linear_start = reader.read<float>();
+				fog_linear_end = reader.read<float>();
+				fog_max_opacity = reader.read<float>();
+				unknown_fog2 = reader.read<uint32_t>();
+				unknown_fog3 = reader.read<uint32_t>();
+			}
+
+			custom_sound_environment = reader.read_c_string();
+			custom_light_tileset = reader.read<uint8_t>();
+			water_color = reader.read<glm::u8vec4>();
+
+			if (version >= 28) {
+				lua = reader.read<uint32_t>() == 1;
+			}
+
+			if (version >= 31) {
+				supported_modes = reader.read<uint32_t>();
+				game_data_version = reader.read<uint32_t>();
+			}
+			if (version >= 32) {
+				default_cam_distance = reader.read<uint32_t>();
+				max_cam_distance = reader.read<uint32_t>();
+				if (version >= 33) {
+					min_cam_distance = reader.read<uint32_t>();
+					if (version >= 39) {
+						water_min_opacity = reader.read<uint32_t>();
+						water_max_opacity = reader.read<uint32_t>();
+						water_reflectivity = reader.read<uint32_t>();
+						water_emissivity = reader.read<uint32_t>();
+						water_edge_softness = reader.read<uint32_t>();
+						water_waves_vertex_displacement = reader.read<uint32_t>();
+						water_waves_normal_map_strength = reader.read<uint32_t>();
+						water_tinting_color = reader.read<uint32_t>();
+						water_env_map_reflectivity = reader.read<uint32_t>();
+						unknown_post_water = reader.read<uint32_t>();
+					}
+				}
+			}
+		} else if (version == 18) { // RoC
+			loading_screen_number = reader.read<uint32_t>();
+			loading_screen_text = reader.read_c_string();
+			loading_screen_title = reader.read_c_string();
+			loading_screen_subtitle = reader.read_c_string();
+
+			// game_data_set = reader.read<uint32_t>();
+			reader.advance(4); // ToDo RoC map loading screen number
+
+			prologue_text = reader.read_c_string();
+			prologue_title = reader.read_c_string();
+			prologue_subtitle = reader.read_c_string();
+		} else {
+			reader.advance(1); // unknown, loading screen number but only 1 digit?
+			loading_screen_text = reader.read_c_string();
+			loading_screen_title = reader.read_c_string();
+			loading_screen_subtitle = reader.read_c_string();
+			reader.advance(4); // prologue stuff?
+		}
+
+		players.resize(reader.read<uint32_t>());
+		for (auto&& i : players) {
+			i.internal_number = reader.read<uint32_t>();
+			i.type = static_cast<PlayerType>(reader.read<uint32_t>() - 1);
+			i.race = static_cast<PlayerRace>(reader.read<uint32_t>());
+			if (version >= 39) {
+				i.hud_skin = reader.read<uint32_t>();
+			}
+			i.fixed_start_position = reader.read<uint32_t>();
+			i.name = reader.read_c_string();
+			i.starting_position = reader.read<glm::vec2>();
+			i.ally_low_priorities_flags = reader.read<uint32_t>();
+			i.ally_high_priorities_flags = reader.read<uint32_t>();
+			if (version >= 31) {
+				i.enemy_low_priorities_flags = reader.read<uint32_t>();
+				i.enemy_high_priorities_flags = reader.read<uint32_t>();
+			}
+		}
+
+		forces.resize(reader.read<uint32_t>());
+		for (auto&& i : forces) {
+			const uint32_t force_flags = reader.read<uint32_t>();
+			i.allied = force_flags & 0b00000001;
+			i.allied_victory = force_flags & 0b00000010;
+			i.share_vision = force_flags & 0b00001000;
+			i.share_unit_control = force_flags & 0b00010000;
+			i.share_advanced_unit_control = force_flags & 0b00100000;
+
+			i.player_masks = reader.read<uint32_t>();
+			i.name = reader.read_c_string();
+		}
+
+		if (reader.remaining() < 4) {
+			return;
+		}
+
+		available_upgrades.resize(reader.read<uint32_t>());
+		for (auto&& i : available_upgrades) {
+			i.player_flags = reader.read<uint32_t>();
+			i.id = reader.read_string(4);
+			i.level = reader.read<uint32_t>();
+			i.availability = reader.read<uint32_t>();
+		}
+
+		if (reader.remaining() < 4) {
+			return;
+		}
+
+		available_tech.resize(reader.read<uint32_t>());
+		for (auto&& i : available_tech) {
+			i.player_flags = reader.read<uint32_t>();
+			i.id = reader.read_string(4);
+		}
+
+		if (reader.remaining() < 4) {
+			return;
+		}
+
+		random_unit_tables.resize(reader.read<uint32_t>());
+		for (auto&& i : random_unit_tables) {
+			i.creation_number = reader.read<uint32_t>();
+			i.name = reader.read_c_string();
+			i.positions = reader.read_vector<int>(reader.read<uint32_t>());
+
+			i.lines.resize(reader.read<uint32_t>());
+			for (auto&& j : i.lines) {
+				j.chance = reader.read<uint32_t>();
+				for (size_t k = 0; k < i.positions.size(); k++) {
+					j.ids.push_back(reader.read_string(4));
+				}
+			}
+		}
+
+		if (reader.remaining() < 4) {
+			return;
+		}
+
+		if (version >= 25) {
+			random_item_tables.resize(reader.read<uint32_t>());
+			for (auto&& i : random_item_tables) {
+				i.creation_number = reader.read<uint32_t>();
+				i.name = reader.read_c_string();
+				i.item_sets.resize(reader.read<uint32_t>());
+				for (auto&& j : i.item_sets) {
+					j.items.resize(reader.read<uint32_t>());
+					for (auto&& [chance, id] : j.items) {
+						chance = reader.read<uint32_t>();
+						id = reader.read_string(4);
+					}
+				}
+			}
+		}
+	}
+};
