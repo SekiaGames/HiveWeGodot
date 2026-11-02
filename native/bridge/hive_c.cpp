@@ -1338,7 +1338,14 @@ const std::vector<std::string>& doodad_type_ids(HiveHandle* hive) {
 				hive->doodad_types.push_back(id);
 			}
 		}
+		for (const auto& [id, row] : destructibles_slk.row_headers) {
+			if (id.size() == 4) {
+				hive->doodad_types.push_back(id);
+			}
+		}
 		std::sort(hive->doodad_types.begin(), hive->doodad_types.end());
+		hive->doodad_types.erase(std::unique(hive->doodad_types.begin(), hive->doodad_types.end()),
+								 hive->doodad_types.end());
 	}
 	return hive->doodad_types;
 }
