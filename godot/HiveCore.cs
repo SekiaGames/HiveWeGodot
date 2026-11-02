@@ -86,6 +86,12 @@ public static class HiveCore
     private static extern int hive_copy_water_heights(IntPtr hive, float[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_minimap_info(IntPtr hive, out int width, out int height);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_minimap(IntPtr hive, byte[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern float hive_water_offset(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -209,6 +215,19 @@ public static class HiveCore
     }
 
     public static float WaterOffset() => hive_water_offset(handle);
+
+    public static Image? Minimap()
+    {
+        if (hive_minimap_info(handle, out int width, out int height) != 0 || width <= 0 || height <= 0)
+        {
+            return null;
+        }
+        byte[] data = new byte[width * height * 4];
+        hive_copy_minimap(handle, data, data.Length);
+        Image image = Image.CreateFromData(width, height, false, Image.Format.Rgba8, data);
+        image.FlipY();
+        return image;
+    }
 
     public static void CopyWaterHeights(float[] output) => hive_copy_water_heights(handle, output, output.Length);
 

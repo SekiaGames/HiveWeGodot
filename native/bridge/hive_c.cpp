@@ -330,6 +330,30 @@ int32_t hive_copy_texture(void* handle, const int32_t index, uint8_t* out, const
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_minimap_info(void* handle, int32_t* width, int32_t* height) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	const Texture texture = static_cast<HiveHandle*>(handle)->map->terrain.minimap_image();
+	if (width != nullptr) {
+		*width = texture.width;
+	}
+	if (height != nullptr) {
+		*height = texture.height;
+	}
+	return 0;
+}
+
+int32_t hive_copy_minimap(void* handle, uint8_t* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const Texture texture = static_cast<HiveHandle*>(handle)->map->terrain.minimap_image();
+	const auto count = std::min<std::size_t>(texture.data.size(), static_cast<std::size_t>(capacity));
+	std::memcpy(out, texture.data.data(), count);
+	return static_cast<int32_t>(count);
+}
+
 const char* hive_map_directory(void* handle) {
 	if (handle == nullptr) {
 		return nullptr;

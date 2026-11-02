@@ -1,0 +1,298 @@
+using System;
+using Godot;
+
+namespace HiveWeGodot;
+
+public partial class EditorUi : CanvasLayer
+{
+    public enum ToolMode
+    {
+        Texture,
+        HeightRaise,
+        HeightLower,
+        HeightPlateau,
+        HeightRipple,
+        HeightSmooth,
+        WaterAdd,
+        WaterRemove,
+        CliffRaise,
+        CliffLower,
+        CliffLevel,
+        CliffRamp,
+    }
+
+    public event Action<int>? TextureSelected;
+    public event Action<ToolMode>? ToolSelected;
+    public event Action<int>? BrushSizeChanged;
+    public event Action<int>? BrushShapeChanged;
+    public event Action? UndoRequested;
+    public event Action? RedoRequested;
+    public event Action? SaveRequested;
+    public event Action? OpenRequested;
+    public event Action<Vector2>? MinimapClicked;
+
+    private Label status = null!;
+    private Label toolLabel = null!;
+    private HBoxContainer textureRow = null!;
+    private TextureRect minimap = null!;
+    private readonly ButtonGroup toolGroup = new();
+    private readonly ButtonGroup shapeGroup = new();
+    private SpinBox brushSize = null!;
+
+    private static readonly Color PanelColor = new(0.11f, 0.12f, 0.14f, 0.96f);
+    private static readonly Color ButtonColor = new(0.18f, 0.19f, 0.22f);
+
+    public void Build(TerrainView view)
+    {
+        BuildPalette(view);
+        BuildToolbar();
+        BuildStatus();
+    }
+
+    private void BuildPalette(TerrainView view)
+    {
+        var panel = new PanelContainer();
+        var style = new StyleBoxFlat { BgColor = PanelColor };
+        style.SetCornerRadiusAll(0);
+        style.ContentMarginLeft = 10;
+        style.ContentMarginRight = 10;
+        style.ContentMarginTop = 10;
+        style.ContentMarginBottom = 10;
+        panel.AddThemeStyleboxOverride("panel", style);
+        panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.LeftWide);
+        panel.OffsetRight = 232;
+        panel.OffsetBottom = -30;
+        AddChild(panel);
+
+        var column = new VBoxContainer();
+        column.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(column);
+
+        column.AddChild(SectionTitle("地面纹理"));
+
+        var grid = new GridContainer { Columns = 4 };
+        grid.AddThemeConstantOverride("h_separation", 4);
+        grid.AddThemeConstantOverride("v_separation", 4);
+        column.AddChild(grid);
+
+        for (int i = 0; i < view.Info.TextureCount; i++)
+        {
+            int index = i;
+            var button = new Button
+            {
+                ToggleMode = true,
+                ButtonGroup = toolGroup,
+                CustomMinimumSize = new Vector2(52, 52),
+                ExpandIcon = true,
+                TooltipText = HiveCore.TextureId(i) ?? $"纹理 {i}",
+            };
+            Texture2D? thumbnail = view.TextureThumbnail(i);
+            if (thumbnail != null)
+            {
+                button.Icon = thumbnail;
+            }
+            button.Pressed += () => TextureSelected?.Invoke(index);
+            grid.AddChild(button);
+        }
+
+        var blight = new Button
+        {
+            Text = "枯萎",
+            ToggleMode = true,
+            ButtonGroup = toolGroup,
+            CustomMinimumSize = new Vector2(52, 52),
+            TooltipText = "blight",
+        };
+        blight.Pressed += () => TextureSelected?.Invoke(view.Info.TextureCount);
+        grid.AddChild(blight);
+
+        column.AddChild(Spacer(6));
+        column.AddChild(SectionTitle("高度"));
+
+        var heightGrid = new GridContainer { Columns = 3 };
+        heightGrid.AddThemeConstantOverride("h_separation", 4);
+        heightGrid.AddThemeConstantOverride("v_separation", 4);
+        column.AddChild(heightGrid);
+        heightGrid.AddChild(ToolButton("抬升", ToolMode.HeightRaise));
+        heightGrid.AddChild(ToolButton("降低", ToolMode.HeightLower));
+        heightGrid.AddChild(ToolButton("削平", ToolMode.HeightPlateau));
+        heightGrid.AddChild(ToolButton("起伏", ToolMode.HeightRipple));
+        heightGrid.AddChild(ToolButton("平滑", ToolMode.HeightSmooth));
+
+        column.AddChild(Spacer(6));
+        column.AddChild(SectionTitle("水域"));
+
+        var waterGrid = new GridContainer { Columns = 2 };
+        waterGrid.AddThemeConstantOverride("h_separation", 4);
+        column.AddChild(waterGrid);
+        waterGrid.AddChild(ToolButton("加水", ToolMode.WaterAdd));
+        waterGrid.AddChild(ToolButton("去水", ToolMode.WaterRemove));
+
+        column.AddChild(Spacer(6));
+        column.AddChild(SectionTitle("悬崖"));
+
+        var cliffGrid = new GridContainer { Columns = 2 };
+        cliffGrid.AddThemeConstantOverride("h_separation", 4);
+        cliffGrid.AddThemeConstantOverride("v_separation", 4);
+        column.AddChild(cliffGrid);
+        cliffGrid.AddChild(ToolButton("升一级", ToolMode.CliffRaise));
+        cliffGrid.AddChild(ToolButton("降一级", ToolMode.CliffLower));
+        cliffGrid.AddChild(ToolButton("抹平", ToolMode.CliffLevel));
+        cliffGrid.AddChild(ToolButton("斜坡", ToolMode.CliffRamp));
+
+        column.AddChild(Spacer(10));
+        column.AddChild(SectionTitle("笔刷"));
+
+        var sizeRow = new HBoxContainer();
+        sizeRow.AddChild(new Label { Text = "大小" });
+        brushSize = new SpinBox
+        {
+            MinValue = 1,
+            MaxValue = 48,
+            Step = 1,
+            Value = 8,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        brushSize.ValueChanged += value => BrushSizeChanged?.Invoke((int)value);
+        sizeRow.AddChild(brushSize);
+        column.AddChild(sizeRow);
+
+        var shapeRow = new HBoxContainer();
+        shapeRow.AddThemeConstantOverride("separation", 4);
+        string[] names = { "方形", "圆形", "菱形" };
+        for (int i = 0; i < names.Length; i++)
+        {
+            int shape = i;
+            var button = new Button
+            {
+                Text = names[i],
+                ToggleMode = true,
+                ButtonGroup = shapeGroup,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            if (i == 0)
+            {
+                button.ButtonPressed = true;
+            }
+            button.Pressed += () => BrushShapeChanged?.Invoke(shape);
+            shapeRow.AddChild(button);
+        }
+        column.AddChild(shapeRow);
+
+        column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
+        column.AddChild(SectionTitle("小地图"));
+
+        minimap = new TextureRect
+        {
+            Texture = view.Minimap(),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(0, 100),
+        };
+        float aspect = (float)view.Info.Height / view.Info.Width;
+        minimap.CustomMinimumSize = new Vector2(210, 210 * aspect);
+        minimap.GuiInput += @event =>
+        {
+            if (@event is InputEventMouseButton button && button.Pressed && button.ButtonIndex == MouseButton.Left)
+            {
+                Vector2 size = minimap.Size;
+                if (size.X <= 0 || size.Y <= 0)
+                {
+                    return;
+                }
+                Vector2 local = button.Position / size;
+                MinimapClicked?.Invoke(new Vector2(
+                    Mathf.Clamp(local.X, 0f, 1f) * (view.Info.Width - 1),
+                    Mathf.Clamp(local.Y, 0f, 1f) * (view.Info.Height - 1)));
+            }
+        };
+        column.AddChild(minimap);
+
+        textureRow = new HBoxContainer();
+        column.AddChild(textureRow);
+    }
+
+    private void BuildToolbar()
+    {
+        var bar = new PanelContainer();
+        var style = new StyleBoxFlat { BgColor = PanelColor };
+        style.SetCornerRadiusAll(0);
+        style.ContentMarginLeft = 12;
+        style.ContentMarginRight = 12;
+        style.ContentMarginTop = 6;
+        style.ContentMarginBottom = 6;
+        bar.AddThemeStyleboxOverride("panel", style);
+        bar.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
+        bar.OffsetBottom = 40;
+        bar.OffsetLeft = 232;
+        AddChild(bar);
+
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+        bar.AddChild(row);
+
+        toolLabel = new Label { Text = "纹理笔" };
+        row.AddChild(toolLabel);
+
+        row.AddChild(new VSeparator());
+        row.AddChild(ActionButton("打开", () => OpenRequested?.Invoke()));
+        row.AddChild(ActionButton("撤销", () => UndoRequested?.Invoke()));
+        row.AddChild(ActionButton("重做", () => RedoRequested?.Invoke()));
+        row.AddChild(new VSeparator());
+        row.AddChild(ActionButton("保存 w3m", () => SaveRequested?.Invoke()));
+    }
+
+    private void BuildStatus()
+    {
+        var bar = new PanelContainer();
+        var style = new StyleBoxFlat { BgColor = PanelColor };
+        style.SetCornerRadiusAll(0);
+        style.ContentMarginLeft = 12;
+        style.ContentMarginTop = 4;
+        style.ContentMarginBottom = 4;
+        bar.AddThemeStyleboxOverride("panel", style);
+        bar.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
+        bar.OffsetTop = -30;
+        bar.OffsetLeft = 232;
+        AddChild(bar);
+
+        status = new Label { Text = "" };
+        bar.AddChild(status);
+    }
+
+    public void SetStatus(string text) => status.Text = text;
+
+    public void RefreshMinimap(TerrainView view) => minimap.Texture = view.Minimap();
+
+    public void SetActiveTool(string name) => toolLabel.Text = name;
+
+    public void SetBrushSize(int size) => brushSize.Value = size;
+
+    private Button ToolButton(string text, ToolMode mode)
+    {
+        var button = new Button
+        {
+            Text = text,
+            ToggleMode = true,
+            ButtonGroup = toolGroup,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        button.Pressed += () => ToolSelected?.Invoke(mode);
+        return button;
+    }
+
+    private Button ActionButton(string text, Action action)
+    {
+        var button = new Button { Text = text };
+        button.Pressed += action;
+        return button;
+    }
+
+    private static Label SectionTitle(string text) => new()
+    {
+        Text = text,
+        Modulate = new Color(0.65f, 0.7f, 0.78f),
+    };
+
+    private static Control Spacer(float height) => new() { CustomMinimumSize = new Vector2(0, height) };
+}
