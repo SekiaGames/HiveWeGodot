@@ -938,7 +938,8 @@ public partial class Main : Node3D
         ui.SetUnitTypes(HiveCore.UnitTypes());
     }
 
-    private void ShowObjectPanel(bool isUnit, int[] indices)    {
+    private void ShowObjectPanel(bool isUnit, int[] indices)
+    {
         if (indices.Length != 1)
         {
             ui.ClearObjectProperties();
