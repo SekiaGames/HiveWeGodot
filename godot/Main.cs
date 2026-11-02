@@ -48,6 +48,7 @@ public partial class Main : Node3D
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
     private readonly string infoTest = OS.GetEnvironment("HIVE_INFO_TEST");
+    private readonly string resizeTest = OS.GetEnvironment("HIVE_RESIZE_TEST");
     private string customTestId = string.Empty;
     private int customTestCategory;
     private int frames;
@@ -68,11 +69,7 @@ public partial class Main : Node3D
         if (loaded)
         {
             HiveCore.Close();
-            foreach (Node child in root.GetChildren())
-            {
-                root.RemoveChild(child);
-                child.QueueFree();
-            }
+            CloseEditor();
         }
 
         if (!HiveCore.Open(mapPath, dataDir, out string error))
@@ -83,13 +80,40 @@ public partial class Main : Node3D
         }
 
         loaded = true;
+        ResetEditorState();
+        BuildEditor();
+        GD.Print($"已打开 {mapPath}：{view.Info.Width}×{view.Info.Height}");
+    }
+
+    private void CloseEditor()
+    {
+        foreach (Node child in root.GetChildren())
+        {
+            root.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
+
+    private void ResetEditorState()
+    {
         tool = EditorUi.ToolMode.Texture;
         textureIndex = 0;
         brushSize = 8;
         brushShape = 0;
+        doodadType = string.Empty;
+        unitType = string.Empty;
+        selection = Array.Empty<int>();
+        selectionIsUnit = false;
+        pasting = false;
+        draggingObject = false;
+        rotatingObject = false;
+        selectingRect = false;
         focus = new Vector3(HiveCore.MapInfo.TilesX * 0.5f, 0, HiveCore.MapInfo.TilesY * 0.5f);
         distance = 190f;
+    }
 
+    private void BuildEditor()
+    {
         view = new TerrainView();
         root.AddChild(view);
         view.Build();
@@ -167,7 +191,6 @@ public partial class Main : Node3D
         }
         ApplyTool();
         UpdateStatus();
-        GD.Print($"已打开 {mapPath}：{view.Info.Width}×{view.Info.Height}");
     }
 
     private void ShowOpenDialog()
@@ -768,6 +791,50 @@ public partial class Main : Node3D
             Text = $"地图 {versions[0]}，编辑器 {versions[1]}，游戏 {versions[2]}.{versions[3]}.{versions[4]}.{versions[5]}",
         });
 
+        var sizeRow = new HBoxContainer();
+        sizeRow.AddThemeConstantOverride("separation", 6);
+        SpinBox Delta(string prefix) => new()
+        {
+            Prefix = prefix,
+            MinValue = -100,
+            MaxValue = 100,
+            Step = 1,
+            Value = 0,
+            CustomMinimumSize = new Vector2(88, 0),
+        };
+        SpinBox leftDelta = Delta("左 ");
+        SpinBox rightDelta = Delta("右 ");
+        SpinBox topDelta = Delta("上 ");
+        SpinBox bottomDelta = Delta("下 ");
+        sizeRow.AddChild(leftDelta);
+        sizeRow.AddChild(rightDelta);
+        sizeRow.AddChild(topDelta);
+        sizeRow.AddChild(bottomDelta);
+
+        var applySize = new Button { Text = "调整" };
+        applySize.Pressed += () =>
+        {
+            int left = (int)leftDelta.Value;
+            int right = (int)rightDelta.Value;
+            int top = (int)topDelta.Value;
+            int bottom = (int)bottomDelta.Value;
+            if (left == 0 && right == 0 && top == 0 && bottom == 0)
+            {
+                return;
+            }
+            if (HiveCore.ResizeMap(left, right, top, bottom) != 0)
+            {
+                ui.SetStatus("尺寸超出 32..480 的范围");
+                return;
+            }
+            dialog.QueueFree();
+            RebuildAfterResize();
+        };
+        sizeRow.AddChild(applySize);
+
+        grid.AddChild(new Label { Text = "调整尺寸" });
+        grid.AddChild(sizeRow);
+
         dialog.AddChild(grid);
         dialog.Confirmed += () =>
         {
@@ -782,6 +849,14 @@ public partial class Main : Node3D
 
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(600, 420));
+    }
+
+    private void RebuildAfterResize()
+    {
+        CloseEditor();
+        ResetEditorState();
+        BuildEditor();
+        ui.SetStatus($"地图尺寸已改为 {view.Info.Width}×{view.Info.Height}，撤销栈已清空");
     }
 
     private void CreateObjectFromSelection()
@@ -1066,6 +1141,27 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (resizeTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                GD.Print($"调整前 {view.Info.Width}×{view.Info.Height}，装饰物 {HiveCore.MapInfo.DoodadCount}");
+                int result = HiveCore.ResizeMap(10, 10, 10, 10);
+                GD.Print($"调整返回 {result}");
+                RebuildAfterResize();
+                GD.Print($"调整后 {view.Info.Width}×{view.Info.Height}，装饰物 {HiveCore.MapInfo.DoodadCount}");
+                focus = new Vector3(view.Info.TilesX * 0.5f, 0f, view.Info.TilesY * 0.5f);
+                distance = 260f;
+                UpdateCamera();
+            }
+            else if (frames == 16)
+            {
+                Capture(resizeTest);
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (infoTest.Length > 0)
         {

@@ -101,7 +101,7 @@
 
 namespace fs = std::filesystem;
 
-hive::unordered_map<std::string, std::shared_ptr<QIconResource>> path_to_icon;
+inline hive::unordered_map<std::string, std::shared_ptr<QIconResource>> path_to_icon;
 
 
 class TableModel;

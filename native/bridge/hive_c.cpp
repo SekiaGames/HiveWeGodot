@@ -2364,4 +2364,30 @@ void hive_map_playable_size(void* handle, int32_t* width, int32_t* height) {
 	*height = info.playable_height;
 }
 
+int32_t hive_resize_map(void* handle, const int32_t delta_left, const int32_t delta_right, const int32_t delta_top,
+						const int32_t delta_bottom) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const int new_width = hive->map->terrain.width - 1 + delta_left + delta_right;
+	const int new_height = hive->map->terrain.height - 1 + delta_top + delta_bottom;
+	if (new_width < 32 || new_width > 480 || new_height < 32 || new_height > 480) {
+		return -1;
+	}
+
+	hive->map->resize(delta_left, delta_right, delta_top, delta_bottom);
+	return 0;
+}
+
+int32_t hive_set_playable_area(void* handle, const int32_t left, const int32_t right, const int32_t top,
+							   const int32_t bottom) {
+	if (handle == nullptr || left < 0 || right < 0 || top < 0 || bottom < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->set_playable_area(left, right, top, bottom);
+	return 0;
+}
+
 }

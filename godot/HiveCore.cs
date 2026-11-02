@@ -419,6 +419,12 @@ public static class HiveCore
     private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_resize_map(IntPtr hive, int deltaLeft, int deltaRight, int deltaTop, int deltaBottom);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_playable_area(IntPtr hive, int left, int right, int top, int bottom);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_undo(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -846,6 +852,12 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int ResizeMap(int deltaLeft, int deltaRight, int deltaTop, int deltaBottom)
+        => hive_resize_map(handle, deltaLeft, deltaRight, deltaTop, deltaBottom);
+
+    public static int SetPlayableArea(int left, int right, int top, int bottom)
+        => hive_set_playable_area(handle, left, right, top, bottom);
 
     private static string? ReadString(IntPtr pointer)
         => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);

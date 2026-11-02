@@ -373,6 +373,10 @@ PATCHES = [
         'VkPipeline create_graphics_pipeline(const PipelineDescription& description) {\n'
         '#if HIVE_HEADLESS\n\treturn VK_NULL_HANDLE;\n#endif',
     ),
+    (
+        'hive::unordered_map<std::string, std::shared_ptr<QIconResource>> path_to_icon;',
+        'inline hive::unordered_map<std::string, std::shared_ptr<QIconResource>> path_to_icon;',
+    ),
 ]
 
 
