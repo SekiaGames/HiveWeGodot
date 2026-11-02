@@ -42,6 +42,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? DeleteObjectRequested;
     public event Action? MapInfoRequested;
     public event Action? TriggerRequested;
+    public event Action? RegionRequested;
     public event Action<int>? DoodadRandomChanged;
 
     private Label status = null!;
@@ -485,6 +486,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(new VSeparator());
         row.AddChild(ActionButton("地图信息", () => MapInfoRequested?.Invoke()));
         row.AddChild(ActionButton("触发器", () => TriggerRequested?.Invoke()));
+        row.AddChild(ActionButton("区域", () => RegionRequested?.Invoke()));
     }
 
     private void BuildStatus()

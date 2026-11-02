@@ -158,6 +158,18 @@ public static class HiveCore
     private static extern IntPtr hive_region_name(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_create_region(IntPtr hive, float left, float bottom, float right, float top);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_delete_region(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_region_rect(IntPtr hive, int index, float left, float bottom, float right, float top);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_region_name(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_pathing_info(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -645,6 +657,16 @@ public static class HiveCore
         hive_copy_regions(handle, data, data.Length);
         return data;
     }
+
+    public static int CreateRegion(float left, float bottom, float right, float top)
+        => hive_create_region(handle, left, bottom, right, top);
+
+    public static bool DeleteRegion(int index) => hive_delete_region(handle, index) == 0;
+
+    public static void SetRegionRect(int index, float left, float bottom, float right, float top)
+        => hive_set_region_rect(handle, index, left, bottom, right, top);
+
+    public static void SetRegionName(int index, string value) => hive_set_region_name(handle, index, value);
 
     public static string? RegionName(int index)
     {

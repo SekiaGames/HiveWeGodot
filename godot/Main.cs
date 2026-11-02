@@ -50,6 +50,7 @@ public partial class Main : Node3D
     private readonly string infoTest = OS.GetEnvironment("HIVE_INFO_TEST");
     private readonly string resizeTest = OS.GetEnvironment("HIVE_RESIZE_TEST");
     private readonly string triggerTest = OS.GetEnvironment("HIVE_TRIGGER_TEST");
+    private readonly string regionTest = OS.GetEnvironment("HIVE_REGION_TEST");
     private string customTestId = string.Empty;
     private int customTestCategory;
     private int frames;
@@ -165,6 +166,7 @@ public partial class Main : Node3D
         ui.MapInfoRequested += ShowMapInfoDialog;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.TriggerRequested += ShowTriggerWindow;
+        ui.RegionRequested += ShowRegionWindow;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -862,6 +864,19 @@ public partial class Main : Node3D
         window.PopupCentered(new Vector2I(860, 600));
     }
 
+    private void ShowRegionWindow()
+    {
+        var window = new RegionWindow();
+        root.AddChild(window);
+        window.RegionsChanged += () =>
+        {
+            view.BuildRegions();
+            ui.SetStatus("区域已改，Ctrl+S 存进地图");
+        };
+        window.Build(() => new Vector2(focus.X, focus.Z));
+        window.PopupCentered(new Vector2I(520, 520));
+    }
+
     private void RebuildAfterResize()
     {
         CloseEditor();
@@ -1153,6 +1168,25 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (regionTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                int index = HiveCore.CreateRegion(60f, 30f, 80f, 50f);
+                GD.Print($"新建区域 {index}，名字 {HiveCore.RegionName(index)}，总数 {HiveCore.MapInfo.RegionCount}");
+                view.BuildRegions();
+                focus = new Vector3(70f, 0f, 40f);
+                distance = 50f;
+                UpdateCamera();
+            }
+            else if (frames == 16)
+            {
+                Capture(screenshotPath);
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (triggerTest.Length > 0)
         {

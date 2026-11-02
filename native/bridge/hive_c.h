@@ -73,6 +73,11 @@ typedef struct HiveRegion {
 
 int32_t hive_copy_regions(void* handle, HiveRegion* out, int32_t capacity);
 const char* hive_region_name(void* handle, int32_t index);
+/* 新建区域，坐标是 tile，内部归一化。名字和颜色按 HiveWE 的规则自动取。 */
+int32_t hive_create_region(void* handle, float left, float bottom, float right, float top);
+int32_t hive_delete_region(void* handle, int32_t index);
+int32_t hive_set_region_rect(void* handle, int32_t index, float left, float bottom, float right, float top);
+int32_t hive_set_region_name(void* handle, int32_t index, const char* value);
 
 /* 路径图。宽高是 tile 数 × 4，每格一个字节，位标志见 HivePathing。
    1 不可走，2 不可飞，4 不可建，8 可采集，16 枯萎，32 水，64 两栖。 */

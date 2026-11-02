@@ -597,6 +597,67 @@ int32_t hive_copy_regions(void* handle, HiveRegion* out, const int32_t capacity)
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_create_region(void* handle, const float left, const float bottom, const float right, const float top) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& regions = hive->map->regions;
+
+	Region region;
+	region.left = std::min(left, right);
+	region.right = std::max(left, right);
+	region.bottom = std::min(bottom, top);
+	region.top = std::max(bottom, top);
+	region.name = regions.get_unique_name();
+	region.creation_number = regions.get_unique_creation_number();
+	region.color = region_preset_colors[static_cast<std::size_t>(region.creation_number) % region_preset_colors.size()];
+
+	regions.regions.push_back(region);
+	return static_cast<int32_t>(regions.regions.size() - 1);
+}
+
+int32_t hive_delete_region(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list.erase(list.begin() + index);
+	return 0;
+}
+
+int32_t hive_set_region_rect(void* handle, const int32_t index, const float left, const float bottom, const float right,
+							 const float top) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	Region& region = list[static_cast<std::size_t>(index)];
+	region.left = std::min(left, right);
+	region.right = std::max(left, right);
+	region.bottom = std::min(bottom, top);
+	region.top = std::max(bottom, top);
+	return 0;
+}
+
+int32_t hive_set_region_name(void* handle, const int32_t index, const char* value) {
+	if (handle == nullptr || index < 0 || value == nullptr) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list[static_cast<std::size_t>(index)].name = value;
+	return 0;
+}
+
 const char* hive_region_name(void* handle, const int32_t index) {
 	if (handle == nullptr || index < 0) {
 		return nullptr;

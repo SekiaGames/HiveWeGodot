@@ -132,6 +132,8 @@ HIVE_RESIZE_TEST=/tmp/resize.png HIVE_SCREENSHOT=/tmp/resize_pre.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 四边各加 10 格再重建视图
 HIVE_TRIGGER_TEST=1 HIVE_SCREENSHOT=/tmp/trigger.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开触发器窗口
+HIVE_REGION_TEST=1 HIVE_SCREENSHOT=/tmp/region.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 建一个区域并重画线框
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：
