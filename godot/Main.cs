@@ -20,6 +20,8 @@ public partial class Main : Node3D
     private int brushSize = 8;
     private int brushShape;
     private string doodadType = string.Empty;
+    private bool selectionIsUnit;
+    private int selectionIndex = -1;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -31,6 +33,7 @@ public partial class Main : Node3D
     private readonly string screenshotPath = OS.GetEnvironment("HIVE_SCREENSHOT");
     private readonly string autoTest = OS.GetEnvironment("HIVE_AUTOTEST");
     private readonly string reloadTest = OS.GetEnvironment("HIVE_RELOAD_TEST");
+    private readonly string pickTest = OS.GetEnvironment("HIVE_PICK_TEST");
     private int frames;
     private bool loaded;
 
@@ -195,6 +198,9 @@ public partial class Main : Node3D
         string name;
         switch (tool)
         {
+            case EditorUi.ToolMode.Select:
+                name = "选择对象";
+                break;
             case EditorUi.ToolMode.Texture:
                 HiveCore.SetTextureTool(HiveCore.TextureId(textureIndex) ?? "Ldrt");
                 name = $"纹理笔 {HiveCore.TextureId(textureIndex)}";
@@ -263,7 +269,11 @@ public partial class Main : Node3D
             return;
         }
         string position = hasHit ? $"{lastHit.X:F1}, {lastHit.Z:F1}" : "—";
-        ui.SetStatus($"笔刷 {brushSize}　位置 {position}　水面 {view.WetTiles} 格　"
+        string selected = selectionIndex < 0
+            ? "无"
+            : $"{(selectionIsUnit ? "单位" : "装饰物")} #{selectionIndex} "
+              + (selectionIsUnit ? HiveCore.UnitId(selectionIndex) : HiveCore.DoodadId(selectionIndex));
+        ui.SetStatus($"笔刷 {brushSize}　位置 {position}　选中 {selected}　水面 {view.WetTiles} 格　"
             + "左键绘制　右键拖动　滚轮缩放　Ctrl+S 保存　1-9 选纹理");
     }
 
@@ -304,6 +314,12 @@ public partial class Main : Node3D
                 panning = button.Pressed;
                 break;
             case MouseButton.Left:
+                if (button.Pressed && tool == EditorUi.ToolMode.Select)
+                {
+                    PickAt(button.Position);
+                    break;
+                }
+
                 if (button.Pressed && tool == EditorUi.ToolMode.DoodadPlace)
                 {
                     if (view.Pick(camera, button.Position, out Vector3 spot))
@@ -421,6 +437,39 @@ public partial class Main : Node3D
         }
     }
 
+    private void PickAt(Vector2 screen)
+    {
+        Vector3 origin = camera.ProjectRayOrigin(screen);
+        Vector3 direction = camera.ProjectRayNormal(screen);
+        float reach = distance * 2f;
+
+        int doodad = HiveCore.PickDoodad(origin, direction, reach);
+        if (doodad >= 0)
+        {
+            Select(false, doodad);
+            return;
+        }
+
+        int unit = HiveCore.PickUnit(origin, direction, reach);
+        if (unit >= 0)
+        {
+            Select(true, unit);
+            return;
+        }
+
+        selectionIndex = -1;
+        view.ClearSelection();
+        UpdateStatus();
+    }
+
+    private void Select(bool isUnit, int index)
+    {
+        selectionIsUnit = isUnit;
+        selectionIndex = index;
+        view.ShowSelection(isUnit, index);
+        UpdateStatus();
+    }
+
     private void PlaceDoodad(Vector3 spot)
     {
         if (doodadType.Length == 0)
@@ -484,6 +533,24 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (pickTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                Select(false, 0);
+                focus = new Vector3(27f, 0f, 17.5f);
+                distance = 16f;
+                UpdateCamera();
+            }
+            else if (frames == 20)
+            {
+                Capture(screenshotPath);
+                GD.Print($"拾取测试：选中装饰物 {HiveCore.DoodadId(selectionIndex)}");
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (reloadTest.Length > 0)
         {

@@ -221,6 +221,15 @@ public static class HiveCore
     private static extern IntPtr hive_doodad_id(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_pick_doodad(IntPtr hive, float[] origin, float[] direction, float maxDistance);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_pick_unit(IntPtr hive, float[] origin, float[] direction, float maxDistance);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_selection_box(IntPtr hive, int isUnit, int index, float[] output);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_doodad_type_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -495,6 +504,28 @@ public static class HiveCore
             names[i] = pointer == IntPtr.Zero ? string.Empty : Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
         }
         return names;
+    }
+
+    public static int PickDoodad(Vector3 origin, Vector3 direction, float maxDistance)
+        => hive_pick_doodad(handle, new[] { origin.X, origin.Y, origin.Z },
+                            new[] { direction.X, direction.Y, direction.Z }, maxDistance);
+
+    public static int PickUnit(Vector3 origin, Vector3 direction, float maxDistance)
+        => hive_pick_unit(handle, new[] { origin.X, origin.Y, origin.Z },
+                          new[] { direction.X, direction.Y, direction.Z }, maxDistance);
+
+    public static bool SelectionBox(bool isUnit, int index, out Vector3 minimum, out Vector3 maximum)
+    {
+        float[] data = new float[6];
+        minimum = Vector3.Zero;
+        maximum = Vector3.Zero;
+        if (hive_selection_box(handle, isUnit ? 1 : 0, index, data) != 0)
+        {
+            return false;
+        }
+        minimum = new Vector3(data[0], data[1], data[2]);
+        maximum = new Vector3(data[3], data[4], data[5]);
+        return true;
     }
 
     public static int AddDoodad(string id, float x, float y, float z, float angle)

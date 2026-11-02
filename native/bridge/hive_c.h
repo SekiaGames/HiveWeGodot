@@ -136,6 +136,15 @@ const char* hive_doodad_type_id(void* handle, int32_t index);
 int32_t hive_add_doodad(void* handle, const char* id, float x, float y, float z, float angle);
 /* 删掉第 index 个，成功返回 0。 */
 int32_t hive_remove_doodad(void* handle, int32_t index);
+
+/* 射线拾取。origin / direction 用 Godot 坐标（X 水平、Y 高度、Z 水平），
+   max_distance 是 tile 单位。返回最近的装饰物或单位索引，没打中返回 -1。
+   先做包围盒粗筛，命中后按距离排序取最近的。 */
+int32_t hive_pick_doodad(void* handle, const float* origin, const float* direction, float max_distance);
+int32_t hive_pick_unit(void* handle, const float* origin, const float* direction, float max_distance);
+
+/* 选中对象的包围盒，Godot 坐标下的 min 和 max，共 6 个 float。is_unit 为 0 时读装饰物。 */
+int32_t hive_selection_box(void* handle, int32_t is_unit, int32_t index, float* out);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
 const char* hive_doodad_id(void* handle, int32_t index);
 

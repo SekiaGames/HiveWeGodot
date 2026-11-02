@@ -7,6 +7,7 @@ public partial class EditorUi : CanvasLayer
 {
     public enum ToolMode
     {
+        Select,
         Texture,
         HeightRaise,
         HeightLower,
@@ -119,6 +120,9 @@ public partial class EditorUi : CanvasLayer
         heightGrid.AddThemeConstantOverride("h_separation", 4);
         heightGrid.AddThemeConstantOverride("v_separation", 4);
         column.AddChild(heightGrid);
+        column.AddChild(ToolButton("选择对象", ToolMode.Select));
+        column.AddChild(Spacer(6));
+
         heightGrid.AddChild(ToolButton("抬升", ToolMode.HeightRaise));
         heightGrid.AddChild(ToolButton("降低", ToolMode.HeightLower));
         heightGrid.AddChild(ToolButton("削平", ToolMode.HeightPlateau));

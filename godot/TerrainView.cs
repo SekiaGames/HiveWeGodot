@@ -448,6 +448,73 @@ public partial class TerrainView : Node3D
         }
     }
 
+    private MeshInstance3D? selectionBox;
+
+    public void ShowSelection(bool isUnit, int index)
+    {
+        ClearSelection();
+        if (!HiveCore.SelectionBox(isUnit, index, out Vector3 minimum, out Vector3 maximum))
+        {
+            return;
+        }
+
+        Vector3 size = maximum - minimum;
+        if (size.X < 0.05f || size.Y < 0.05f || size.Z < 0.05f)
+        {
+            minimum -= new Vector3(0.05f, 0.05f, 0.05f);
+            maximum += new Vector3(0.05f, 0.05f, 0.05f);
+        }
+
+        var corners = new Vector3[8];
+        for (int i = 0; i < 8; i++)
+        {
+            corners[i] = new Vector3(
+                (i & 1) == 0 ? minimum.X : maximum.X,
+                (i & 2) == 0 ? minimum.Y : maximum.Y,
+                (i & 4) == 0 ? minimum.Z : maximum.Z);
+        }
+
+        int[] edges =
+        {
+            0, 1, 1, 3, 3, 2, 2, 0,
+            4, 5, 5, 7, 7, 6, 6, 4,
+            0, 4, 1, 5, 2, 6, 3, 7,
+        };
+
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        mesh.SurfaceSetColor(new Color(1f, 0.85f, 0.2f));
+        foreach (int corner in edges)
+        {
+            mesh.SurfaceAddVertex(corners[corner]);
+        }
+        mesh.SurfaceEnd();
+
+        selectionBox = new MeshInstance3D
+        {
+            Mesh = mesh,
+            Name = "Selection",
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                VertexColorUseAsAlbedo = true,
+                NoDepthTest = true,
+            },
+        };
+        AddChild(selectionBox);
+    }
+
+    public void ClearSelection()
+    {
+        if (selectionBox != null)
+        {
+            RemoveChild(selectionBox);
+            selectionBox.QueueFree();
+            selectionBox = null;
+        }
+    }
+
     public void SetRegionsVisible(bool visible)
     {
         if (regionRoot != null)

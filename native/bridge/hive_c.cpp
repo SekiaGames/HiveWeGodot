@@ -814,6 +814,180 @@ int32_t hive_model_from_doodad(void* handle, const int32_t doodad_index) {
 }
 
 
+/// 命中距离，没打中返回负数。direction 必须归一化。
+float aabb_hit_distance(const glm::vec3& minimum, const glm::vec3& maximum, const glm::vec3& origin,
+						const glm::vec3& direction, const float max_t) {
+	float t_min = 0.f;
+	float t_max = max_t;
+	for (int axis = 0; axis < 3; ++axis) {
+		if (std::abs(direction[axis]) < 1e-8f) {
+			if (origin[axis] < minimum[axis] || origin[axis] > maximum[axis]) {
+				return -1.f;
+			}
+			continue;
+		}
+		float near = (minimum[axis] - origin[axis]) / direction[axis];
+		float far = (maximum[axis] - origin[axis]) / direction[axis];
+		if (near > far) {
+			std::swap(near, far);
+		}
+		t_min = std::max(t_min, near);
+		t_max = std::min(t_max, far);
+		if (t_min > t_max) {
+			return -1.f;
+		}
+	}
+	return t_min;
+}
+
+/// War3 模型以 1/128 tile 为单位，位置和射线都先换到模型单位再比。
+constexpr float model_scale = 128.f;
+
+glm::mat4 placement_matrix(const glm::vec3& position, const float angle, const glm::vec3& scale) {
+	glm::mat4 matrix = glm::translate(glm::mat4(1.f), position * model_scale);
+	matrix = glm::rotate(matrix, -angle, glm::vec3(0.f, 0.f, 1.f));
+	return glm::scale(matrix, scale);
+}
+
+std::pair<glm::vec3, glm::vec3> mesh_bounds(const std::shared_ptr<mdx::MDX>& mdx) {
+	glm::vec3 minimum(1e30f);
+	glm::vec3 maximum(-1e30f);
+	for (const auto& geoset : mdx->geosets) {
+		for (const auto& vertex : geoset.vertices) {
+			minimum = glm::min(minimum, vertex);
+			maximum = glm::max(maximum, vertex);
+		}
+	}
+	if (minimum.x > maximum.x) {
+		return {glm::vec3(0.f), glm::vec3(0.f)};
+	}
+	return {minimum, maximum};
+}
+
+int32_t pick_from_ray(HiveHandle* hive, const float* origin, const float* direction, const float max_distance,
+					  const bool units) {
+	if (origin == nullptr || direction == nullptr) {
+		return -1;
+	}
+
+	const glm::vec3 ray_origin(origin[0] * model_scale, origin[2] * model_scale, origin[1] * model_scale);
+	glm::vec3 ray_direction(direction[0], direction[2], direction[1]);
+	if (glm::length(ray_direction) < 1e-6f) {
+		return -1;
+	}
+	ray_direction = glm::normalize(ray_direction);
+
+	const float max_t = max_distance * model_scale;
+	int32_t best = -1;
+	float best_t = max_t;
+
+	auto test = [&](const std::string& id, const float variation, const glm::vec3& position, const float angle,
+					const glm::vec3& scale, const int32_t index) {
+		if (scale.x == 0.f || scale.y == 0.f || scale.z == 0.f) {
+			return;
+		}
+
+		auto mesh = units ? hive->map->units.get_mesh(id) : hive->map->doodads.get_mesh(id, static_cast<int>(variation));
+		if (!mesh || !mesh->mdx) {
+			return;
+		}
+
+		const auto bounds = mesh_bounds(mesh->mdx);
+		glm::vec3 minimum;
+		glm::vec3 maximum;
+		transform_aabb_non_uniform(bounds.first, bounds.second, minimum, maximum,
+								   placement_matrix(position, angle, scale));
+
+		const float hit = aabb_hit_distance(minimum, maximum, ray_origin, ray_direction, max_t);
+		if (hit >= 0.f && hit < best_t) {
+			best_t = hit;
+			best = index;
+		}
+	};
+
+	if (units) {
+		const auto& list = hive->map->units.units;
+		for (std::size_t i = 0; i < list.size(); ++i) {
+			test(list[i].id, 0.f, list[i].position, list[i].angle, list[i].scale, static_cast<int32_t>(i));
+		}
+	} else {
+		const auto& list = hive->map->doodads.doodads;
+		for (std::size_t i = 0; i < list.size(); ++i) {
+			test(list[i].id, static_cast<float>(list[i].variation), list[i].position, list[i].angle, list[i].scale,
+				 static_cast<int32_t>(i));
+		}
+	}
+
+	return best;
+}
+
+int32_t hive_pick_doodad(void* handle, const float* origin, const float* direction, const float max_distance) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	return pick_from_ray(static_cast<HiveHandle*>(handle), origin, direction, max_distance, false);
+}
+
+int32_t hive_pick_unit(void* handle, const float* origin, const float* direction, const float max_distance) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	return pick_from_ray(static_cast<HiveHandle*>(handle), origin, direction, max_distance, true);
+}
+
+int32_t hive_selection_box(void* handle, const int32_t is_unit, const int32_t index, float* out) {
+	if (handle == nullptr || out == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+
+	std::string id;
+	glm::vec3 position(0.f);
+	float angle = 0.f;
+	glm::vec3 scale(1.f);
+
+	if (is_unit != 0) {
+		const auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		id = list[static_cast<std::size_t>(index)].id;
+		position = list[static_cast<std::size_t>(index)].position;
+		angle = list[static_cast<std::size_t>(index)].angle;
+		scale = list[static_cast<std::size_t>(index)].scale;
+	} else {
+		const auto& list = hive->map->doodads.doodads;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		id = list[static_cast<std::size_t>(index)].id;
+		position = list[static_cast<std::size_t>(index)].position;
+		angle = list[static_cast<std::size_t>(index)].angle;
+		scale = list[static_cast<std::size_t>(index)].scale;
+	}
+
+	auto mesh = is_unit != 0 ? hive->map->units.get_mesh(id)
+							 : hive->map->doodads.get_mesh(id, static_cast<int>(hive->map->doodads.doodads[static_cast<std::size_t>(index)].variation));
+	if (!mesh || !mesh->mdx) {
+		return -1;
+	}
+
+	const auto bounds = mesh_bounds(mesh->mdx);
+	glm::vec3 minimum;
+	glm::vec3 maximum;
+	transform_aabb_non_uniform(bounds.first, bounds.second, minimum, maximum,
+							   placement_matrix(position, angle, scale));
+
+	// 模型单位换回 tile，并按 Godot 的轴序（X 水平、Y 高度、Z 水平）排列
+	out[0] = minimum.x / model_scale;
+	out[1] = minimum.z / model_scale;
+	out[2] = minimum.y / model_scale;
+	out[3] = maximum.x / model_scale;
+	out[4] = maximum.z / model_scale;
+	out[5] = maximum.y / model_scale;
+	return 0;
+}
+
 const std::vector<std::string>& doodad_type_ids(HiveHandle* hive) {
 	if (hive->doodad_types.empty()) {
 		for (const auto& [id, row] : doodads_slk.row_headers) {
