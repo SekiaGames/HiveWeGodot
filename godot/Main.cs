@@ -44,6 +44,7 @@ public partial class Main : Node3D
     private readonly string pickTest = OS.GetEnvironment("HIVE_PICK_TEST");
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
+    private readonly string teamTest = OS.GetEnvironment("HIVE_TEAM_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
@@ -1316,7 +1317,7 @@ public partial class Main : Node3D
             }
             else if (frames == 20)
             {
-                Capture(objectTest);
+                Capture(screenshotPath);
                 GetTree().Quit();
             }
             return;
@@ -1352,6 +1353,31 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (teamTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                int basePlayer = int.TryParse(OS.GetEnvironment("HIVE_TEAM_PLAYER"), out int parsed) ? parsed : 0;
+                GD.Print($"队伍色前 {HiveCore.MapInfo.UnitCount} 个单位，起始玩家 {basePlayer}");
+                for (int i = 0; i < 4; i++)
+                {
+                    int placed = HiveCore.AddUnit("ngad", 26f + i * 3f, 22f, 0f, basePlayer + i);
+                    GD.Print($"玩家 {basePlayer + i} 放到索引 {placed}");
+                }
+                view.BuildUnits();
+                focus = new Vector3(30.5f, 0f, 22f);
+                distance = 12f;
+                UpdateCamera();
+            }
+            else if (frames == 16)
+            {
+                Capture(screenshotPath);
+                GD.Print("队伍色测试：4 个步兵，玩家 0-3");
                 GetTree().Quit();
             }
             return;

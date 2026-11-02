@@ -466,11 +466,12 @@ public partial class TerrainView : Node3D
         foreach (int index in indices)
         {
             int model = isUnit ? HiveCore.ModelFromUnit(index) : HiveCore.ModelFromDoodad(index);
+            int player = isUnit ? HiveCore.Units()[index].Player : 0;
             if (model < 0)
             {
                 continue;
             }
-            ArrayMesh? mesh = ModelMesh(model);
+            ArrayMesh? mesh = ModelMesh(model, player);
             if (mesh == null)
             {
                 continue;
@@ -814,7 +815,7 @@ public partial class TerrainView : Node3D
         AddChild(unitRoot);
 
         HiveUnit[] units = HiveCore.Units();
-        var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
+        var byModel = new System.Collections.Generic.Dictionary<(int Model, int Player), System.Collections.Generic.List<int>>();
 
         for (int i = 0; i < units.Length; i++)
         {
@@ -823,10 +824,11 @@ public partial class TerrainView : Node3D
             {
                 continue;
             }
-            if (!byModel.TryGetValue(model, out var list))
+            var key = (model, units[i].Player);
+            if (!byModel.TryGetValue(key, out var list))
             {
                 list = new System.Collections.Generic.List<int>();
-                byModel[model] = list;
+                byModel[key] = list;
             }
             list.Add(i);
         }
@@ -834,7 +836,7 @@ public partial class TerrainView : Node3D
         int placed = 0;
         foreach (var pair in byModel)
         {
-            ArrayMesh? mesh = ModelMesh(pair.Key);
+            ArrayMesh? mesh = ModelMesh(pair.Key.Model, pair.Key.Player);
             if (mesh == null)
             {
                 continue;
@@ -859,12 +861,15 @@ public partial class TerrainView : Node3D
             placed += pair.Value.Count;
         }
 
-        GD.Print($"单位 {placed} / {units.Length}，{byModel.Count} 种模型");
+        GD.Print($"单位 {placed} / {units.Length}，{byModel.Count} 组模型");
     }
 
-    private ArrayMesh? ModelMesh(int model)
+    private ArrayMesh? ModelMesh(int model) => ModelMesh(model, 0);
+
+    private ArrayMesh? ModelMesh(int model, int player)
     {
-        if (modelMeshes.TryGetValue(model, out ArrayMesh? cached))
+        int key = model * 32 + Math.Max(0, Math.Min(player, 27));
+        if (modelMeshes.TryGetValue(key, out ArrayMesh? cached))
         {
             return cached;
         }
@@ -872,7 +877,7 @@ public partial class TerrainView : Node3D
         HiveModelInfo info = HiveCore.ModelInfo(model);
         if (info.VertexCount == 0 || info.GeosetCount == 0)
         {
-            modelMeshes[model] = null;
+            modelMeshes[key] = null;
             return null;
         }
 
@@ -918,20 +923,20 @@ public partial class TerrainView : Node3D
 
             int surface = mesh.GetSurfaceCount();
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            mesh.SurfaceSetMaterial(surface, BuildMaterial(model, g, geoset));
+            mesh.SurfaceSetMaterial(surface, BuildMaterial(model, g, geoset, player));
         }
 
         if (mesh.GetSurfaceCount() == 0)
         {
-            modelMeshes[model] = null;
+            modelMeshes[key] = null;
             return null;
         }
 
-        modelMeshes[model] = mesh;
+        modelMeshes[key] = mesh;
         return mesh;
     }
 
-    private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info)
+    private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info, int player)
     {
         var material = new StandardMaterial3D
         {
@@ -954,7 +959,35 @@ public partial class TerrainView : Node3D
             material.AlbedoTexture = TextureAt(path);
         }
 
-        return material;
+        if (info.TeamColor == 0)
+        {
+            return material;
+        }
+
+        var teamMaterial = new ShaderMaterial
+        {
+            Shader = teamColorShader,
+        };
+        teamMaterial.SetShaderParameter("team_color", TeamColor(player));
+        if (material.AlbedoTexture != null)
+        {
+            teamMaterial.SetShaderParameter("mask_texture", material.AlbedoTexture);
+        }
+        return teamMaterial;
+    }
+
+    private static readonly Shader teamColorShader = GD.Load<Shader>("res://Shaders/team_color.gdshader");
+    private static readonly System.Collections.Generic.Dictionary<int, Color> teamColors = new();
+
+    private static Color TeamColor(int player)
+    {
+        if (!teamColors.TryGetValue(player, out Color color))
+        {
+            Vector3 rgb = HiveCore.PlayerColor(player);
+            color = new Color(rgb.X, rgb.Y, rgb.Z);
+            teamColors[player] = color;
+        }
+        return color;
     }
 
     private Texture2D? TextureAt(string path)

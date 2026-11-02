@@ -205,6 +205,9 @@ typedef struct HiveUnit {
 int32_t hive_copy_units(void* handle, HiveUnit* out, int32_t capacity);
 const char* hive_unit_id(void* handle, int32_t index);
 
+/* 玩家队伍色（RGB 0..1），player 是 0..23，超出返回 -1。 */
+int32_t hive_player_color(int32_t player, float* rgb);
+
 /* 可放置的单位类型（四字符 id），来自 Units.slk。 */
 int32_t hive_unit_type_count(void* handle);
 const char* hive_unit_type_id(void* handle, int32_t index);
@@ -241,6 +244,8 @@ typedef struct HiveGeosetInfo {
 	int32_t index_count;
 	int32_t two_sided;
 	int32_t unshaded;
+	/* 这一层的贴图是 ReplaceableTextures/TeamColor，要按玩家上色。 */
+	int32_t team_color;
 	float alpha;
 } HiveGeosetInfo;
 

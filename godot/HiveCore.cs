@@ -83,6 +83,7 @@ public struct HiveGeosetInfo
     public int IndexCount;
     public int TwoSided;
     public int Unshaded;
+    public int TeamColor;
     public float Alpha;
 }
 
@@ -306,6 +307,9 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_from_unit(IntPtr hive, int unitIndex);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_player_color(int player, float[] rgb);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_unit_type_count(IntPtr hive);
@@ -913,6 +917,16 @@ public static class HiveCore
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 
     public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
+
+    public static Vector3 PlayerColor(int player)
+    {
+        float[] rgb = new float[3];
+        if (hive_player_color(player, rgb) != 0)
+        {
+            return Vector3.One;
+        }
+        return new Vector3(rgb[0], rgb[1], rgb[2]);
+    }
 
     public static string[] UnitTypes()
     {

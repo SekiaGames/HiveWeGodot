@@ -20,7 +20,7 @@
 | 笔刷 | 完成：纹理 / 高度 / 水 / 悬崖，带撤销重做 |
 | 保存 | 完成：改完能存回 `.w3m`，重开数据一致 |
 | 装饰物 | 完成：MDX 静态渲染 + 放置。716 种可选（含可破坏物），2011 个里摆上 1991 个 |
-| 单位 | 完成：61 个里摆上 59 个，18 种模型（建筑和船也在内） |
+| 单位 | 完成：61 个里摆上 59 个，按玩家队伍色上色（建筑和船也在内） |
 | 拾取 | 完成：射线选中装饰物和单位，黄色线框标出包围盒 |
 | 删除 | 完成：选中后 Delete 删除，进撤销栈 |
 | 拖动 | 完成：选中后拖动改位置，高度自动贴地形 |
@@ -120,6 +120,8 @@ HIVE_CLIP_TEST=/tmp/clip_after.png HIVE_SCREENSHOT=/tmp/clip_preview.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 复制粘贴，存预览与放置后两张
 HIVE_UNIT_TEST=/tmp/unit_after.png HIVE_SCREENSHOT=/tmp/unit_preview.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个单位再复制粘贴
+HIVE_TEAM_TEST=1 HIVE_SCREENSHOT=/tmp/team.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 四个玩家各放一个单位看队伍色
 HIVE_SELECT_TEST=/tmp/select_after.png HIVE_SCREENSHOT=/tmp/select.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 框选一片再批量删除
 HIVE_OBJECT_TEST=/tmp/object_after.png HIVE_SCREENSHOT=/tmp/object.png \

@@ -23,6 +23,17 @@ namespace fs = std::filesystem;
 
 namespace {
 
+/// 和 shaders/skinned_mesh_common.glsl 里的 team_colors[28] 一致。
+constexpr glm::vec3 player_colors[] = {
+	{1.000f, 0.012f, 0.012f}, {0.000f, 0.259f, 1.000f}, {0.106f, 0.906f, 0.729f}, {0.333f, 0.000f, 0.506f},
+	{0.996f, 0.988f, 0.000f}, {0.996f, 0.537f, 0.051f}, {0.129f, 0.749f, 0.000f}, {0.894f, 0.361f, 0.686f},
+	{0.576f, 0.584f, 0.588f}, {0.494f, 0.749f, 0.945f}, {0.063f, 0.384f, 0.278f}, {0.310f, 0.169f, 0.020f},
+	{0.612f, 0.000f, 0.000f}, {0.000f, 0.000f, 0.765f}, {0.000f, 0.922f, 1.000f}, {0.741f, 0.000f, 1.000f},
+	{0.925f, 0.808f, 0.529f}, {0.969f, 0.647f, 0.545f}, {0.749f, 1.000f, 0.506f}, {0.859f, 0.722f, 0.922f},
+	{0.310f, 0.314f, 0.333f}, {0.925f, 0.941f, 1.000f}, {0.000f, 0.471f, 0.118f}, {0.647f, 0.435f, 0.204f},
+	{0.180f, 0.176f, 0.180f}, {0.180f, 0.176f, 0.180f}, {0.180f, 0.176f, 0.180f}, {0.180f, 0.176f, 0.180f},
+};
+
 struct CachedModel {
 	HiveModelInfo info {};
 	std::vector<HiveGeosetInfo> geosets;
@@ -163,6 +174,9 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 						} else if (const auto found = mdx::replaceable_id_to_texture.find(static_cast<int>(texture.replaceable_id));
 								   found != mdx::replaceable_id_to_texture.end()) {
 							texture_path = found->second + ".blp";
+						}
+						if (texture.replaceable_id == 1) {
+							info.team_color = 1;
 						}
 					}
 				}
@@ -1899,6 +1913,16 @@ int32_t hive_model_info(void* handle, const int32_t model, HiveModelInfo* out) {
 		return -1;
 	}
 	*out = hive->models[static_cast<std::size_t>(model)]->info;
+	return 0;
+}
+
+int32_t hive_player_color(const int32_t player, float* rgb) {
+	if (rgb == nullptr || player < 0 || player >= static_cast<int32_t>(std::size(player_colors))) {
+		return -1;
+	}
+	rgb[0] = player_colors[static_cast<std::size_t>(player)].r;
+	rgb[1] = player_colors[static_cast<std::size_t>(player)].g;
+	rgb[2] = player_colors[static_cast<std::size_t>(player)].b;
 	return 0;
 }
 
