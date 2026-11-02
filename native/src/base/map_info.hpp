@@ -169,12 +169,12 @@ struct RandomItemTable {
 
 class MapInfo {
   public:
-	int map_version;
-	int editor_version;
-	int game_version_major;
-	int game_version_minor;
-	int game_version_patch;
-	int game_version_build;
+	int map_version = 1;
+	int editor_version = 6059;
+	int game_version_major = 1;
+	int game_version_minor = 27;
+	int game_version_patch = 0;
+	int game_version_build = 0;
 	std::string name;
 	std::string author;
 	std::string description;

@@ -40,7 +40,9 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	for (const char* name : {"Units/ItemMetaData.slk", "Units/ItemData.slk", "Units/ItemFunc.txt", "Units/UnitEditorData.txt", "Units/UnitSkin.txt", "Units/UnitWeaponsFunc.txt",
+	for (const char* name : {"Doodads/Doodads.slk", "Doodads/DoodadMetaData.slk", "Doodads/DoodadSkins.txt",
+							 "Units/DestructableData.slk", "Units/DestructibleMetaData.slk",
+							 "Units/ItemMetaData.slk", "Units/ItemData.slk", "Units/ItemFunc.txt", "Units/UnitEditorData.txt", "Units/UnitSkin.txt", "Units/UnitWeaponsFunc.txt",
 							 "Units/UnitBalance.slk", "Units/unitUI.slk", "Units/HumanUnitFunc.txt",
 							 "Units/UnitMetaData.slk", "UI/WorldEditStrings.txt",
 							 "TerrainArt\\Terrain.slk", "Units\\UnitData.slk"}) {

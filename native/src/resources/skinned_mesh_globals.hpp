@@ -182,6 +182,9 @@ class SkinnedMeshGlobals {
 	/// Copies all uploads with one staging buffer and one submission. Thread-safe; blocks until done.
 	/// Waits for earlier GPU work first, since ranges freed by reset() may still be read by frames in flight.
 	static void upload(const std::span<const Upload> uploads) {
+#if HIVE_HEADLESS
+		return;
+#endif
 		VkDeviceSize total = 0;
 		for (const auto& upload : uploads) {
 			total += (upload.data.size() + 15) / 16 * 16;

@@ -215,6 +215,14 @@ PATCHES = [
         '\tvoid update(const VkExtent2D extent, const std::span<const u8> pixels) {\n#if HIVE_HEADLESS\n\t\treturn;\n#endif',
     ),
     (
+        '\tstatic void upload(const std::span<const Upload> uploads) {',
+        '\tstatic void upload(const std::span<const Upload> uploads) {\n#if HIVE_HEADLESS\n\t\treturn;\n#endif',
+    ),
+    (
+        '\tint map_version;\n\tint editor_version;\n\tint game_version_major;\n\tint game_version_minor;\n\tint game_version_patch;\n\tint game_version_build;',
+        '\tint map_version = 1;\n\tint editor_version = 6059;\n\tint game_version_major = 1;\n\tint game_version_minor = 27;\n\tint game_version_patch = 0;\n\tint game_version_build = 0;',
+    ),
+    (
         'class Terrain: public QObject {',
         'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
     ),
