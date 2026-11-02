@@ -75,6 +75,8 @@ struct HiveHandle {
 		std::vector<ObjectField> fields;
 	};
 	ObjectFields object_fields;
+	int32_t doodad_random = 0;
+	std::mt19937 random_engine {std::random_device {}()};
 };
 
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
@@ -1374,21 +1376,55 @@ int32_t hive_add_doodad(void* handle, const char* id, const float x, const float
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
 
-	auto mesh = hive->map->doodads.get_mesh(id, 0);
+	const bool is_doodad = doodads_slk.row_headers.contains(id);
+	const slk::SLK& slk = is_doodad ? doodads_slk : destructibles_slk;
+
+	const int variation_count = slk.data<int>("numvar", id);
+	int variation = 0;
+	if ((hive->doodad_random & 1) != 0 && variation_count > 0) {
+		std::uniform_int_distribution<int> dist(0, variation_count - 1);
+		variation = dist(hive->random_engine);
+	}
+
+	auto mesh = hive->map->doodads.get_mesh(id, variation);
 	if (!mesh || !mesh->mdx) {
 		return -1;
 	}
 
 	Doodad doodad;
 	doodad.id = id;
-	doodad.variation = 0;
+	doodad.variation = variation;
 	doodad.position = glm::vec3(x, y, z);
 	doodad.angle = angle;
 	doodad.scale = glm::vec3(1.f);
 	doodad.init(id, mesh, hive->map->terrain);
 
+	if ((hive->doodad_random & 2) != 0) {
+		std::uniform_real_distribution<float> dist(0.f, glm::pi<float>() * 2.f);
+		const float target = dist(hive->random_engine);
+		doodad.angle = Doodad::acceptable_angle(doodad.id, doodad.pathing, target, target);
+	}
+
+	if ((hive->doodad_random & 4) != 0) {
+		const float min_scale = slk.data<float>("minscale", id);
+		const float max_scale = slk.data<float>("maxscale", id);
+		if (max_scale > min_scale) {
+			std::uniform_real_distribution<float> dist(min_scale, max_scale);
+			doodad.scale = glm::vec3(dist(hive->random_engine));
+		}
+	}
+
+	doodad.update(hive->map->terrain);
+
 	hive->map->doodads.doodads.push_back(std::move(doodad));
 	return static_cast<int32_t>(hive->map->doodads.doodads.size() - 1);
+}
+
+void hive_set_doodad_random(void* handle, const int32_t flags) {
+	if (handle == nullptr) {
+		return;
+	}
+	static_cast<HiveHandle*>(handle)->doodad_random = flags;
 }
 
 

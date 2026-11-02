@@ -260,6 +260,9 @@ public static class HiveCore
     private static extern int hive_add_doodad(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, float x, float y, float z, float angle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_set_doodad_random(IntPtr hive, int flags);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_selection(IntPtr hive, int[] indices, int count);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -707,6 +710,8 @@ public static class HiveCore
 
     public static int AddDoodad(string id, float x, float y, float z, float angle)
         => hive_add_doodad(handle, id, x, y, z, angle);
+
+    public static void SetDoodadRandom(int flags) => hive_set_doodad_random(handle, flags);
 
     public static int CopySelection(int[] indices) => hive_copy_selection(handle, indices, indices.Length);
 

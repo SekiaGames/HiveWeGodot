@@ -134,6 +134,8 @@ int32_t hive_doodad_type_count(void* handle);
 const char* hive_doodad_type_id(void* handle, int32_t index);
 /* 放一个装饰物，返回新索引，失败返回 -1。坐标是 tile，angle 是弧度。 */
 int32_t hive_add_doodad(void* handle, const char* id, float x, float y, float z, float angle);
+/* 放置时的随机项，位 1 变体、位 2 旋转、位 4 缩放。下次 hive_add_doodad 生效。 */
+void hive_set_doodad_random(void* handle, int32_t flags);
 
 /* 剪贴板。copy 把 indices 指向的装饰物整组拷进去，返回拷了几个；
    中心点取它们的平均位置，放置时这个中心对齐鼠标。 */

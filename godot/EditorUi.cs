@@ -41,6 +41,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? NewObjectRequested;
     public event Action? DeleteObjectRequested;
     public event Action? MapInfoRequested;
+    public event Action<int>? DoodadRandomChanged;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -345,6 +346,30 @@ public partial class EditorUi : CanvasLayer
             }
         };
         pickers.AddChild(unitPicker);
+
+        var randomRow = new HBoxContainer();
+        randomRow.AddThemeConstantOverride("separation", 4);
+        column.AddChild(randomRow);
+
+        var randomBoxes = new System.Collections.Generic.List<(CheckBox Box, int Bit)>();
+        foreach ((string label, int bit) in new[] { ("随机变体", 1), ("随机朝向", 2), ("随机缩放", 4) })
+        {
+            var box = new CheckBox { Text = label };
+            box.Toggled += _ =>
+            {
+                int flags = 0;
+                foreach (var entry in randomBoxes)
+                {
+                    if (entry.Box.ButtonPressed)
+                    {
+                        flags |= entry.Bit;
+                    }
+                }
+                DoodadRandomChanged?.Invoke(flags);
+            };
+            randomRow.AddChild(box);
+            randomBoxes.Add((box, bit));
+        }
 
         column.AddChild(Spacer(8));
 

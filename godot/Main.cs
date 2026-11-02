@@ -162,6 +162,7 @@ public partial class Main : Node3D
         ui.NewObjectRequested += CreateObjectFromSelection;
         ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MapInfoRequested += ShowMapInfoDialog;
+        ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
