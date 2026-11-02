@@ -227,19 +227,25 @@ public static class HiveCore
     private static extern int hive_pick_unit(IntPtr hive, float[] origin, float[] direction, float maxDistance);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_query_area(IntPtr hive, float x0, float y0, float x1, float y1, int isUnit, [Out] int[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_remove_selection(IntPtr hive, int isUnit, int[] indices, int count);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_begin_group(IntPtr hive, int isUnit, int[] indices, int count, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_move_group_to(IntPtr hive, int isUnit, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_rotate_group_to(IntPtr hive, int isUnit, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_end_group(IntPtr hive, int isUnit);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_selection_box(IntPtr hive, int isUnit, int index, float[] output);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_begin_move(IntPtr hive, int isUnit, int index);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_move_to(IntPtr hive, int isUnit, int index, float x, float y);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_end_move(IntPtr hive, int isUnit, int index);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_set_object_angle(IntPtr hive, int isUnit, int index, float targetAngle);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern float hive_object_angle(IntPtr hive, int isUnit, int index);
@@ -252,12 +258,6 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_add_doodad(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, float x, float y, float z, float angle);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_remove_doodad(IntPtr hive, int index);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_remove_unit(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_selection(IntPtr hive, int[] indices, int count);
@@ -583,6 +583,37 @@ public static class HiveCore
         => hive_pick_unit(handle, new[] { origin.X, origin.Y, origin.Z },
                           new[] { direction.X, direction.Y, direction.Z }, maxDistance);
 
+    public static int[] QueryArea(float x0, float y0, float x1, float y1, bool isUnit)
+    {
+        int capacity = isUnit ? MapInfo.UnitCount : MapInfo.DoodadCount;
+        if (capacity <= 0)
+        {
+            return Array.Empty<int>();
+        }
+        int[] data = new int[capacity];
+        int count = hive_query_area(handle, x0, y0, x1, y1, isUnit ? 1 : 0, data, capacity);
+        if (count <= 0)
+        {
+            return Array.Empty<int>();
+        }
+        Array.Resize(ref data, count);
+        return data;
+    }
+
+    public static int RemoveSelection(bool isUnit, int[] indices)
+        => indices.Length == 0 ? 0 : hive_remove_selection(handle, isUnit ? 1 : 0, indices, indices.Length);
+
+    public static bool BeginGroup(bool isUnit, int[] indices, float x, float y)
+        => indices.Length != 0 && hive_begin_group(handle, isUnit ? 1 : 0, indices, indices.Length, x, y) == 0;
+
+    public static bool MoveGroupTo(bool isUnit, float x, float y)
+        => hive_move_group_to(handle, isUnit ? 1 : 0, x, y) == 0;
+
+    public static bool RotateGroupTo(bool isUnit, float x, float y)
+        => hive_rotate_group_to(handle, isUnit ? 1 : 0, x, y) == 0;
+
+    public static bool EndGroup(bool isUnit) => hive_end_group(handle, isUnit ? 1 : 0) == 0;
+
     public static bool SelectionBox(bool isUnit, int index, out Vector3 minimum, out Vector3 maximum)
     {
         float[] data = new float[6];
@@ -597,24 +628,10 @@ public static class HiveCore
         return true;
     }
 
-    public static bool BeginMove(bool isUnit, int index) => hive_begin_move(handle, isUnit ? 1 : 0, index) == 0;
-
-    public static bool MoveTo(bool isUnit, int index, float x, float y)
-        => hive_move_to(handle, isUnit ? 1 : 0, index, x, y) == 0;
-
-    public static bool EndMove(bool isUnit, int index) => hive_end_move(handle, isUnit ? 1 : 0, index) == 0;
-
-    public static bool SetObjectAngle(bool isUnit, int index, float angle)
-        => hive_set_object_angle(handle, isUnit ? 1 : 0, index, angle) == 0;
-
     public static float ObjectAngle(bool isUnit, int index) => hive_object_angle(handle, isUnit ? 1 : 0, index);
 
     public static int AddDoodad(string id, float x, float y, float z, float angle)
         => hive_add_doodad(handle, id, x, y, z, angle);
-
-    public static bool RemoveDoodad(int index) => hive_remove_doodad(handle, index) == 0;
-
-    public static bool RemoveUnit(int index) => hive_remove_unit(handle, index) == 0;
 
     public static int CopySelection(int[] indices) => hive_copy_selection(handle, indices, indices.Length);
 

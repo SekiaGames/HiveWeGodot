@@ -449,68 +449,159 @@ public partial class TerrainView : Node3D
     }
 
     private MeshInstance3D? selectionBox;
-    private MeshInstance3D? dragGhost;
+    private Node3D? groupGhostRoot;
+    private readonly System.Collections.Generic.List<(MeshInstance3D Node, int Index)> groupGhosts = new();
 
-    public void ShowDragGhost(bool isUnit, int index, float x, float y, float z)
+    public void ShowGroupGhost(bool isUnit, int[] indices)
     {
-        int model = isUnit ? HiveCore.ModelFromUnit(index) : HiveCore.ModelFromDoodad(index);
-        if (model < 0)
+        HideGroupGhost();
+        if (indices.Length == 0)
         {
             return;
         }
 
-        if (dragGhost == null)
+        groupGhostRoot = new Node3D { Name = "GroupGhost" };
+        AddChild(groupGhostRoot);
+
+        foreach (int index in indices)
         {
+            int model = isUnit ? HiveCore.ModelFromUnit(index) : HiveCore.ModelFromDoodad(index);
+            if (model < 0)
+            {
+                continue;
+            }
             ArrayMesh? mesh = ModelMesh(model);
             if (mesh == null)
             {
-                return;
+                continue;
             }
-            dragGhost = new MeshInstance3D
+            var node = new MeshInstance3D
             {
                 Mesh = mesh,
-                Name = "DragGhost",
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
-            AddChild(dragGhost);
+            groupGhostRoot.AddChild(node);
+            groupGhosts.Add((node, index));
         }
 
-        dragGhost.Position = new Vector3(x, z, y);
+        UpdateGroupGhost(isUnit);
     }
 
-    public void HideDragGhost()
+    public void UpdateGroupGhost(bool isUnit)
     {
-        if (dragGhost != null)
-        {
-            RemoveChild(dragGhost);
-            dragGhost.QueueFree();
-            dragGhost = null;
-        }
-    }
-
-    public void ShowSelection(bool isUnit, int index)
-    {
-        ClearSelection();
-        if (!HiveCore.SelectionBox(isUnit, index, out Vector3 minimum, out Vector3 maximum))
+        if (groupGhosts.Count == 0)
         {
             return;
         }
 
-        Vector3 size = maximum - minimum;
-        if (size.X < 0.05f || size.Y < 0.05f || size.Z < 0.05f)
+        HiveDoodad[] doodads = isUnit ? Array.Empty<HiveDoodad>() : HiveCore.Doodads();
+        HiveUnit[] units = isUnit ? HiveCore.Units() : Array.Empty<HiveUnit>();
+
+        foreach (var ghost in groupGhosts)
         {
-            minimum -= new Vector3(0.05f, 0.05f, 0.05f);
-            maximum += new Vector3(0.05f, 0.05f, 0.05f);
+            Vector3 position;
+            Vector3 scale;
+            float angle;
+
+            if (isUnit)
+            {
+                if (ghost.Index >= units.Length)
+                {
+                    continue;
+                }
+                HiveUnit unit = units[ghost.Index];
+                position = new Vector3(unit.X, unit.Z, unit.Y);
+                scale = new Vector3(unit.ScaleX, unit.ScaleY, unit.ScaleZ);
+                angle = unit.Angle;
+            }
+            else
+            {
+                if (ghost.Index >= doodads.Length)
+                {
+                    continue;
+                }
+                HiveDoodad doodad = doodads[ghost.Index];
+                position = new Vector3(doodad.X, doodad.Z, doodad.Y);
+                scale = new Vector3(doodad.ScaleX, doodad.ScaleY, doodad.ScaleZ);
+                angle = doodad.Angle;
+            }
+
+            Basis basis = Basis.Identity.Rotated(Vector3.Up, -angle).Scaled(scale);
+            ghost.Node.Transform = new Transform3D(basis, position);
+        }
+    }
+
+    public void HideGroupGhost()
+    {
+        groupGhosts.Clear();
+        if (groupGhostRoot != null)
+        {
+            RemoveChild(groupGhostRoot);
+            groupGhostRoot.QueueFree();
+            groupGhostRoot = null;
+        }
+    }
+
+    private MeshInstance3D? selectionRect;
+
+    public void ShowSelectionRect(float x0, float z0, float x1, float z1)
+    {
+        HideSelectionRect();
+
+        var corners = new Vector3[4];
+        float[][] points = { new[] { x0, z0 }, new[] { x1, z0 }, new[] { x1, z1 }, new[] { x0, z1 } };
+        for (int i = 0; i < 4; i++)
+        {
+            corners[i] = new Vector3(points[i][0], HeightAt(points[i][0], points[i][1]) + 0.2f, points[i][1]);
         }
 
-        var corners = new Vector3[8];
-        for (int i = 0; i < 8; i++)
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        mesh.SurfaceSetColor(new Color(1f, 1f, 1f));
+        for (int i = 0; i < 4; i++)
         {
-            corners[i] = new Vector3(
-                (i & 1) == 0 ? minimum.X : maximum.X,
-                (i & 2) == 0 ? minimum.Y : maximum.Y,
-                (i & 4) == 0 ? minimum.Z : maximum.Z);
+            int next = (i + 1) % 4;
+            mesh.SurfaceAddVertex(corners[i]);
+            mesh.SurfaceAddVertex(corners[next]);
         }
+        mesh.SurfaceEnd();
+
+        selectionRect = new MeshInstance3D
+        {
+            Mesh = mesh,
+            Name = "SelectionRect",
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                VertexColorUseAsAlbedo = true,
+                NoDepthTest = true,
+            },
+        };
+        AddChild(selectionRect);
+    }
+
+    public void HideSelectionRect()
+    {
+        if (selectionRect != null)
+        {
+            RemoveChild(selectionRect);
+            selectionRect.QueueFree();
+            selectionRect = null;
+        }
+    }
+
+    public void ShowSelection(bool isUnit, int[] indices)
+    {
+        ClearSelection();
+        if (indices.Length == 0)
+        {
+            return;
+        }
+
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        mesh.SurfaceSetColor(new Color(1f, 0.85f, 0.2f));
 
         int[] edges =
         {
@@ -519,14 +610,42 @@ public partial class TerrainView : Node3D
             0, 4, 1, 5, 2, 6, 3, 7,
         };
 
-        var mesh = new ImmediateMesh();
-        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
-        mesh.SurfaceSetColor(new Color(1f, 0.85f, 0.2f));
-        foreach (int corner in edges)
+        int drawn = 0;
+        foreach (int index in indices)
         {
-            mesh.SurfaceAddVertex(corners[corner]);
+            if (!HiveCore.SelectionBox(isUnit, index, out Vector3 minimum, out Vector3 maximum))
+            {
+                continue;
+            }
+
+            Vector3 size = maximum - minimum;
+            if (size.X < 0.05f || size.Y < 0.05f || size.Z < 0.05f)
+            {
+                minimum -= new Vector3(0.05f, 0.05f, 0.05f);
+                maximum += new Vector3(0.05f, 0.05f, 0.05f);
+            }
+
+            var corners = new Vector3[8];
+            for (int i = 0; i < 8; i++)
+            {
+                corners[i] = new Vector3(
+                    (i & 1) == 0 ? minimum.X : maximum.X,
+                    (i & 2) == 0 ? minimum.Y : maximum.Y,
+                    (i & 4) == 0 ? minimum.Z : maximum.Z);
+            }
+
+            foreach (int corner in edges)
+            {
+                mesh.SurfaceAddVertex(corners[corner]);
+            }
+            drawn++;
         }
         mesh.SurfaceEnd();
+
+        if (drawn == 0)
+        {
+            return;
+        }
 
         selectionBox = new MeshInstance3D
         {

@@ -53,7 +53,8 @@ int main(void) {
 	hive_map_info(second, &reopened);
 	printf("重开后装饰物 %d 个\n", reopened.doodad_count);
 
-	if (hive_remove_doodad(second, 0) == 0) {
+	const int single[1] = {0};
+	if (hive_remove_selection(second, 0, single, 1) == 1) {
 		HiveMapInfo removed;
 		hive_map_info(second, &removed);
 		printf("删掉一个后 %d 个\n", removed.doodad_count);

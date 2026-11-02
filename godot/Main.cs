@@ -22,9 +22,12 @@ public partial class Main : Node3D
     private string doodadType = string.Empty;
     private string unitType = string.Empty;
     private bool selectionIsUnit;
-    private int selectionIndex = -1;
+    private int[] selection = Array.Empty<int>();
+    private int[] rectBase = Array.Empty<int>();
     private bool draggingObject;
     private bool rotatingObject;
+    private bool selectingRect;
+    private Vector3 selectStart;
     private bool pasting;
     private bool clipboardIsUnit;
 
@@ -41,6 +44,7 @@ public partial class Main : Node3D
     private readonly string pickTest = OS.GetEnvironment("HIVE_PICK_TEST");
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
+    private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private int frames;
     private bool loaded;
 
@@ -293,10 +297,21 @@ public partial class Main : Node3D
             return;
         }
         string position = hasHit ? $"{lastHit.X:F1}, {lastHit.Z:F1}" : "—";
-        string selected = selectionIndex < 0
-            ? "无"
-            : $"{(selectionIsUnit ? "单位" : "装饰物")} #{selectionIndex} "
-              + (selectionIsUnit ? HiveCore.UnitId(selectionIndex) : HiveCore.DoodadId(selectionIndex));
+        string selected;
+        if (selection.Length == 0)
+        {
+            selected = "无";
+        }
+        else if (selection.Length == 1)
+        {
+            int index = selection[0];
+            selected = $"{(selectionIsUnit ? "单位" : "装饰物")} #{index} "
+                + (selectionIsUnit ? HiveCore.UnitId(index) : HiveCore.DoodadId(index));
+        }
+        else
+        {
+            selected = $"{selection.Length} 个{(selectionIsUnit ? "单位" : "装饰物")}";
+        }
         string hint = pasting
             ? "左键放下　Esc 取消"
             : "左键绘制　右键拖动　滚轮缩放　Ctrl+S 保存　Ctrl+C 复制　Ctrl+V 粘贴　1-9 选纹理";
@@ -353,19 +368,11 @@ public partial class Main : Node3D
                 {
                     if (button.Pressed)
                     {
-                        PickAt(button.Position);
-                        if (Input.IsKeyPressed(Key.Ctrl))
-                        {
-                            StartRotate(button.Position);
-                        }
-                        else
-                        {
-                            StartDrag();
-                        }
+                        BeginSelectAction(button.Position);
                     }
-                    else if (draggingObject || rotatingObject)
+                    else
                     {
-                        EndDrag();
+                        EndSelectAction();
                     }
                     break;
                 }
@@ -427,18 +434,25 @@ public partial class Main : Node3D
         hasHit = true;
         lastHit = hit;
 
-        if (rotatingObject && selectionIndex >= 0)
+        if (selectingRect)
+        {
+            UpdateRectSelection(hit);
+            UpdateStatus();
+            return;
+        }
+
+        if (rotatingObject && selection.Length > 0)
         {
             RotateToward(motion.Position);
             UpdateStatus();
             return;
         }
 
-        if (draggingObject && selectionIndex >= 0)
+        if (draggingObject && selection.Length > 0)
         {
-            HiveCore.MoveTo(selectionIsUnit, selectionIndex, hit.X, hit.Z);
-            view.ShowDragGhost(selectionIsUnit, selectionIndex, hit.X, hit.Z, view.HeightAt(hit.X, hit.Z));
-            view.ShowSelection(selectionIsUnit, selectionIndex);
+            HiveCore.MoveGroupTo(selectionIsUnit, hit.X, hit.Z);
+            view.UpdateGroupGhost(selectionIsUnit);
+            view.ShowSelection(selectionIsUnit, selection);
             UpdateStatus();
             return;
         }
@@ -533,29 +547,132 @@ public partial class Main : Node3D
         }
     }
 
-    private void StartDrag()
+    private void BeginSelectAction(Vector2 screen)
     {
-        if (selectionIndex < 0 || !HiveCore.BeginMove(selectionIsUnit, selectionIndex))
+        if (!view.Pick(camera, screen, out Vector3 hit))
+        {
+            return;
+        }
+
+        Vector3 origin = camera.ProjectRayOrigin(screen);
+        Vector3 direction = camera.ProjectRayNormal(screen);
+        float reach = distance * 2f;
+
+        bool isUnit = false;
+        int index = HiveCore.PickDoodad(origin, direction, reach);
+        if (index < 0)
+        {
+            index = HiveCore.PickUnit(origin, direction, reach);
+            isUnit = index >= 0;
+        }
+
+        bool shift = Input.IsKeyPressed(Key.Shift);
+        bool alt = Input.IsKeyPressed(Key.Alt);
+
+        if (index < 0)
+        {
+            rectBase = shift || alt ? selection : Array.Empty<int>();
+            selectingRect = true;
+            selectStart = hit;
+            view.ShowSelectionRect(hit.X, hit.Z, hit.X, hit.Z);
+            return;
+        }
+
+        if (Input.IsKeyPressed(Key.Ctrl))
+        {
+            if (selectionIsUnit != isUnit || Array.IndexOf(selection, index) < 0)
+            {
+                SetSelection(isUnit, new[] { index });
+            }
+            StartRotate(screen, hit);
+            return;
+        }
+
+        if (shift || alt)
+        {
+            var list = new System.Collections.Generic.List<int>(selection);
+            if (selectionIsUnit != isUnit)
+            {
+                list.Clear();
+            }
+            if (shift && !list.Contains(index))
+            {
+                list.Add(index);
+            }
+            else if (alt)
+            {
+                list.Remove(index);
+            }
+            SetSelection(isUnit, list.ToArray());
+        }
+        else if (selectionIsUnit != isUnit || Array.IndexOf(selection, index) < 0)
+        {
+            SetSelection(isUnit, new[] { index });
+        }
+
+        StartDrag(hit);
+    }
+
+    private void EndSelectAction()
+    {
+        if (selectingRect)
+        {
+            selectingRect = false;
+            view.HideSelectionRect();
+            return;
+        }
+
+        if (draggingObject || rotatingObject)
+        {
+            EndDrag();
+        }
+    }
+
+    private void UpdateRectSelection(Vector3 hit)
+    {
+        view.ShowSelectionRect(selectStart.X, selectStart.Z, hit.X, hit.Z);
+
+        int[] hits = HiveCore.QueryArea(selectStart.X, selectStart.Z, hit.X, hit.Z, false);
+        if (rectBase.Length == 0)
+        {
+            SetSelection(false, hits);
+            return;
+        }
+
+        bool removed = Input.IsKeyPressed(Key.Alt);
+        var list = new System.Collections.Generic.List<int>(rectBase);
+        foreach (int index in hits)
+        {
+            if (removed)
+            {
+                list.Remove(index);
+            }
+            else if (!list.Contains(index))
+            {
+                list.Add(index);
+            }
+        }
+        SetSelection(false, list.ToArray());
+    }
+
+    private void StartDrag(Vector3 hit)
+    {
+        if (selection.Length == 0 || !HiveCore.BeginGroup(selectionIsUnit, selection, hit.X, hit.Z))
         {
             return;
         }
         draggingObject = true;
-        HiveDoodad[] doodads = HiveCore.Doodads();
-        HiveUnit[] units = HiveCore.Units();
-        Vector3 spot = selectionIsUnit
-            ? new Vector3(units[selectionIndex].X, units[selectionIndex].Z, units[selectionIndex].Y)
-            : new Vector3(doodads[selectionIndex].X, doodads[selectionIndex].Z, doodads[selectionIndex].Y);
-        view.ShowDragGhost(selectionIsUnit, selectionIndex, spot.X, spot.Z, spot.Y);
-        view.ShowSelection(selectionIsUnit, selectionIndex);
+        view.ShowGroupGhost(selectionIsUnit, selection);
     }
 
-    private void StartRotate(Vector2 screen)
+    private void StartRotate(Vector2 screen, Vector3 hit)
     {
-        if (selectionIndex < 0 || !HiveCore.BeginMove(selectionIsUnit, selectionIndex))
+        if (selection.Length == 0 || !HiveCore.BeginGroup(selectionIsUnit, selection, hit.X, hit.Z))
         {
             return;
         }
         rotatingObject = true;
+        view.ShowGroupGhost(selectionIsUnit, selection);
         RotateToward(screen);
     }
 
@@ -566,62 +683,27 @@ public partial class Main : Node3D
             return;
         }
 
-        HiveDoodad[] doodads = HiveCore.Doodads();
-        Vector3 spot = selectionIsUnit
-            ? new Vector3(HiveCore.Units()[selectionIndex].X, 0f, HiveCore.Units()[selectionIndex].Y)
-            : new Vector3(doodads[selectionIndex].X, 0f, doodads[selectionIndex].Y);
-
-        float angle = MathF.Atan2(hit.Z - spot.Z, hit.X - spot.X);
-        if (angle < 0f)
-        {
-            angle += MathF.PI * 2f;
-        }
-
-        HiveCore.SetObjectAngle(selectionIsUnit, selectionIndex, angle);
-        view.ShowDragGhost(selectionIsUnit, selectionIndex, spot.X, spot.Z, view.HeightAt(spot.X, spot.Z));
-        view.ShowSelection(selectionIsUnit, selectionIndex);
+        HiveCore.RotateGroupTo(selectionIsUnit, hit.X, hit.Z);
+        view.UpdateGroupGhost(selectionIsUnit);
+        view.ShowSelection(selectionIsUnit, selection);
     }
 
     private void EndDrag()
     {
+        bool rotated = rotatingObject;
         draggingObject = false;
         rotatingObject = false;
-        view.HideDragGhost();
-        HiveCore.EndMove(selectionIsUnit, selectionIndex);
+        view.HideGroupGhost();
+        HiveCore.EndGroup(selectionIsUnit);
         ReloadObjects();
-        ui.SetStatus("已移动，Ctrl+Z 可撤销");
+        ui.SetStatus($"已{(rotated ? "旋转" : "移动")} {selection.Length} 个对象，Ctrl+Z 可撤销");
     }
 
-    private void PickAt(Vector2 screen)
-    {
-        Vector3 origin = camera.ProjectRayOrigin(screen);
-        Vector3 direction = camera.ProjectRayNormal(screen);
-        float reach = distance * 2f;
-
-        int doodad = HiveCore.PickDoodad(origin, direction, reach);
-        if (doodad >= 0)
-        {
-            Select(false, doodad);
-            return;
-        }
-
-        int unit = HiveCore.PickUnit(origin, direction, reach);
-        if (unit >= 0)
-        {
-            Select(true, unit);
-            return;
-        }
-
-        selectionIndex = -1;
-        view.ClearSelection();
-        UpdateStatus();
-    }
-
-    private void Select(bool isUnit, int index)
+    private void SetSelection(bool isUnit, int[] indices)
     {
         selectionIsUnit = isUnit;
-        selectionIndex = index;
-        view.ShowSelection(isUnit, index);
+        selection = indices;
+        view.ShowSelection(isUnit, indices);
         UpdateStatus();
     }
 
@@ -670,38 +752,34 @@ public partial class Main : Node3D
 
     private void DeleteSelection()
     {
-        if (selectionIndex < 0)
+        if (selection.Length == 0)
         {
             return;
         }
 
-        bool removed = selectionIsUnit
-            ? HiveCore.RemoveUnit(selectionIndex)
-            : HiveCore.RemoveDoodad(selectionIndex);
-
-        if (!removed)
+        int removed = HiveCore.RemoveSelection(selectionIsUnit, selection);
+        if (removed == 0)
         {
-            ui.SetStatus($"删除失败，索引 {selectionIndex}");
+            ui.SetStatus("删除失败");
             return;
         }
 
-        selectionIndex = -1;
-        view.ClearSelection();
+        SetSelection(selectionIsUnit, Array.Empty<int>());
         ReloadObjects();
-        ui.SetStatus("已删除，Ctrl+Z 可撤销");
+        ui.SetStatus($"已删除 {removed} 个，Ctrl+Z 可撤销");
     }
 
     private void CopySelectionObjects()
     {
-        if (selectionIndex < 0)
+        if (selection.Length == 0)
         {
             ui.SetStatus("没有选中对象");
             return;
         }
 
         int count = selectionIsUnit
-            ? HiveCore.CopyUnitSelection(new[] { selectionIndex })
-            : HiveCore.CopySelection(new[] { selectionIndex });
+            ? HiveCore.CopyUnitSelection(selection)
+            : HiveCore.CopySelection(selection);
 
         if (count == 0)
         {
@@ -756,7 +834,7 @@ public partial class Main : Node3D
             return;
         }
 
-        selectionIndex = -1;
+        selection = Array.Empty<int>();
         view.ClearSelection();
         ReloadObjects();
         ui.SetStatus($"已放置 {count} 个{(isUnit ? "单位" : "装饰物")}，Ctrl+Z 可撤销");
@@ -810,6 +888,41 @@ public partial class Main : Node3D
 
         frames++;
 
+        if (selectTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                focus = new Vector3(40f, 0f, 25f);
+                distance = 62f;
+                UpdateCamera();
+
+                Vector3 empty = new(102f, view.HeightAt(102f, 74f), 74f);
+                BeginSelectAction(camera.UnprojectPosition(empty));
+                GD.Print($"空白处按下开始框选：{selectingRect}");
+
+                UpdateRectSelection(new Vector3(20f, view.HeightAt(20f, 10f), 10f));
+                EndSelectAction();
+                GD.Print($"框选命中 {selection.Length} 个装饰物");
+            }
+            else if (frames == 14)
+            {
+                Capture(screenshotPath);
+                int before = HiveCore.MapInfo.DoodadCount;
+                int selected = selection.Length;
+                DeleteSelection();
+                int after = HiveCore.MapInfo.DoodadCount;
+                HiveCore.Undo();
+                ReloadObjects();
+                GD.Print($"批量删除 {selected} 个：{before} -> {after} -> 撤销 {HiveCore.MapInfo.DoodadCount}");
+            }
+            else if (frames == 20)
+            {
+                Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
         if (unitTest.Length > 0)
         {
             if (frames == 8)
@@ -834,7 +947,7 @@ public partial class Main : Node3D
             }
             else if (frames == 12)
             {
-                Select(true, HiveCore.MapInfo.UnitCount - 1);
+                SetSelection(true, new[] { HiveCore.MapInfo.UnitCount - 1 });
                 CopySelectionObjects();
                 StartPaste();
                 view.UpdateClipboardGhost(34f, 24f);
@@ -861,7 +974,7 @@ public partial class Main : Node3D
                 focus = new Vector3(33f, 0f, 26f);
                 distance = 11f;
                 UpdateCamera();
-                Select(false, 0);
+                SetSelection(false, new[] { 0 });
                 CopySelectionObjects();
                 StartPaste();
                 view.UpdateClipboardGhost(35f, 30f);
@@ -895,7 +1008,7 @@ public partial class Main : Node3D
         {
             if (frames == 8)
             {
-                Select(false, 0);
+                SetSelection(false, new[] { 0 });
                 focus = new Vector3(27f, 0f, 17.5f);
                 distance = 16f;
                 UpdateCamera();
@@ -903,7 +1016,7 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(screenshotPath);
-                GD.Print($"拾取测试：选中装饰物 {HiveCore.DoodadId(selectionIndex)}");
+                GD.Print($"拾取测试：选中装饰物 {HiveCore.DoodadId(selection[0])}");
 
                 int before = HiveCore.MapInfo.DoodadCount;
                 DeleteSelection();
@@ -914,23 +1027,35 @@ public partial class Main : Node3D
                 GD.Print($"删除测试：{before} -> {after} -> 撤销 {restored}");
 
                 HiveDoodad[] before2 = HiveCore.Doodads();
-                GD.Print($"移动前 #{0} 在 ({before2[0].X:F1}, {before2[0].Y:F1})");
-                HiveCore.BeginMove(false, 0);
-                HiveCore.MoveTo(false, 0, 30f, 20f);
-                HiveCore.EndMove(false, 0);
+                GD.Print($"移动前 #0 在 ({before2[0].X:F1}, {before2[0].Y:F1})");
+                HiveCore.BeginGroup(false, new[] { 0 }, before2[0].X, before2[0].Y);
+                HiveCore.MoveGroupTo(false, 30f, 20f);
+                HiveCore.EndGroup(false);
                 HiveDoodad[] after2 = HiveCore.Doodads();
-                GD.Print($"移动后 #{0} 在 ({after2[0].X:F1}, {after2[0].Y:F1})");
+                GD.Print($"移动后 #0 在 ({after2[0].X:F1}, {after2[0].Y:F1})");
                 HiveCore.Undo();
                 HiveDoodad[] undone2 = HiveCore.Doodads();
-                GD.Print($"撤销移动后 #{0} 在 ({undone2[0].X:F1}, {undone2[0].Y:F1})");
+                GD.Print($"撤销移动后 #0 在 ({undone2[0].X:F1}, {undone2[0].Y:F1})");
 
-                float a0 = HiveCore.ObjectAngle(false, 0);
-                HiveCore.SetObjectAngle(false, 0, 1.5f);
+                HiveDoodad doodad = HiveCore.Doodads()[0];
+                float a0 = doodad.Angle;
+                HiveCore.BeginGroup(false, new[] { 0 }, doodad.X, doodad.Y);
+                HiveCore.RotateGroupTo(false, doodad.X + MathF.Cos(1.5f), doodad.Y + MathF.Sin(1.5f));
+                HiveCore.EndGroup(false);
                 float a1 = HiveCore.ObjectAngle(false, 0);
-                float u0 = HiveCore.ObjectAngle(true, 0);
-                HiveCore.SetObjectAngle(true, 0, 1.5f);
+
+                HiveUnit unit = HiveCore.Units()[0];
+                float u0 = unit.Angle;
+                HiveCore.BeginGroup(true, new[] { 0 }, unit.X, unit.Y);
+                HiveCore.RotateGroupTo(true, unit.X + MathF.Cos(1.5f), unit.Y + MathF.Sin(1.5f));
+                HiveCore.EndGroup(true);
                 float u1 = HiveCore.ObjectAngle(true, 0);
                 GD.Print($"旋转：装饰物 {a0:F2} -> {a1:F2}，单位 {u0:F2} -> {u1:F2}");
+
+                HiveCore.Undo();
+                HiveCore.Undo();
+                ReloadObjects();
+                GD.Print($"旋转后连续撤销两次，装饰物 {HiveCore.Doodads()[0].Angle:F2}，单位 {HiveCore.Units()[0].Angle:F2}");
 
                 GetTree().Quit();
             }

@@ -134,10 +134,6 @@ int32_t hive_doodad_type_count(void* handle);
 const char* hive_doodad_type_id(void* handle, int32_t index);
 /* 放一个装饰物，返回新索引，失败返回 -1。坐标是 tile，angle 是弧度。 */
 int32_t hive_add_doodad(void* handle, const char* id, float x, float y, float z, float angle);
-/* 删掉第 index 个装饰物，进撤销栈，成功返回 0。 */
-int32_t hive_remove_doodad(void* handle, int32_t index);
-/* 删掉第 index 个单位，进撤销栈，成功返回 0。 */
-int32_t hive_remove_unit(void* handle, int32_t index);
 
 /* 剪贴板。copy 把 indices 指向的装饰物整组拷进去，返回拷了几个；
    中心点取它们的平均位置，放置时这个中心对齐鼠标。 */
@@ -160,18 +156,27 @@ int32_t hive_model_from_clipboard(void* handle, int32_t index);
 int32_t hive_pick_doodad(void* handle, const float* origin, const float* direction, float max_distance);
 int32_t hive_pick_unit(void* handle, const float* origin, const float* direction, float max_distance);
 
+/* 框选。(x0, y0) 和 (x1, y1) 是矩形的两个角，tile 坐标，内部归一化。
+   返回命中个数，索引按升序写进 out，capacity 不够时只写 capacity 个。
+   is_unit 为 0 查装饰物，非 0 查单位。 */
+int32_t hive_query_area(void* handle, float x0, float y0, float x1, float y1, int32_t is_unit,
+						int32_t* out, int32_t capacity);
+
+/* 批量删除，整组进一次撤销。返回删掉的数量。 */
+int32_t hive_remove_selection(void* handle, int32_t is_unit, const int32_t* indices, int32_t count);
+
 /* 选中对象的包围盒，Godot 坐标下的 min 和 max，共 6 个 float。is_unit 为 0 时读装饰物。 */
 int32_t hive_selection_box(void* handle, int32_t is_unit, int32_t index, float* out);
 
-/* 拖动：begin 记下原位置，move_to 改水平位置（高度自动贴地形），
-   end 把前后差异压进撤销栈。 */
-int32_t hive_begin_move(void* handle, int32_t is_unit, int32_t index);
-int32_t hive_move_to(void* handle, int32_t is_unit, int32_t index, float x, float y);
-int32_t hive_end_move(void* handle, int32_t is_unit, int32_t index);
+/* 整组编辑。begin 快照选中的对象并记下鼠标位置，move_to 按鼠标位移平移全组
+   （组里有带路径图的对象时吸到 0.5 格），rotate_to 把每个对象转向鼠标，
+   end 把整组的前后差异压进一次撤销。 */
+int32_t hive_begin_group(void* handle, int32_t is_unit, const int32_t* indices, int32_t count,
+						 float x, float y);
+int32_t hive_move_group_to(void* handle, int32_t is_unit, float x, float y);
+int32_t hive_rotate_group_to(void* handle, int32_t is_unit, float x, float y);
+int32_t hive_end_group(void* handle, int32_t is_unit);
 
-/* 把对象转到 target_angle（弧度）。会按 slk 的 fixedrot 和路径图吸附角度，
-   装饰物走 Doodad::acceptable_angle，单位直接赋值。 */
-int32_t hive_set_object_angle(void* handle, int32_t is_unit, int32_t index, float target_angle);
 /* 读对象当前角度（弧度）。 */
 float hive_object_angle(void* handle, int32_t is_unit, int32_t index);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
