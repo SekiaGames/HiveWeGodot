@@ -10,10 +10,10 @@
 | 阶段 | 状态 |
 |---|---|
 | 依赖 | 已齐：cmake / glm / tbb / abseil / jpeg-turbo / nlohmann-json / stormlib / bullet / vulkan-volk + 本机 Vulkan SDK |
-| 去模块化 | 完成，94 个模块 + 67 个 cpp，产物在 `native/src` |
-| 去 Qt | 进行中：`utilities/rects`、`base/camera` 通过；`resources/ground_texture` 编到 `hierarchy.hpp` 的 `QSettings` 卡住 |
-| 去 Vulkan | 未开始，且比预估复杂（见步骤 3） |
-| 编核心库 | 未开始 |
+| 去模块化 | 完成，95 个模块 + 67 个 cpp + 52 个头文件，产物在 `native/src` |
+| 去 Qt | 完成，靠 `native/include` 的兼容层，核心层源码未改一行 |
+| 去 Vulkan | 暂不摘：`resources/` 层包着 `VkTexture`，留着让包装层原样编过（见步骤 3） |
+| 编核心库 | **已出 `libhivewe_core.a`（7.3 MB，6291 个符号）** |
 | C ABI | 未开始 |
 | Godot 界面 | 未开始 |
 
@@ -74,6 +74,16 @@ brew install vulkan-volk
 三个第三方头都要有，缺一个 `resources/` 层就编不动：`resources/ground_texture.hpp`、`skinned_mesh.hpp` 都 `#include "VkContext.hpp"`，而 `vk_context.hpp` 用 vk-bootstrap 建实例、用 VMA 分配内存。
 
 **这些只服务于编译，运行期不碰。** 核心的 `VkContext` 是全局对象但默认构造不建实例，`init()` 才连设备；只要不调 `render_manager.init()` 和各个 `render_*`，编出来的库跑起来不会加载 MoltenVK。等核心跑通后把 `resources/` 换成 CPU 侧数据，这几个依赖可以整个摘掉。
+
+编译核心库：
+
+```bash
+cd native
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j8
+```
+
+产物 `native/build/libhivewe_core.a`。覆盖 `base` / `brush` / `file_formats` / `utilities` / `resources` 五层共 18 个 cpp。
 
 ## 步骤 2：拉源码并去模块化
 
