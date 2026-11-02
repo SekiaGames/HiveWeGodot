@@ -230,6 +230,15 @@ public static class HiveCore
     private static extern int hive_selection_box(IntPtr hive, int isUnit, int index, float[] output);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_begin_move(IntPtr hive, int isUnit, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_move_to(IntPtr hive, int isUnit, int index, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_end_move(IntPtr hive, int isUnit, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_doodad_type_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -530,6 +539,13 @@ public static class HiveCore
         maximum = new Vector3(data[3], data[4], data[5]);
         return true;
     }
+
+    public static bool BeginMove(bool isUnit, int index) => hive_begin_move(handle, isUnit ? 1 : 0, index) == 0;
+
+    public static bool MoveTo(bool isUnit, int index, float x, float y)
+        => hive_move_to(handle, isUnit ? 1 : 0, index, x, y) == 0;
+
+    public static bool EndMove(bool isUnit, int index) => hive_end_move(handle, isUnit ? 1 : 0, index) == 0;
 
     public static int AddDoodad(string id, float x, float y, float z, float angle)
         => hive_add_doodad(handle, id, x, y, z, angle);

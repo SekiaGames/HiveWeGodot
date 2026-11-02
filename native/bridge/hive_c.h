@@ -147,6 +147,12 @@ int32_t hive_pick_unit(void* handle, const float* origin, const float* direction
 
 /* 选中对象的包围盒，Godot 坐标下的 min 和 max，共 6 个 float。is_unit 为 0 时读装饰物。 */
 int32_t hive_selection_box(void* handle, int32_t is_unit, int32_t index, float* out);
+
+/* 拖动：begin 记下原位置，move_to 改水平位置（高度自动贴地形），
+   end 把前后差异压进撤销栈。 */
+int32_t hive_begin_move(void* handle, int32_t is_unit, int32_t index);
+int32_t hive_move_to(void* handle, int32_t is_unit, int32_t index, float x, float y);
+int32_t hive_end_move(void* handle, int32_t is_unit, int32_t index);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
 const char* hive_doodad_id(void* handle, int32_t index);
 

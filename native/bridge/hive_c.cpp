@@ -40,6 +40,11 @@ struct HiveHandle {
 	std::vector<std::shared_ptr<CachedModel>> models;
 	std::unordered_map<std::string, int32_t> model_keys;
 	std::vector<std::string> doodad_types;
+	bool dragging = false;
+	bool drag_is_unit = false;
+	int32_t drag_index = -1;
+	Doodad drag_doodad;
+	Unit drag_unit;
 	std::unordered_map<std::string, blp::Image> images;
 	std::string transient_string;
 };
@@ -935,6 +940,95 @@ int32_t hive_pick_unit(void* handle, const float* origin, const float* direction
 		return -1;
 	}
 	return pick_from_ray(static_cast<HiveHandle*>(handle), origin, direction, max_distance, true);
+}
+
+int32_t hive_begin_move(void* handle, const int32_t is_unit, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+
+	if (is_unit != 0) {
+		const auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		hive->drag_unit = list[static_cast<std::size_t>(index)];
+	} else {
+		const auto& list = hive->map->doodads.doodads;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		hive->drag_doodad = list[static_cast<std::size_t>(index)];
+	}
+
+	hive->dragging = true;
+	hive->drag_is_unit = is_unit != 0;
+	hive->drag_index = index;
+	return 0;
+}
+
+int32_t hive_move_to(void* handle, const int32_t is_unit, const int32_t index, const float x, const float y) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const float z = hive->map->terrain.interpolated_height(x, y, true);
+
+	if (is_unit != 0) {
+		auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		list[static_cast<std::size_t>(index)].position = glm::vec3(x, y, z);
+	} else {
+		auto& list = hive->map->doodads.doodads;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		list[static_cast<std::size_t>(index)].position = glm::vec3(x, y, z);
+		list[static_cast<std::size_t>(index)].update(hive->map->terrain);
+	}
+	return 0;
+}
+
+int32_t hive_end_move(void* handle, const int32_t is_unit, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (!hive->dragging || hive->drag_is_unit != (is_unit != 0) || hive->drag_index != index) {
+		return -1;
+	}
+	hive->dragging = false;
+
+	if (is_unit != 0) {
+		const auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+
+		auto action = std::make_unique<UnitStateAction>();
+		action->old_units.push_back(hive->drag_unit);
+		action->new_units.push_back(list[static_cast<std::size_t>(index)]);
+
+		hive->map->world_undo.new_undo_group();
+		hive->map->world_undo.add_undo_action(std::move(action));
+	} else {
+		const auto& list = hive->map->doodads.doodads;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+
+		auto action = std::make_unique<DoodadStateAction>();
+		action->old_doodads.push_back(hive->drag_doodad);
+		action->new_doodads.push_back(list[static_cast<std::size_t>(index)]);
+
+		hive->map->world_undo.new_undo_group();
+		hive->map->world_undo.add_undo_action(std::move(action));
+	}
+
+	return 0;
 }
 
 int32_t hive_selection_box(void* handle, const int32_t is_unit, const int32_t index, float* out) {

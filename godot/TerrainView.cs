@@ -449,6 +449,44 @@ public partial class TerrainView : Node3D
     }
 
     private MeshInstance3D? selectionBox;
+    private MeshInstance3D? dragGhost;
+
+    public void ShowDragGhost(bool isUnit, int index, float x, float y, float z)
+    {
+        int model = isUnit ? HiveCore.ModelFromUnit(index) : HiveCore.ModelFromDoodad(index);
+        if (model < 0)
+        {
+            return;
+        }
+
+        if (dragGhost == null)
+        {
+            ArrayMesh? mesh = ModelMesh(model);
+            if (mesh == null)
+            {
+                return;
+            }
+            dragGhost = new MeshInstance3D
+            {
+                Mesh = mesh,
+                Name = "DragGhost",
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            };
+            AddChild(dragGhost);
+        }
+
+        dragGhost.Position = new Vector3(x, z, y);
+    }
+
+    public void HideDragGhost()
+    {
+        if (dragGhost != null)
+        {
+            RemoveChild(dragGhost);
+            dragGhost.QueueFree();
+            dragGhost = null;
+        }
+    }
 
     public void ShowSelection(bool isUnit, int index)
     {

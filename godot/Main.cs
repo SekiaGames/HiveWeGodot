@@ -22,6 +22,7 @@ public partial class Main : Node3D
     private string doodadType = string.Empty;
     private bool selectionIsUnit;
     private int selectionIndex = -1;
+    private bool draggingObject;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -314,9 +315,17 @@ public partial class Main : Node3D
                 panning = button.Pressed;
                 break;
             case MouseButton.Left:
-                if (button.Pressed && tool == EditorUi.ToolMode.Select)
+                if (tool == EditorUi.ToolMode.Select)
                 {
-                    PickAt(button.Position);
+                    if (button.Pressed)
+                    {
+                        PickAt(button.Position);
+                        StartDrag();
+                    }
+                    else if (draggingObject)
+                    {
+                        EndDrag();
+                    }
                     break;
                 }
 
@@ -369,6 +378,16 @@ public partial class Main : Node3D
 
         hasHit = true;
         lastHit = hit;
+
+        if (draggingObject && selectionIndex >= 0)
+        {
+            HiveCore.MoveTo(selectionIsUnit, selectionIndex, hit.X, hit.Z);
+            view.ShowDragGhost(selectionIsUnit, selectionIndex, hit.X, hit.Z, view.HeightAt(hit.X, hit.Z));
+            view.ShowSelection(selectionIsUnit, selectionIndex);
+            UpdateStatus();
+            return;
+        }
+
         ShowBrush(hit);
 
         if (painting)
@@ -438,6 +457,31 @@ public partial class Main : Node3D
                 }
                 break;
         }
+    }
+
+    private void StartDrag()
+    {
+        if (selectionIndex < 0 || !HiveCore.BeginMove(selectionIsUnit, selectionIndex))
+        {
+            return;
+        }
+        draggingObject = true;
+        HiveDoodad[] doodads = HiveCore.Doodads();
+        HiveUnit[] units = HiveCore.Units();
+        Vector3 spot = selectionIsUnit
+            ? new Vector3(units[selectionIndex].X, units[selectionIndex].Z, units[selectionIndex].Y)
+            : new Vector3(doodads[selectionIndex].X, doodads[selectionIndex].Z, doodads[selectionIndex].Y);
+        view.ShowDragGhost(selectionIsUnit, selectionIndex, spot.X, spot.Z, spot.Y);
+        view.ShowSelection(selectionIsUnit, selectionIndex);
+    }
+
+    private void EndDrag()
+    {
+        draggingObject = false;
+        view.HideDragGhost();
+        HiveCore.EndMove(selectionIsUnit, selectionIndex);
+        ReloadObjects();
+        ui.SetStatus("已移动，Ctrl+Z 可撤销");
     }
 
     private void PickAt(Vector2 screen)
@@ -590,6 +634,18 @@ public partial class Main : Node3D
                 ReloadObjects();
                 int restored = HiveCore.MapInfo.DoodadCount;
                 GD.Print($"删除测试：{before} -> {after} -> 撤销 {restored}");
+
+                HiveDoodad[] before2 = HiveCore.Doodads();
+                GD.Print($"移动前 #{0} 在 ({before2[0].X:F1}, {before2[0].Y:F1})");
+                HiveCore.BeginMove(false, 0);
+                HiveCore.MoveTo(false, 0, 30f, 20f);
+                HiveCore.EndMove(false, 0);
+                HiveDoodad[] after2 = HiveCore.Doodads();
+                GD.Print($"移动后 #{0} 在 ({after2[0].X:F1}, {after2[0].Y:F1})");
+                HiveCore.Undo();
+                HiveDoodad[] undone2 = HiveCore.Doodads();
+                GD.Print($"撤销移动后 #{0} 在 ({undone2[0].X:F1}, {undone2[0].Y:F1})");
+
                 GetTree().Quit();
             }
             return;
