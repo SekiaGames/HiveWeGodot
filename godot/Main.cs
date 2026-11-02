@@ -165,7 +165,7 @@ public partial class Main : Node3D
         ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MapInfoRequested += ShowMapInfoDialog;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
-        ui.TriggerRequested += ShowTriggerWindow;
+        ui.TriggerRequested += () => ShowTriggerWindow();
         ui.RegionRequested += ShowRegionWindow;
         ui.MinimapClicked += world =>
         {
@@ -856,12 +856,13 @@ public partial class Main : Node3D
         dialog.PopupCentered(new Vector2I(600, 420));
     }
 
-    private void ShowTriggerWindow()
+    private TriggerWindow ShowTriggerWindow()
     {
         var window = new TriggerWindow();
         root.AddChild(window);
         window.Build();
         window.PopupCentered(new Vector2I(860, 600));
+        return window;
     }
 
     private void ShowRegionWindow()
@@ -1192,7 +1193,15 @@ public partial class Main : Node3D
         {
             if (frames == 8)
             {
-                ShowTriggerWindow();
+                HiveCore.AddTriggerNode(0, 2, "IfThenElseMultiple", -1, 0);
+                int nodes = HiveCore.TriggerBuildNodes(0);
+                int ifNode = nodes - 1;
+                HiveCore.AddTriggerNode(0, 2, "CommentString", ifNode, 1);
+                GD.Print($"节点 {HiveCore.TriggerBuildNodes(0)} 个，If/Then/Else 分组种类 "
+                    + $"{HiveCore.TriggerNodeGroupKind(0, ifNode)}");
+
+                TriggerWindow window = ShowTriggerWindow();
+                window.SelectFirstEca();
             }
             else if (frames == 16)
             {

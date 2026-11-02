@@ -23,10 +23,17 @@ int main(int argc, char** argv) {
 	}
 
 	for (int i = 0; i < 6 && i < triggers; ++i) {
+		const int nodes = hive_trigger_build_nodes(hive, i);
+		int counts[3] = {0};
+		for (int n = 0; n < nodes; ++n) {
+			const int type = hive_trigger_node_type(hive, i, n);
+			if (type >= 0 && type < 3 && hive_trigger_node_depth(hive, i, n) == 0) {
+				counts[type]++;
+			}
+		}
 		printf("  触发器 %d [%s] 父 %d，事件 %d 条件 %d 动作 %d，注释 %d，启用 %d\n", hive_trigger_id(hive, i),
-			   hive_trigger_name(hive, i), hive_trigger_parent(hive, i), hive_trigger_eca_count(hive, i, 0),
-			   hive_trigger_eca_count(hive, i, 1), hive_trigger_eca_count(hive, i, 2), hive_trigger_is_comment(hive, i),
-			   hive_trigger_is_enabled(hive, i));
+			   hive_trigger_name(hive, i), hive_trigger_parent(hive, i), counts[0], counts[1], counts[2],
+			   hive_trigger_is_comment(hive, i), hive_trigger_is_enabled(hive, i));
 	}
 
 	for (int i = 0; i < 2 && i < variables; ++i) {

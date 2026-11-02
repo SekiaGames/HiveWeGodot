@@ -33,6 +33,19 @@ struct CachedModel {
 	std::vector<uint32_t> indices;
 };
 
+struct HiveTriggerNode {
+	ECA* eca = nullptr;
+	ECA* parent = nullptr;
+	int depth = 0;
+};
+
+void collect_trigger_nodes(std::vector<HiveTriggerNode>& out, std::vector<ECA>& list, ECA* parent, const int depth) {
+	for (ECA& eca : list) {
+		out.push_back({&eca, parent, depth});
+		collect_trigger_nodes(out, eca.ecas, &eca, depth + 1);
+	}
+}
+
 struct HiveHandle {
 	Map* map = nullptr;
 	TerrainBrush* brush = nullptr;
@@ -74,6 +87,7 @@ struct HiveHandle {
 		std::string id;
 		std::vector<ObjectField> fields;
 	};
+	std::vector<HiveTriggerNode> trigger_nodes;
 	ObjectFields object_fields;
 	int32_t doodad_random = 0;
 	std::mt19937 random_engine {std::random_device {}()};
@@ -2599,66 +2613,6 @@ int32_t hive_set_trigger_custom_text(void* handle, const int32_t index, const ch
 	return 0;
 }
 
-int32_t hive_trigger_eca_count(void* handle, const int32_t index, const int32_t type) {
-	const Trigger* trigger = trigger_at(handle, index);
-	if (trigger == nullptr) {
-		return 0;
-	}
-	int count = 0;
-	for (const ECA& eca : trigger->ecas) {
-		if (static_cast<int32_t>(eca.type) == type) {
-			count++;
-		}
-	}
-	return count;
-}
-
-const ECA* eca_at(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
-	const Trigger* trigger = trigger_at(handle, index);
-	if (trigger == nullptr || eca_index < 0) {
-		return nullptr;
-	}
-	int seen = 0;
-	for (const ECA& eca : trigger->ecas) {
-		if (static_cast<int32_t>(eca.type) != type) {
-			continue;
-		}
-		if (seen == eca_index) {
-			return &eca;
-		}
-		seen++;
-	}
-	return nullptr;
-}
-
-const char* hive_trigger_eca_name(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
-	const ECA* eca = eca_at(handle, index, type, eca_index);
-	return eca == nullptr ? nullptr : eca->name.c_str();
-}
-
-int32_t hive_trigger_eca_parameter_count(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
-	const ECA* eca = eca_at(handle, index, type, eca_index);
-	return eca == nullptr ? 0 : static_cast<int32_t>(eca->parameters.size());
-}
-
-int32_t hive_trigger_eca_parameter_type(void* handle, const int32_t index, const int32_t type, const int32_t eca_index,
-										const int32_t parameter) {
-	const ECA* eca = eca_at(handle, index, type, eca_index);
-	if (eca == nullptr || parameter < 0 || static_cast<std::size_t>(parameter) >= eca->parameters.size()) {
-		return -1;
-	}
-	return static_cast<int32_t>(eca->parameters[static_cast<std::size_t>(parameter)].type);
-}
-
-const char* hive_trigger_eca_parameter_value(void* handle, const int32_t index, const int32_t type,
-											 const int32_t eca_index, const int32_t parameter) {
-	const ECA* eca = eca_at(handle, index, type, eca_index);
-	if (eca == nullptr || parameter < 0 || static_cast<std::size_t>(parameter) >= eca->parameters.size()) {
-		return nullptr;
-	}
-	return eca->parameters[static_cast<std::size_t>(parameter)].value.c_str();
-}
-
 const char* eca_section(const int32_t type) {
 	switch (type) {
 		case 0:
@@ -2667,6 +2621,23 @@ const char* eca_section(const int32_t type) {
 			return "TriggerConditions";
 		case 2:
 			return "TriggerActions";
+		case 3:
+			return "TriggerCalls";
+		default:
+			return nullptr;
+	}
+}
+
+const char* eca_string_section(const int32_t type) {
+	switch (type) {
+		case 0:
+			return "TriggerEventStrings";
+		case 1:
+			return "TriggerConditionStrings";
+		case 2:
+			return "TriggerActionStrings";
+		case 3:
+			return "TriggerCallStrings";
 		default:
 			return nullptr;
 	}
@@ -2682,61 +2653,328 @@ const std::vector<std::string>* eca_definition(HiveHandle* hive, const int32_t t
 	return found == data.end() ? nullptr : &found->second;
 }
 
-int32_t hive_set_trigger_eca_parameter_value(void* handle, const int32_t index, const int32_t type, const int32_t eca_index,
-											 const int32_t parameter, const char* value) {
-	if (handle == nullptr || value == nullptr) {
-		return -1;
+/// Reforged 的 TriggerData 里每个函数有 `_<name>_Parameters` 段，逗号分隔，带 ~ 的是参数位。
+/// 1.27 没有这一段，只能退回 TriggerStrings 里的整句显示文字。
+const std::vector<std::string>* eca_parameter_template(HiveHandle* hive, const int32_t type, const std::string& name) {
+	const char* section = eca_section(type);
+	if (section == nullptr) {
+		return nullptr;
 	}
-	const ECA* const_eca = eca_at(handle, index, type, eca_index);
-	if (const_eca == nullptr || parameter < 0
-		|| static_cast<std::size_t>(parameter) >= const_eca->parameters.size()) {
-		return -1;
+	const ini::INI& data = hive->map->triggers.trigger_data;
+	const std::string key = "_" + name + "_Parameters";
+	if (!data.key_exists(section, key)) {
+		return nullptr;
 	}
-
-	auto* hive = static_cast<HiveHandle*>(handle);
-	Trigger* trigger = trigger_at(handle, index);
-	int seen = 0;
-	for (ECA& eca : trigger->ecas) {
-		if (static_cast<int32_t>(eca.type) != type) {
-			continue;
-		}
-		if (seen == eca_index) {
-			TriggerParameter& entry = eca.parameters[static_cast<std::size_t>(parameter)];
-			entry.value = value;
-			if (entry.type == TriggerParameter::Type::invalid) {
-				entry.type = TriggerParameter::Type::preset;
-			}
-			return 0;
-		}
-		seen++;
-	}
-	return -1;
+	return &data.whole_data(section, key);
 }
 
-const char* hive_trigger_eca_parameter_type_name(void* handle, const int32_t index, const int32_t type,
-												 const int32_t eca_index, const int32_t parameter) {
-	const ECA* eca = eca_at(handle, index, type, eca_index);
-	if (eca == nullptr || parameter < 0) {
+/// TriggerStrings / TriggerParams 里的值带一层引号，显示时去掉。
+std::string strip_quotes(std::string value) {
+	if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+		return value.substr(1, value.size() - 2);
+	}
+	return value;
+}
+
+std::string eca_display(HiveHandle* hive, const int32_t type, const std::string& name,
+						const std::vector<TriggerParameter>& parameters);
+
+void append_parameter(HiveHandle* hive, std::string& result, const TriggerParameter& parameter) {
+	if (parameter.has_sub_parameter) {
+		result += "(";
+		result += eca_display(hive, static_cast<int32_t>(parameter.sub_parameter.type), parameter.sub_parameter.name,
+							  parameter.sub_parameter.parameters);
+		result += ")";
+		return;
+	}
+
+	switch (parameter.type) {
+		case TriggerParameter::Type::preset: {
+			const ini::INI& data = hive->map->triggers.trigger_data;
+			const std::string text =
+				data.section_exists("TriggerParams") ? data.data("TriggerParams", parameter.value, 3) : std::string();
+			result += text.empty() ? parameter.value : strip_quotes(text);
+			break;
+		}
+		case TriggerParameter::Type::string: {
+			std::string text;
+			if (parameter.value.size() == 4) {
+				if (units_slk.row_headers.contains(parameter.value)) {
+					text = units_slk.data("name", parameter.value);
+				} else if (items_slk.row_headers.contains(parameter.value)) {
+					text = items_slk.data("name", parameter.value);
+				} else {
+					text = parameter.value;
+				}
+			}
+
+			if (text.starts_with("TRIGSTR")) {
+				result += hive->map->trigger_strings.string(text);
+			} else if (!text.empty()) {
+				result += text;
+			} else if (parameter.value.starts_with("TRIGSTR")) {
+				result += hive->map->trigger_strings.string(parameter.value);
+			} else {
+				result += parameter.value;
+			}
+			break;
+		}
+		case TriggerParameter::Type::variable: {
+			if (parameter.value.starts_with("gg_unit")) {
+				const std::string type = parameter.value.substr(8, 4);
+				const std::string instance = parameter.value.substr(13);
+				result += units_slk.data("name", type);
+				result += " " + instance;
+			} else {
+				result += parameter.value;
+			}
+			break;
+		}
+		default:
+			result += parameter.value;
+	}
+}
+
+std::string eca_display(HiveHandle* hive, const int32_t type, const std::string& name,
+						const std::vector<TriggerParameter>& parameters) {
+	const std::vector<std::string>* tokens = eca_parameter_template(hive, type, name);
+	if (tokens != nullptr) {
+		std::string result;
+		std::size_t used = 0;
+		for (const std::string& token : *tokens) {
+			if (token.empty() || token.front() != '~') {
+				result += token;
+				continue;
+			}
+			if (used < parameters.size()) {
+				append_parameter(hive, result, parameters[used]);
+			}
+			used++;
+		}
+		return result;
+	}
+
+	std::string result = name;
+	const char* string_section = eca_string_section(type);
+	const ini::INI& strings = hive->map->triggers.trigger_strings;
+	if (string_section != nullptr && strings.section_exists(string_section)) {
+		const std::string text = strings.data(string_section, name);
+		if (!text.empty()) {
+			result = strip_quotes(text);
+		}
+	}
+
+	std::string inner;
+	for (std::size_t i = 0; i < parameters.size(); ++i) {
+		if (i != 0) {
+			inner += "，";
+		}
+		append_parameter(hive, inner, parameters[i]);
+	}
+	if (!inner.empty()) {
+		result += "（" + inner + "）";
+	}
+	return result;
+}
+
+const HiveTriggerNode* trigger_node_at(void* handle, const int32_t node) {
+	if (handle == nullptr || node < 0) {
+		return nullptr;
+	}
+	const auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(node) >= hive->trigger_nodes.size()) {
+		return nullptr;
+	}
+	return &hive->trigger_nodes[static_cast<std::size_t>(node)];
+}
+
+const TriggerParameter* trigger_node_parameter(const HiveTriggerNode* entry, const int32_t parameter) {
+	if (entry == nullptr || parameter < 0
+		|| static_cast<std::size_t>(parameter) >= entry->eca->parameters.size()) {
+		return nullptr;
+	}
+	return &entry->eca->parameters[static_cast<std::size_t>(parameter)];
+}
+
+int32_t eca_group_kind(const std::string& name) {
+	if (name == "AndMultiple" || name == "OrMultiple") {
+		return 1;
+	}
+	if (name == "IfThenElseMultiple") {
+		return 3;
+	}
+	if (name.starts_with("ForLoop") || name == "ForForceMultiple" || name == "ForGroupMultiple") {
+		return 1;
+	}
+	return 0;
+}
+
+int32_t hive_trigger_build_nodes(void* handle, const int32_t index) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->trigger_nodes.clear();
+	collect_trigger_nodes(hive->trigger_nodes, trigger->ecas, nullptr, 0);
+	return static_cast<int32_t>(hive->trigger_nodes.size());
+}
+
+int32_t hive_trigger_node_depth(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? -1 : entry->depth;
+}
+
+int32_t hive_trigger_node_type(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? -1 : static_cast<int32_t>(entry->eca->type);
+}
+
+int32_t hive_trigger_node_group(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? -1 : entry->eca->group;
+}
+
+int32_t hive_trigger_node_group_kind(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? 0 : eca_group_kind(entry->eca->name);
+}
+
+const char* hive_trigger_node_name(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? nullptr : entry->eca->name.c_str();
+}
+
+const char* hive_trigger_node_display(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	if (entry == nullptr) {
 		return nullptr;
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
-	const std::vector<std::string>* definition = eca_definition(hive, type, eca->name);
+	hive->transient_string = eca_display(hive, static_cast<int32_t>(entry->eca->type), entry->eca->name,
+										 entry->eca->parameters);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_trigger_node_parameter_count(void* handle, const int32_t, const int32_t node) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	return entry == nullptr ? 0 : static_cast<int32_t>(entry->eca->parameters.size());
+}
+
+int32_t hive_trigger_node_parameter_type(void* handle, const int32_t trigger, const int32_t node,
+										 const int32_t parameter) {
+	const TriggerParameter* entry = trigger_node_parameter(trigger_node_at(handle, node), parameter);
+	return entry == nullptr ? -1 : static_cast<int32_t>(entry->type);
+}
+
+const char* hive_trigger_node_parameter_value(void* handle, const int32_t trigger, const int32_t node,
+											  const int32_t parameter) {
+	const TriggerParameter* entry = trigger_node_parameter(trigger_node_at(handle, node), parameter);
+	return entry == nullptr ? nullptr : entry->value.c_str();
+}
+
+const char* hive_trigger_node_parameter_type_name(void* handle, const int32_t trigger, const int32_t node,
+												  const int32_t parameter) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	if (trigger_node_parameter(entry, parameter) == nullptr) {
+		return nullptr;
+	}
+
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const std::vector<std::string>* definition =
+		eca_definition(hive, static_cast<int32_t>(entry->eca->type), entry->eca->name);
 	if (definition == nullptr) {
 		return nullptr;
 	}
 
 	int seen = 0;
 	for (std::size_t i = 1; i < definition->size(); ++i) {
-		const std::string& entry = (*definition)[i];
-		if (entry.empty() || is_number(entry) || entry == "nothing") {
+		const std::string& item = (*definition)[i];
+		if (item.empty() || is_number(item) || item == "nothing") {
 			continue;
 		}
 		if (seen == parameter) {
-			return entry.c_str();
+			return item.c_str();
 		}
 		seen++;
 	}
 	return nullptr;
+}
+
+int32_t hive_set_trigger_node_parameter(void* handle, const int32_t trigger, const int32_t node,
+										const int32_t parameter, const char* value) {
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	const TriggerParameter* existing = trigger_node_parameter(entry, parameter);
+	if (existing == nullptr || value == nullptr) {
+		return -1;
+	}
+
+	TriggerParameter& target = entry->eca->parameters[static_cast<std::size_t>(parameter)];
+	target.value = value;
+	if (target.type == TriggerParameter::Type::invalid) {
+		target.type = TriggerParameter::Type::preset;
+	}
+	return 0;
+}
+
+int32_t hive_trigger_add_node(void* handle, const int32_t index, const int32_t type, const char* name,
+							  const int32_t parent, const int32_t group) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr || name == nullptr) {
+		return -1;
+	}
+
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const std::vector<std::string>* definition = eca_definition(hive, type, name);
+	if (definition == nullptr) {
+		return -1;
+	}
+
+	std::vector<ECA>* target = &trigger->ecas;
+	if (parent >= 0) {
+		const HiveTriggerNode* entry = trigger_node_at(handle, parent);
+		if (entry == nullptr) {
+			return -1;
+		}
+		target = &entry->eca->ecas;
+	}
+
+	ECA eca;
+	eca.type = static_cast<ECA::Type>(type);
+	eca.group = group;
+	eca.name = name;
+	eca.enabled = true;
+
+	int parameter_count = 0;
+	for (std::size_t i = 1; i < definition->size(); ++i) {
+		const std::string& item = (*definition)[i];
+		if (!item.empty() && !is_number(item) && item != "nothing") {
+			parameter_count++;
+		}
+	}
+	eca.parameters.resize(static_cast<std::size_t>(parameter_count));
+
+	target->push_back(std::move(eca));
+	hive->trigger_nodes.clear();
+	return 0;
+}
+
+int32_t hive_trigger_remove_node(void* handle, const int32_t index, const int32_t node) {
+	Trigger* trigger = trigger_at(handle, index);
+	const HiveTriggerNode* entry = trigger_node_at(handle, node);
+	if (trigger == nullptr || entry == nullptr) {
+		return -1;
+	}
+
+	std::vector<ECA>& list = entry->parent == nullptr ? trigger->ecas : entry->parent->ecas;
+	for (auto iterator = list.begin(); iterator != list.end(); ++iterator) {
+		if (&*iterator == entry->eca) {
+			list.erase(iterator);
+			static_cast<HiveHandle*>(handle)->trigger_nodes.clear();
+			return 0;
+		}
+	}
+	return -1;
 }
 
 int32_t hive_trigger_preset_count(void* handle, const char* type_name) {
@@ -2793,7 +3031,11 @@ const char* hive_trigger_preset_display(void* handle, const char* type_name, con
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
 	const std::string* value = preset_at(hive, type_name, index, 3);
-	return value == nullptr ? nullptr : value->c_str();
+	if (value == nullptr) {
+		return nullptr;
+	}
+	hive->transient_string = strip_quotes(*value);
+	return hive->transient_string.c_str();
 }
 
 int32_t hive_trigger_function_count(void* handle, const int32_t type) {
@@ -2834,66 +3076,6 @@ const char* hive_trigger_function_name(void* handle, const int32_t type, const i
 		seen++;
 	}
 	return nullptr;
-}
-
-int32_t hive_trigger_add_eca(void* handle, const int32_t index, const int32_t type, const char* name) {
-	if (handle == nullptr || name == nullptr) {
-		return -1;
-	}
-	Trigger* trigger = trigger_at(handle, index);
-	if (trigger == nullptr) {
-		return -1;
-	}
-	auto* hive = static_cast<HiveHandle*>(handle);
-	const std::vector<std::string>* definition = eca_definition(hive, type, name);
-	if (definition == nullptr) {
-		return -1;
-	}
-
-	ECA eca;
-	eca.type = static_cast<ECA::Type>(type);
-	eca.group = 0;
-	eca.name = name;
-	eca.enabled = true;
-
-	int parameter_count = 0;
-	for (std::size_t i = 1; i < definition->size(); ++i) {
-		const std::string& entry = (*definition)[i];
-		if (!entry.empty() && !is_number(entry) && entry != "nothing") {
-			parameter_count++;
-		}
-	}
-	eca.parameters.resize(static_cast<std::size_t>(parameter_count));
-
-	trigger->ecas.push_back(std::move(eca));
-
-	int seen = 0;
-	for (const ECA& item : trigger->ecas) {
-		if (static_cast<int32_t>(item.type) == type) {
-			seen++;
-		}
-	}
-	return seen - 1;
-}
-
-int32_t hive_trigger_remove_eca(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
-	Trigger* trigger = trigger_at(handle, index);
-	if (trigger == nullptr || eca_index < 0) {
-		return -1;
-	}
-
-	int seen = 0;
-	for (auto iterator = trigger->ecas.begin(); iterator != trigger->ecas.end(); ++iterator) {
-		if (static_cast<int32_t>(iterator->type) != type) {
-			continue;
-		}
-		if (seen == eca_index) {
-			trigger->ecas.erase(iterator);
-			return 0;
-		}
-		seen++;
-	}
-	return -1;
 }
 
 int32_t hive_create_trigger(void* handle, const char* name, const int32_t parent_id) {

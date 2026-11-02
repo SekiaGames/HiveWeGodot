@@ -331,17 +331,33 @@ int32_t hive_trigger_initially_on(void* handle, int32_t index);
 int32_t hive_trigger_is_script(void* handle, int32_t index);
 const char* hive_trigger_custom_text(void* handle, int32_t index);
 int32_t hive_set_trigger_custom_text(void* handle, int32_t index, const char* value);
+/* ECA 是棵树：先 build 展开成节点列表，再按下标取字段。
+   节点带 depth（0 是顶层）与 group（在父节点里的分组序号：
+   If/Then/Else 是 0/1/2，And/Or 与循环只有 0）。 */
+int32_t hive_trigger_build_nodes(void* handle, int32_t trigger);
+int32_t hive_trigger_node_depth(void* handle, int32_t trigger, int32_t node);
 /* type：0 事件、1 条件、2 动作。 */
-int32_t hive_trigger_eca_count(void* handle, int32_t index, int32_t type);
-const char* hive_trigger_eca_name(void* handle, int32_t index, int32_t type, int32_t eca);
-int32_t hive_trigger_eca_parameter_count(void* handle, int32_t index, int32_t type, int32_t eca);
+int32_t hive_trigger_node_type(void* handle, int32_t trigger, int32_t node);
+int32_t hive_trigger_node_group(void* handle, int32_t trigger, int32_t node);
+/* 分组种类：0 无、1 单列表（And/Or、ForLoop）、3 If/Then/Else。 */
+int32_t hive_trigger_node_group_kind(void* handle, int32_t trigger, int32_t node);
+const char* hive_trigger_node_name(void* handle, int32_t trigger, int32_t node);
+/* 参数代入后的整句文字，和 HiveWE 的 get_parameters_names 一致。 */
+const char* hive_trigger_node_display(void* handle, int32_t trigger, int32_t node);
+
+int32_t hive_trigger_node_parameter_count(void* handle, int32_t trigger, int32_t node);
 /* 参数类型：-1 无效、0 预设、1 变量、2 函数、3 字符串。 */
-int32_t hive_trigger_eca_parameter_type(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
-const char* hive_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
-int32_t hive_set_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter,
-											 const char* value);
+int32_t hive_trigger_node_parameter_type(void* handle, int32_t trigger, int32_t node, int32_t parameter);
+const char* hive_trigger_node_parameter_value(void* handle, int32_t trigger, int32_t node, int32_t parameter);
 /* 参数在 TriggerData 里的类型名，如 unitcode。 */
-const char* hive_trigger_eca_parameter_type_name(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
+const char* hive_trigger_node_parameter_type_name(void* handle, int32_t trigger, int32_t node, int32_t parameter);
+int32_t hive_set_trigger_node_parameter(void* handle, int32_t trigger, int32_t node, int32_t parameter,
+									   const char* value);
+
+/* 往 parent（-1 是顶层）下面加一个 ECA，参数按 TriggerData 的定义留空。 */
+int32_t hive_trigger_add_node(void* handle, int32_t trigger, int32_t type, const char* name, int32_t parent,
+							  int32_t group);
+int32_t hive_trigger_remove_node(void* handle, int32_t trigger, int32_t node);
 
 /* 该类型的预设值（TriggerParams 段里属于这个类型的行）。 */
 int32_t hive_trigger_preset_count(void* handle, const char* type_name);
@@ -351,9 +367,6 @@ const char* hive_trigger_preset_display(void* handle, const char* type_name, int
 /* 可用的 ECA 函数列表。type：0 事件、1 条件、2 动作。 */
 int32_t hive_trigger_function_count(void* handle, int32_t type);
 const char* hive_trigger_function_name(void* handle, int32_t type, int32_t index);
-/* 新增 ECA，参数按 TriggerData 的定义留空。返回新 ECA 在同类型里的序号。 */
-int32_t hive_trigger_add_eca(void* handle, int32_t index, int32_t type, const char* name);
-int32_t hive_trigger_remove_eca(void* handle, int32_t index, int32_t type, int32_t eca);
 
 /* 新建触发器，挂在 parent_id 这个分类下，返回新索引。 */
 int32_t hive_create_trigger(void* handle, const char* name, int32_t parent_id);

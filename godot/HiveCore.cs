@@ -485,25 +485,46 @@ public static class HiveCore
     private static extern int hive_set_trigger_custom_text(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_trigger_eca_count(IntPtr hive, int index, int type);
+    private static extern int hive_trigger_build_nodes(IntPtr hive, int trigger);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr hive_trigger_eca_name(IntPtr hive, int index, int type, int eca);
+    private static extern int hive_trigger_node_depth(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_trigger_eca_parameter_count(IntPtr hive, int index, int type, int eca);
+    private static extern int hive_trigger_node_type(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_trigger_eca_parameter_type(IntPtr hive, int index, int type, int eca, int parameter);
+    private static extern int hive_trigger_node_group(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr hive_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter);
+    private static extern int hive_trigger_node_group_kind(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_set_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+    private static extern IntPtr hive_trigger_node_name(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr hive_trigger_eca_parameter_type_name(IntPtr hive, int index, int type, int eca, int parameter);
+    private static extern IntPtr hive_trigger_node_display(IntPtr hive, int trigger, int node);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_node_parameter_count(IntPtr hive, int trigger, int node);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_node_parameter_type(IntPtr hive, int trigger, int node, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_node_parameter_value(IntPtr hive, int trigger, int node, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_node_parameter_type_name(IntPtr hive, int trigger, int node, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_node_parameter(IntPtr hive, int trigger, int node, int parameter, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_add_node(IntPtr hive, int trigger, int type, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int parent, int group);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_remove_node(IntPtr hive, int trigger, int node);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_trigger_preset_count(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string typeName);
@@ -519,12 +540,6 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_trigger_function_name(IntPtr hive, int type, int index);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_trigger_add_eca(IntPtr hive, int index, int type, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int hive_trigger_remove_eca(IntPtr hive, int index, int type, int eca);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_create_trigger(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int parentId);
@@ -1041,25 +1056,40 @@ public static class HiveCore
 
     public static void SetTriggerCustomText(int index, string value) => hive_set_trigger_custom_text(handle, index, value);
 
-    public static int TriggerEcaCount(int index, int type) => hive_trigger_eca_count(handle, index, type);
+    public static int TriggerBuildNodes(int index) => hive_trigger_build_nodes(handle, index);
 
-    public static string? TriggerEcaName(int index, int type, int eca)
-        => ReadString(hive_trigger_eca_name(handle, index, type, eca));
+    public static int TriggerNodeType(int trigger, int node) => hive_trigger_node_type(handle, trigger, node);
 
-    public static int TriggerEcaParameterCount(int index, int type, int eca)
-        => hive_trigger_eca_parameter_count(handle, index, type, eca);
+    public static int TriggerNodeDepth(int trigger, int node) => hive_trigger_node_depth(handle, trigger, node);
 
-    public static int TriggerEcaParameterType(int index, int type, int eca, int parameter)
-        => hive_trigger_eca_parameter_type(handle, index, type, eca, parameter);
+    public static int TriggerNodeGroup(int trigger, int node) => hive_trigger_node_group(handle, trigger, node);
 
-    public static string? TriggerEcaParameterValue(int index, int type, int eca, int parameter)
-        => ReadString(hive_trigger_eca_parameter_value(handle, index, type, eca, parameter));
+    public static int TriggerNodeGroupKind(int trigger, int node) => hive_trigger_node_group_kind(handle, trigger, node);
 
-    public static bool SetTriggerEcaParameterValue(int index, int type, int eca, int parameter, string value)
-        => hive_set_trigger_eca_parameter_value(handle, index, type, eca, parameter, value) == 0;
+    public static string? TriggerNodeName(int trigger, int node) => ReadString(hive_trigger_node_name(handle, trigger, node));
 
-    public static string? TriggerEcaParameterTypeName(int index, int type, int eca, int parameter)
-        => ReadString(hive_trigger_eca_parameter_type_name(handle, index, type, eca, parameter));
+    public static string? TriggerNodeDisplay(int trigger, int node)
+        => ReadString(hive_trigger_node_display(handle, trigger, node));
+
+    public static int TriggerNodeParameterCount(int trigger, int node)
+        => hive_trigger_node_parameter_count(handle, trigger, node);
+
+    public static int TriggerNodeParameterType(int trigger, int node, int parameter)
+        => hive_trigger_node_parameter_type(handle, trigger, node, parameter);
+
+    public static string? TriggerNodeParameterValue(int trigger, int node, int parameter)
+        => ReadString(hive_trigger_node_parameter_value(handle, trigger, node, parameter));
+
+    public static string? TriggerNodeParameterTypeName(int trigger, int node, int parameter)
+        => ReadString(hive_trigger_node_parameter_type_name(handle, trigger, node, parameter));
+
+    public static bool SetTriggerNodeParameter(int trigger, int node, int parameter, string value)
+        => hive_set_trigger_node_parameter(handle, trigger, node, parameter, value) == 0;
+
+    public static bool AddTriggerNode(int trigger, int type, string name, int parent, int group)
+        => hive_trigger_add_node(handle, trigger, type, name, parent, group) == 0;
+
+    public static bool RemoveTriggerNode(int trigger, int node) => hive_trigger_remove_node(handle, trigger, node) == 0;
 
     public static int TriggerPresetCount(string typeName) => hive_trigger_preset_count(handle, typeName);
 
@@ -1073,10 +1103,6 @@ public static class HiveCore
 
     public static string? TriggerFunctionName(int type, int index)
         => ReadString(hive_trigger_function_name(handle, type, index));
-
-    public static int AddTriggerEca(int index, int type, string name) => hive_trigger_add_eca(handle, index, type, name);
-
-    public static bool RemoveTriggerEca(int index, int type, int eca) => hive_trigger_remove_eca(handle, index, type, eca) == 0;
 
     public static int CreateTrigger(string name, int parentId) => hive_create_trigger(handle, name, parentId);
 

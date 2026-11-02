@@ -12,7 +12,12 @@ public partial class TriggerWindow : AcceptDialog
     private TextEdit descriptionEdit = null!;
     private CheckBox enabledBox = null!;
     private CheckBox initiallyBox = null!;
-    private VBoxContainer ecaColumn = null!;
+    private Tree ecaTree = null!;
+    private VBoxContainer ecaDetail = null!;
+    private readonly Dictionary<int, TreeItem> ecaItems = new();
+    private readonly Dictionary<TreeItem, (int Parent, int Group)> groupTargets = new();
+    private readonly Dictionary<TreeItem, int> sectionTypes = new();
+    private int currentEcaNode = -1;
     private VBoxContainer scriptBox = null!;
     private CodeEdit globalScript = null!;
     private Label status = null!;
@@ -132,16 +137,41 @@ public partial class TriggerWindow : AcceptDialog
         scriptBox.AddThemeConstantOverride("separation", 4);
         right.AddChild(scriptBox);
 
-        var scroll = new ScrollContainer
+        var ecaButtons = new HBoxContainer();
+        ecaButtons.AddThemeConstantOverride("separation", 6);
+        right.AddChild(ecaButtons);
+
+        foreach ((string label, int type) in new[] { ("添加事件", 0), ("添加条件", 1), ("添加动作", 2) })
+        {
+            int kind = type;
+            var addButton = new Button { Text = label };
+            addButton.Pressed += () => ShowFunctionPicker(kind, label[2..]);
+            ecaButtons.AddChild(addButton);
+        }
+
+        var ecaSplit = new VSplitContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        right.AddChild(ecaSplit);
+
+        ecaTree = new Tree
+        {
+            HideRoot = true,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 160),
+        };
+        ecaTree.ItemSelected += OnEcaSelected;
+        ecaSplit.AddChild(ecaTree);
+
+        var detailScroll = new ScrollContainer
         {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(0, 120),
         };
-        right.AddChild(scroll);
+        ecaSplit.AddChild(detailScroll);
 
-        ecaColumn = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        ecaColumn.AddThemeConstantOverride("separation", 4);
-        scroll.AddChild(ecaColumn);
+        ecaDetail = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        ecaDetail.AddThemeConstantOverride("separation", 4);
+        detailScroll.AddChild(ecaDetail);
 
         var scriptPage = new VBoxContainer
         {
@@ -324,7 +354,7 @@ public partial class TriggerWindow : AcceptDialog
             descriptionEdit.Text = string.Empty;
             enabledBox.ButtonPressed = false;
             initiallyBox.ButtonPressed = false;
-            ClearEca();
+            BuildEcaTree(-1);
             return;
         }
 
@@ -349,65 +379,138 @@ public partial class TriggerWindow : AcceptDialog
             scriptBox.AddChild(edit);
         }
 
-        ClearEca();
-        ListEca(index, 0, "事件");
-        ListEca(index, 1, "条件");
-        ListEca(index, 2, "动作");
+        BuildEcaTree(index);
     }
 
-    private void ListEca(int index, int type, string title)
+    private void BuildEcaTree(int index)
     {
-        int count = HiveCore.TriggerEcaCount(index, type);
+        ecaTree.Clear();
+        ecaItems.Clear();
+        groupTargets.Clear();
+        sectionTypes.Clear();
+        currentEcaNode = -1;
+        ClearEcaDetail();
 
-        var header = new HBoxContainer();
-        header.AddChild(new Label
+        TreeItem root = ecaTree.CreateItem();
+        var sections = new TreeItem[3];
+        string[] titles = { "事件", "条件", "动作" };
+        for (int t = 0; t < 3; t++)
         {
-            Text = $"{title}（{count}）",
-            Modulate = Muted,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        });
-        var add = new Button
-        {
-            Text = "添加",
-            TooltipText = $"添加{title}",
-            CustomMinimumSize = new Vector2(56, 0),
-        };
-        add.Pressed += () => ShowFunctionPicker(index, type, title);
-        header.AddChild(add);
-        ecaColumn.AddChild(header);
+            sections[t] = ecaTree.CreateItem(root);
+            sections[t].SetText(0, titles[t]);
+            sections[t].SetMetadata(0, -2);
+            sections[t].SetCustomColor(0, Muted);
+            sectionTypes[sections[t]] = t;
+        }
 
-        for (int i = 0; i < count; i++)
+        if (index >= 0)
         {
-            ecaColumn.AddChild(BuildEcaBlock(index, type, i));
+            int nodes = HiveCore.TriggerBuildNodes(index);
+            var groupHeaders = new Dictionary<int, List<TreeItem>>();
+
+            for (int node = 0; node < nodes; node++)
+            {
+                int depth = HiveCore.TriggerNodeDepth(index, node);
+                int type = HiveCore.TriggerNodeType(index, node);
+                int group = HiveCore.TriggerNodeGroup(index, node);
+
+                TreeItem parentItem = depth == 0
+                    ? sections[type is >= 0 and < 3 ? type : 2]
+                    : groupHeaders.TryGetValue(depth, out List<TreeItem>? headers) && group >= 0 && group < headers.Count
+                        ? headers[group]
+                        : sections[type is >= 0 and < 3 ? type : 2];
+
+                TreeItem item = ecaTree.CreateItem(parentItem);
+                item.SetText(0, HiveCore.TriggerNodeDisplay(index, node) ?? "?");
+                item.SetMetadata(0, node);
+                ecaItems[node] = item;
+
+                int kind = HiveCore.TriggerNodeGroupKind(index, node);
+                if (kind == 0)
+                {
+                    continue;
+                }
+
+                string name = HiveCore.TriggerNodeName(index, node) ?? string.Empty;
+                string[] labels = kind == 3
+                    ? new[] { "If - 条件", "Then - 动作", "Else - 动作" }
+                    : new[] { name.StartsWith("For") ? "循环 - 动作" : "条件" };
+
+                var created = new List<TreeItem>();
+                for (int g = 0; g < labels.Length; g++)
+                {
+                    TreeItem header = ecaTree.CreateItem(item);
+                    header.SetText(0, labels[g]);
+                    header.SetMetadata(0, -1);
+                    header.SetCustomColor(0, Muted);
+                    groupTargets[header] = (node, g);
+                    created.Add(header);
+                }
+                groupHeaders[depth + 1] = created;
+            }
+        }
+
+        foreach (TreeItem section in sections)
+        {
+            section.SetCollapsed(false);
         }
     }
 
-    private Control BuildEcaBlock(int index, int type, int eca)
+    public void SelectFirstEca()
     {
-        var block = new VBoxContainer();
-        block.AddThemeConstantOverride("separation", 2);
-
-        var head = new HBoxContainer();
-        head.AddChild(new Label
+        TreeItem? best = null;
+        foreach (var pair in ecaItems)
         {
-            Text = HiveCore.TriggerEcaName(index, type, eca) ?? "?",
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            if (HiveCore.TriggerNodeParameterCount(current, pair.Key) == 0)
+            {
+                continue;
+            }
+            if (best == null || pair.Key < (int)best.GetMetadata(0))
+            {
+                best = pair.Value;
+            }
+        }
+
+        if (best == null)
+        {
+            return;
+        }
+        best.Select(0);
+        ecaTree.ScrollToItem(best);
+    }
+
+    private void OnEcaSelected()
+    {
+        TreeItem? item = ecaTree.GetSelected();
+        if (item == null)
+        {
+            return;
+        }
+
+        int node = (int)item.GetMetadata(0);
+        currentEcaNode = node;
+        ClearEcaDetail();
+        if (node >= 0 && current >= 0)
+        {
+            ShowEcaDetail(current, node);
+        }
+    }
+
+    private void ShowEcaDetail(int index, int node)
+    {
+        int depth = HiveCore.TriggerNodeDepth(index, node);
+        ecaDetail.AddChild(new Label
+        {
+            Text = $"{HiveCore.TriggerNodeName(index, node)}　第 {depth + 1} 层",
+            Modulate = Muted,
         });
-        var remove = new Button
-        {
-            Text = "×",
-            TooltipText = "删除这一条",
-            CustomMinimumSize = new Vector2(32, 0),
-        };
-        remove.Pressed += () =>
-        {
-            HiveCore.RemoveTriggerEca(index, type, eca);
-            ShowTrigger(index);
-        };
-        head.AddChild(remove);
-        block.AddChild(head);
 
-        int parameters = HiveCore.TriggerEcaParameterCount(index, type, eca);
+        int parameters = HiveCore.TriggerNodeParameterCount(index, node);
+        if (parameters == 0)
+        {
+            ecaDetail.AddChild(new Label { Text = "没有参数", Modulate = Muted });
+        }
+
         for (int p = 0; p < parameters; p++)
         {
             int slot = p;
@@ -415,28 +518,64 @@ public partial class TriggerWindow : AcceptDialog
             row.AddThemeConstantOverride("separation", 6);
             row.AddChild(new Label
             {
-                Text = HiveCore.TriggerEcaParameterTypeName(index, type, eca, p) ?? $"参数 {p + 1}",
+                Text = HiveCore.TriggerNodeParameterTypeName(index, node, p) ?? $"参数 {p + 1}",
                 CustomMinimumSize = new Vector2(110, 0),
                 Modulate = Muted,
             });
 
             var edit = new LineEdit
             {
-                Text = HiveCore.TriggerEcaParameterValue(index, type, eca, p) ?? string.Empty,
+                Text = HiveCore.TriggerNodeParameterValue(index, node, p) ?? string.Empty,
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
-            edit.TextSubmitted += text => HiveCore.SetTriggerEcaParameterValue(index, type, eca, slot, text);
-            edit.FocusExited += () => HiveCore.SetTriggerEcaParameterValue(index, type, eca, slot, edit.Text);
+            edit.TextSubmitted += text => CommitEcaParameter(node, slot, text);
+            edit.FocusExited += () => CommitEcaParameter(node, slot, edit.Text);
             row.AddChild(edit);
 
-            block.AddChild(row);
+            ecaDetail.AddChild(row);
         }
 
-        return block;
+        var remove = new Button { Text = "删除这一条" };
+        remove.Pressed += () =>
+        {
+            if (HiveCore.RemoveTriggerNode(index, node))
+            {
+                ShowTrigger(index);
+            }
+        };
+        ecaDetail.AddChild(remove);
     }
 
-    private void ShowFunctionPicker(int index, int type, string title)
+    private void CommitEcaParameter(int node, int parameter, string value)
     {
+        if (current < 0)
+        {
+            return;
+        }
+        HiveCore.SetTriggerNodeParameter(current, node, parameter, value);
+        if (ecaItems.TryGetValue(node, out TreeItem? item))
+        {
+            item.SetText(0, HiveCore.TriggerNodeDisplay(current, node) ?? "?");
+        }
+    }
+
+    private void ShowFunctionPicker(int type, string title)
+    {
+        if (current < 0)
+        {
+            status.Text = "先选一个触发器";
+            return;
+        }
+
+        int parent = -1;
+        int group = 0;
+        TreeItem? selected = ecaTree.GetSelected();
+        if (selected != null && groupTargets.TryGetValue(selected, out (int Parent, int Group) target))
+        {
+            parent = target.Parent;
+            group = target.Group;
+        }
+
         var dialog = new AcceptDialog
         {
             Title = $"添加{title}",
@@ -476,13 +615,13 @@ public partial class TriggerWindow : AcceptDialog
 
         dialog.Confirmed += () =>
         {
-            int[] selected = list.GetSelectedItems();
-            if (selected.Length > 0)
+            int[] chosen = list.GetSelectedItems();
+            if (chosen.Length > 0)
             {
-                string name = list.GetItemText(selected[0]);
-                if (HiveCore.AddTriggerEca(index, type, name) >= 0)
+                string name = list.GetItemText(chosen[0]);
+                if (HiveCore.AddTriggerNode(current, type, name, parent, group))
                 {
-                    ShowTrigger(index);
+                    ShowTrigger(current);
                 }
             }
             dialog.QueueFree();
@@ -494,20 +633,20 @@ public partial class TriggerWindow : AcceptDialog
         dialog.PopupCentered(new Vector2I(460, 520));
     }
 
+    private void ClearEcaDetail()
+    {
+        foreach (Node child in ecaDetail.GetChildren())
+        {
+            ecaDetail.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
+
     private void ClearScript()
     {
         foreach (Node child in scriptBox.GetChildren())
         {
             scriptBox.RemoveChild(child);
-            child.QueueFree();
-        }
-    }
-
-    private void ClearEca()
-    {
-        foreach (Node child in ecaColumn.GetChildren())
-        {
-            ecaColumn.RemoveChild(child);
             child.QueueFree();
         }
     }
