@@ -9,7 +9,7 @@
 
 | 阶段 | 状态 |
 |---|---|
-| 依赖 | 部分装好：glm / tbb / abseil / jpeg-turbo / nlohmann-json。待装：cmake / stormlib / bullet / vulkan-headers |
+| 依赖 | 部分装好：glm / tbb / abseil / jpeg-turbo / nlohmann-json。待装：cmake / stormlib / bullet / vulkan-volk |
 | 去模块化 | 完成，94 个模块 + 67 个 cpp，产物在 `native/src` |
 | 去 Qt | 进行中：`utilities/rects` 与 `base/camera` 已编译通过（靠 `native/include` 的 Qt 兼容层） |
 | 去 Vulkan | 未开始，且比预估复杂（见步骤 3） |
@@ -57,13 +57,29 @@ curl -L -o third_party/ankerl/unordered_dense.h \
   https://raw.githubusercontent.com/martinus/unordered_dense/main/include/ankerl/unordered_dense.h
 ```
 
-还有 Vulkan 那一套，绕不开：
+Vulkan 用本机已装的 LunarG SDK，不另外装 molten-vk：
 
 ```bash
-brew install vulkan-headers molten-vk
+export VULKAN_SDK=/Volumes/Data/Users/sekia/VulkanSDK/1.4.328.1/macOS
 ```
 
-`volk.h` / `vk_mem_alloc.h` / `VkBootstrap.h` 三个头文件要手动放到 `third_party/` 下（brew 只有 vulkan-headers）。
+SDK 里有 `include/vulkan/vulkan.h` 和 `lib/libMoltenVK.dylib`，实测能编能跑（Vulkan 1.4.328）。
+
+SDK 不含 volk，单独装（注意别装成 DSP 那个 `volk`，要 `vulkan-volk`）：
+
+```bash
+brew install vulkan-volk
+```
+
+三个第三方头都要有，缺一个 `resources/` 层就编不动：`resources/ground_texture.hpp`、`skinned_mesh.hpp` 都 `#include "VkContext.hpp"`，而 `vk_context.hpp` 用 vk-bootstrap 建实例、用 VMA 分配内存。
+
+| 头 | 来源 |
+|---|---|
+| `volk.h` | `brew install vulkan-volk` |
+| `vk_mem_alloc.h` | https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/master/include/vk_mem_alloc.h |
+| `VkBootstrap.h` + `VkBootstrap.cpp` | https://github.com/charles-lunarg/vk-bootstrap |
+
+放 `third_party/` 下，`-I` 指过去。
 
 ## 步骤 2：拉源码并去模块化
 
@@ -135,7 +151,7 @@ native/include/
 
 | 路 | 做法 | 代价 |
 |---|---|---|
-| A. 装 Vulkan 依赖 | vulkan-headers + volk + VMA + vk-bootstrap，让包装层照原样编 | 依赖变重，但代码不用动 |
+| A. 装 Vulkan 依赖 | 本地 SDK + `vulkan-volk` + VMA 空壳头，让包装层照原样编 | 依赖变重，但代码不用动 |
 | B. 重写 resources 层 | 把 `VkTexture` 换成 CPU 侧的 `Image` 数据 | 1272 行里的大半要重写 |
 
 **先走 A**：代码一行不改，等核心跑通、确认地形数据能出来，再评估要不要换 B。
