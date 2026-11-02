@@ -49,6 +49,7 @@ public partial class Main : Node3D
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
     private readonly string infoTest = OS.GetEnvironment("HIVE_INFO_TEST");
     private readonly string resizeTest = OS.GetEnvironment("HIVE_RESIZE_TEST");
+    private readonly string triggerTest = OS.GetEnvironment("HIVE_TRIGGER_TEST");
     private string customTestId = string.Empty;
     private int customTestCategory;
     private int frames;
@@ -163,6 +164,7 @@ public partial class Main : Node3D
         ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MapInfoRequested += ShowMapInfoDialog;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
+        ui.TriggerRequested += ShowTriggerWindow;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -852,6 +854,14 @@ public partial class Main : Node3D
         dialog.PopupCentered(new Vector2I(600, 420));
     }
 
+    private void ShowTriggerWindow()
+    {
+        var window = new TriggerWindow();
+        root.AddChild(window);
+        window.Build();
+        window.PopupCentered(new Vector2I(860, 600));
+    }
+
     private void RebuildAfterResize()
     {
         CloseEditor();
@@ -1143,6 +1153,22 @@ public partial class Main : Node3D
         }
 
         frames++;
+
+        if (triggerTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                ShowTriggerWindow();
+            }
+            else if (frames == 16)
+            {
+                Capture(screenshotPath);
+                GD.Print($"触发器 {HiveCore.TriggerCount} 个，分类 {HiveCore.TriggerCategoryCount} 个，"
+                    + $"变量 {HiveCore.TriggerVariableCount} 个");
+                GetTree().Quit();
+            }
+            return;
+        }
 
         if (resizeTest.Length > 0)
         {

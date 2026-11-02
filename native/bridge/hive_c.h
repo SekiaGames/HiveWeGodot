@@ -307,6 +307,41 @@ int32_t hive_resize_map(void* handle, int32_t delta_left, int32_t delta_right, i
 /* 设置可玩区域：四边各留多少不可玩，单位是 tile。 */
 int32_t hive_set_playable_area(void* handle, int32_t left, int32_t right, int32_t top, int32_t bottom);
 
+/* 触发器。分类、触发器、变量都来自 war3map.wtg。
+   分类和触发器靠 parent_id 组树，顶层节点的 parent_id 是 0。 */
+int32_t hive_trigger_category_count(void* handle);
+int32_t hive_trigger_category_id(void* handle, int32_t index);
+const char* hive_trigger_category_name(void* handle, int32_t index);
+int32_t hive_trigger_category_parent(void* handle, int32_t index);
+
+int32_t hive_trigger_count(void* handle);
+int32_t hive_trigger_id(void* handle, int32_t index);
+const char* hive_trigger_name(void* handle, int32_t index);
+const char* hive_trigger_description(void* handle, int32_t index);
+int32_t hive_trigger_parent(void* handle, int32_t index);
+int32_t hive_trigger_is_comment(void* handle, int32_t index);
+int32_t hive_trigger_is_enabled(void* handle, int32_t index);
+int32_t hive_trigger_initially_on(void* handle, int32_t index);
+/* type：0 事件、1 条件、2 动作。 */
+int32_t hive_trigger_eca_count(void* handle, int32_t index, int32_t type);
+const char* hive_trigger_eca_name(void* handle, int32_t index, int32_t type, int32_t eca);
+int32_t hive_trigger_eca_parameter_count(void* handle, int32_t index, int32_t type, int32_t eca);
+
+int32_t hive_set_trigger_name(void* handle, int32_t index, const char* value);
+int32_t hive_set_trigger_description(void* handle, int32_t index, const char* value);
+int32_t hive_set_trigger_enabled(void* handle, int32_t index, int32_t enabled);
+int32_t hive_set_trigger_initially_on(void* handle, int32_t index, int32_t on);
+
+int32_t hive_trigger_variable_count(void* handle);
+const char* hive_trigger_variable_name(void* handle, int32_t index);
+const char* hive_trigger_variable_type(void* handle, int32_t index);
+int32_t hive_trigger_variable_is_array(void* handle, int32_t index);
+const char* hive_trigger_variable_initial(void* handle, int32_t index);
+
+/* 全局脚本，war3map.j 里用户自己写的那段。 */
+const char* hive_map_global_script(void* handle);
+int32_t hive_set_map_global_script(void* handle, const char* value);
+
 #ifdef __cplusplus
 }
 #endif

@@ -428,6 +428,85 @@ public static class HiveCore
     private static extern int hive_set_playable_area(IntPtr hive, int left, int right, int top, int bottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_category_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_category_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_category_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_category_parent(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_description(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_parent(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_is_comment(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_is_enabled(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_initially_on(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_eca_count(IntPtr hive, int index, int type);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_eca_name(IntPtr hive, int index, int type, int eca);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_eca_parameter_count(IntPtr hive, int index, int type, int eca);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_name(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_description(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_enabled(IntPtr hive, int index, int enabled);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_initially_on(IntPtr hive, int index, int on);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_variable_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_variable_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_variable_type(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_variable_is_array(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_variable_initial(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_global_script(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_global_script(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_undo(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -863,6 +942,57 @@ public static class HiveCore
 
     public static int SetPlayableArea(int left, int right, int top, int bottom)
         => hive_set_playable_area(handle, left, right, top, bottom);
+
+    public static int TriggerCategoryCount => hive_trigger_category_count(handle);
+
+    public static (int Id, string Name, int Parent) TriggerCategory(int index)
+        => (hive_trigger_category_id(handle, index),
+            ReadString(hive_trigger_category_name(handle, index)) ?? string.Empty,
+            hive_trigger_category_parent(handle, index));
+
+    public static int TriggerCount => hive_trigger_count(handle);
+
+    public static (int Id, string Name, int Parent) Trigger(int index)
+        => (hive_trigger_id(handle, index),
+            ReadString(hive_trigger_name(handle, index)) ?? string.Empty,
+            hive_trigger_parent(handle, index));
+
+    public static string? TriggerDescription(int index) => ReadString(hive_trigger_description(handle, index));
+
+    public static bool TriggerIsComment(int index) => hive_trigger_is_comment(handle, index) != 0;
+
+    public static bool TriggerIsEnabled(int index) => hive_trigger_is_enabled(handle, index) != 0;
+
+    public static bool TriggerInitiallyOn(int index) => hive_trigger_initially_on(handle, index) != 0;
+
+    public static int TriggerEcaCount(int index, int type) => hive_trigger_eca_count(handle, index, type);
+
+    public static string? TriggerEcaName(int index, int type, int eca)
+        => ReadString(hive_trigger_eca_name(handle, index, type, eca));
+
+    public static int TriggerEcaParameterCount(int index, int type, int eca)
+        => hive_trigger_eca_parameter_count(handle, index, type, eca);
+
+    public static bool SetTriggerName(int index, string value) => hive_set_trigger_name(handle, index, value) == 0;
+
+    public static bool SetTriggerDescription(int index, string value)
+        => hive_set_trigger_description(handle, index, value) == 0;
+
+    public static void SetTriggerEnabled(int index, bool enabled) => hive_set_trigger_enabled(handle, index, enabled ? 1 : 0);
+
+    public static void SetTriggerInitiallyOn(int index, bool on) => hive_set_trigger_initially_on(handle, index, on ? 1 : 0);
+
+    public static int TriggerVariableCount => hive_trigger_variable_count(handle);
+
+    public static (string Name, string Type, bool IsArray, string Initial) TriggerVariable(int index)
+        => (ReadString(hive_trigger_variable_name(handle, index)) ?? string.Empty,
+            ReadString(hive_trigger_variable_type(handle, index)) ?? string.Empty,
+            hive_trigger_variable_is_array(handle, index) != 0,
+            ReadString(hive_trigger_variable_initial(handle, index)) ?? string.Empty);
+
+    public static string? MapGlobalScript => ReadString(hive_map_global_script(handle));
+
+    public static bool SetMapGlobalScript(string value) => hive_set_map_global_script(handle, value) == 0;
 
     private static string? ReadString(IntPtr pointer)
         => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);

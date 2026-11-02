@@ -2426,4 +2426,243 @@ int32_t hive_set_playable_area(void* handle, const int32_t left, const int32_t r
 	return 0;
 }
 
+int32_t hive_trigger_category_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->triggers.categories.size());
+}
+
+int32_t hive_trigger_category_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.categories;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	return list[static_cast<std::size_t>(index)].id;
+}
+
+const char* hive_trigger_category_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.categories;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	return list[static_cast<std::size_t>(index)].name.c_str();
+}
+
+int32_t hive_trigger_category_parent(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return 0;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.categories;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return 0;
+	}
+	return list[static_cast<std::size_t>(index)].parent_id;
+}
+
+int32_t hive_trigger_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->triggers.triggers.size());
+}
+
+Trigger* trigger_at(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->triggers.triggers;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	return &list[static_cast<std::size_t>(index)];
+}
+
+int32_t hive_trigger_id(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger == nullptr ? -1 : trigger->id;
+}
+
+const char* hive_trigger_name(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger == nullptr ? nullptr : trigger->name.c_str();
+}
+
+const char* hive_trigger_description(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger == nullptr ? nullptr : trigger->description.c_str();
+}
+
+int32_t hive_trigger_parent(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger == nullptr ? 0 : trigger->parent_id;
+}
+
+int32_t hive_trigger_is_comment(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger != nullptr && trigger->is_comment ? 1 : 0;
+}
+
+int32_t hive_trigger_is_enabled(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger != nullptr && trigger->is_enabled ? 1 : 0;
+}
+
+int32_t hive_trigger_initially_on(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger != nullptr && trigger->initially_on ? 1 : 0;
+}
+
+int32_t hive_trigger_eca_count(void* handle, const int32_t index, const int32_t type) {
+	const Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr) {
+		return 0;
+	}
+	int count = 0;
+	for (const ECA& eca : trigger->ecas) {
+		if (static_cast<int32_t>(eca.type) == type) {
+			count++;
+		}
+	}
+	return count;
+}
+
+const ECA* eca_at(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr || eca_index < 0) {
+		return nullptr;
+	}
+	int seen = 0;
+	for (const ECA& eca : trigger->ecas) {
+		if (static_cast<int32_t>(eca.type) != type) {
+			continue;
+		}
+		if (seen == eca_index) {
+			return &eca;
+		}
+		seen++;
+	}
+	return nullptr;
+}
+
+const char* hive_trigger_eca_name(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
+	const ECA* eca = eca_at(handle, index, type, eca_index);
+	return eca == nullptr ? nullptr : eca->name.c_str();
+}
+
+int32_t hive_trigger_eca_parameter_count(void* handle, const int32_t index, const int32_t type, const int32_t eca_index) {
+	const ECA* eca = eca_at(handle, index, type, eca_index);
+	return eca == nullptr ? 0 : static_cast<int32_t>(eca->parameters.size());
+}
+
+int32_t hive_set_trigger_name(void* handle, const int32_t index, const char* value) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr || value == nullptr) {
+		return -1;
+	}
+	trigger->name = value;
+	return 0;
+}
+
+int32_t hive_set_trigger_description(void* handle, const int32_t index, const char* value) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr || value == nullptr) {
+		return -1;
+	}
+	trigger->description = value;
+	return 0;
+}
+
+int32_t hive_set_trigger_enabled(void* handle, const int32_t index, const int32_t enabled) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr) {
+		return -1;
+	}
+	trigger->is_enabled = enabled != 0;
+	return 0;
+}
+
+int32_t hive_set_trigger_initially_on(void* handle, const int32_t index, const int32_t on) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr) {
+		return -1;
+	}
+	trigger->initially_on = on != 0;
+	return 0;
+}
+
+int32_t hive_trigger_variable_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->triggers.variables.size());
+}
+
+const char* hive_trigger_variable_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.variables;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	return list[static_cast<std::size_t>(index)].name.c_str();
+}
+
+const char* hive_trigger_variable_type(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.variables;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	return list[static_cast<std::size_t>(index)].type.c_str();
+}
+
+int32_t hive_trigger_variable_is_array(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return 0;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.variables;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return 0;
+	}
+	return list[static_cast<std::size_t>(index)].is_array ? 1 : 0;
+}
+
+const char* hive_trigger_variable_initial(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	const auto& list = static_cast<HiveHandle*>(handle)->map->triggers.variables;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	return list[static_cast<std::size_t>(index)].initial_value.c_str();
+}
+
+const char* hive_map_global_script(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->triggers.global_jass;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_global_script(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->triggers.global_jass = value;
+	return 0;
+}
+
 }
