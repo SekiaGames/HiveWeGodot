@@ -23,6 +23,7 @@ public partial class Main : Node3D
     private bool selectionIsUnit;
     private int selectionIndex = -1;
     private bool draggingObject;
+    private bool rotatingObject;
 
     private Vector3 focus;
     private float distance = 190f;
@@ -320,9 +321,16 @@ public partial class Main : Node3D
                     if (button.Pressed)
                     {
                         PickAt(button.Position);
-                        StartDrag();
+                        if (Input.IsKeyPressed(Key.Ctrl))
+                        {
+                            StartRotate(button.Position);
+                        }
+                        else
+                        {
+                            StartDrag();
+                        }
                     }
-                    else if (draggingObject)
+                    else if (draggingObject || rotatingObject)
                     {
                         EndDrag();
                     }
@@ -378,6 +386,13 @@ public partial class Main : Node3D
 
         hasHit = true;
         lastHit = hit;
+
+        if (rotatingObject && selectionIndex >= 0)
+        {
+            RotateToward(motion.Position);
+            UpdateStatus();
+            return;
+        }
 
         if (draggingObject && selectionIndex >= 0)
         {
@@ -475,9 +490,43 @@ public partial class Main : Node3D
         view.ShowSelection(selectionIsUnit, selectionIndex);
     }
 
+    private void StartRotate(Vector2 screen)
+    {
+        if (selectionIndex < 0 || !HiveCore.BeginMove(selectionIsUnit, selectionIndex))
+        {
+            return;
+        }
+        rotatingObject = true;
+        RotateToward(screen);
+    }
+
+    private void RotateToward(Vector2 screen)
+    {
+        if (!view.Pick(camera, screen, out Vector3 hit))
+        {
+            return;
+        }
+
+        HiveDoodad[] doodads = HiveCore.Doodads();
+        Vector3 spot = selectionIsUnit
+            ? new Vector3(HiveCore.Units()[selectionIndex].X, 0f, HiveCore.Units()[selectionIndex].Y)
+            : new Vector3(doodads[selectionIndex].X, 0f, doodads[selectionIndex].Y);
+
+        float angle = MathF.Atan2(hit.Z - spot.Z, hit.X - spot.X);
+        if (angle < 0f)
+        {
+            angle += MathF.PI * 2f;
+        }
+
+        HiveCore.SetObjectAngle(selectionIsUnit, selectionIndex, angle);
+        view.ShowDragGhost(selectionIsUnit, selectionIndex, spot.X, spot.Z, view.HeightAt(spot.X, spot.Z));
+        view.ShowSelection(selectionIsUnit, selectionIndex);
+    }
+
     private void EndDrag()
     {
         draggingObject = false;
+        rotatingObject = false;
         view.HideDragGhost();
         HiveCore.EndMove(selectionIsUnit, selectionIndex);
         ReloadObjects();
@@ -645,6 +694,14 @@ public partial class Main : Node3D
                 HiveCore.Undo();
                 HiveDoodad[] undone2 = HiveCore.Doodads();
                 GD.Print($"撤销移动后 #{0} 在 ({undone2[0].X:F1}, {undone2[0].Y:F1})");
+
+                float a0 = HiveCore.ObjectAngle(false, 0);
+                HiveCore.SetObjectAngle(false, 0, 1.5f);
+                float a1 = HiveCore.ObjectAngle(false, 0);
+                float u0 = HiveCore.ObjectAngle(true, 0);
+                HiveCore.SetObjectAngle(true, 0, 1.5f);
+                float u1 = HiveCore.ObjectAngle(true, 0);
+                GD.Print($"旋转：装饰物 {a0:F2} -> {a1:F2}，单位 {u0:F2} -> {u1:F2}");
 
                 GetTree().Quit();
             }

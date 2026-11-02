@@ -239,6 +239,12 @@ public static class HiveCore
     private static extern int hive_end_move(IntPtr hive, int isUnit, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_object_angle(IntPtr hive, int isUnit, int index, float targetAngle);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern float hive_object_angle(IntPtr hive, int isUnit, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_doodad_type_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -546,6 +552,11 @@ public static class HiveCore
         => hive_move_to(handle, isUnit ? 1 : 0, index, x, y) == 0;
 
     public static bool EndMove(bool isUnit, int index) => hive_end_move(handle, isUnit ? 1 : 0, index) == 0;
+
+    public static bool SetObjectAngle(bool isUnit, int index, float angle)
+        => hive_set_object_angle(handle, isUnit ? 1 : 0, index, angle) == 0;
+
+    public static float ObjectAngle(bool isUnit, int index) => hive_object_angle(handle, isUnit ? 1 : 0, index);
 
     public static int AddDoodad(string id, float x, float y, float z, float angle)
         => hive_add_doodad(handle, id, x, y, z, angle);

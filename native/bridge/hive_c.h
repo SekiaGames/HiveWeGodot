@@ -153,6 +153,12 @@ int32_t hive_selection_box(void* handle, int32_t is_unit, int32_t index, float* 
 int32_t hive_begin_move(void* handle, int32_t is_unit, int32_t index);
 int32_t hive_move_to(void* handle, int32_t is_unit, int32_t index, float x, float y);
 int32_t hive_end_move(void* handle, int32_t is_unit, int32_t index);
+
+/* 把对象转到 target_angle（弧度）。会按 slk 的 fixedrot 和路径图吸附角度，
+   装饰物走 Doodad::acceptable_angle，单位直接赋值。 */
+int32_t hive_set_object_angle(void* handle, int32_t is_unit, int32_t index, float target_angle);
+/* 读对象当前角度（弧度）。 */
+float hive_object_angle(void* handle, int32_t is_unit, int32_t index);
 /* 第 index 个装饰物的四字符 id，用于查模型。越界返回 NULL。 */
 const char* hive_doodad_id(void* handle, int32_t index);
 

@@ -1031,6 +1031,55 @@ int32_t hive_end_move(void* handle, const int32_t is_unit, const int32_t index) 
 	return 0;
 }
 
+int32_t hive_set_object_angle(void* handle, const int32_t is_unit, const int32_t index, const float target_angle) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+
+	if (is_unit != 0) {
+		auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return -1;
+		}
+		list[static_cast<std::size_t>(index)].angle = target_angle;
+		return 0;
+	}
+
+	auto& list = hive->map->doodads.doodads;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+
+	Doodad& doodad = list[static_cast<std::size_t>(index)];
+	doodad.angle = Doodad::acceptable_angle(doodad.id, doodad.pathing, doodad.angle, target_angle);
+	doodad.position = glm::vec3(Doodad::acceptable_position(doodad.position, doodad.pathing, doodad.angle),
+								doodad.position.z);
+	doodad.update(hive->map->terrain);
+	return 0;
+}
+
+float hive_object_angle(void* handle, const int32_t is_unit, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return 0.f;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+
+	if (is_unit != 0) {
+		const auto& list = hive->map->units.units;
+		if (static_cast<std::size_t>(index) >= list.size()) {
+			return 0.f;
+		}
+		return list[static_cast<std::size_t>(index)].angle;
+	}
+
+	const auto& list = hive->map->doodads.doodads;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return 0.f;
+	}
+	return list[static_cast<std::size_t>(index)].angle;
+}
+
 int32_t hive_selection_box(void* handle, const int32_t is_unit, const int32_t index, float* out) {
 	if (handle == nullptr || out == nullptr || index < 0) {
 		return -1;
