@@ -1,7 +1,7 @@
 #include "map_info_editor.h"
 
-#include "Globals.hpp"
-#include "Utilities.hpp"
+#include "globals.hpp"
+#include "utilities.hpp"
 
 namespace fs = std::filesystem;
 

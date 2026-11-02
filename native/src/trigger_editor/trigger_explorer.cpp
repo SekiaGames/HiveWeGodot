@@ -12,9 +12,9 @@
 #include "trigger_explorer.h"
 #include "HiveWE.h"
 
-#include "Triggers.hpp"
-#include "Utilities.hpp"
-#include "Globals.hpp"
+#include "triggers.hpp"
+#include "utilities.hpp"
+#include "globals.hpp"
 
 constexpr int map_header_id = 0;
 

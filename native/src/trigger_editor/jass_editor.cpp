@@ -5,7 +5,7 @@
 #include <QShortcut>
 
 #include "no_init_allocator.hpp"
-#include "Hierarchy.hpp"
+#include "hierarchy.hpp"
 
 int Styling::styleAt(int idx) const {
 	if (idx > 0) {

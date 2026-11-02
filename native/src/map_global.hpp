@@ -1,6 +1,6 @@
 #pragma once
 
 
-#include "Map.hpp"
+#include "map.hpp"
 
 inline Map* map = nullptr;

@@ -6,9 +6,9 @@
 #include <QSize>
 
 
-#include "Globals.hpp"
-#include "SLK.hpp"
-#include "TableModel.hpp"
+#include "globals.hpp"
+#include "slk.hpp"
+#include "table_model.hpp"
 
 class BaseListModel: public QIdentityProxyModel {
 	Q_OBJECT

@@ -2,10 +2,10 @@
 
 
 
-#include "Tileset.hpp"
-#include "Texture.hpp"
-#include "ResourceManager.hpp"
-#include "PathingMap.hpp"
+#include "tilesets.hpp"
+#include "texture.hpp"
+#include "resource_manager.hpp"
+#include "pathing_map.hpp"
 #include <QPushButton>
 #include <QPainter>
 

@@ -7,8 +7,8 @@
 #include <QStack>
 #include <set>
 
-#include "TextureIcon.hpp"
-#include "Globals.hpp"
+#include "texture_icon.hpp"
+#include "globals.hpp"
 
 constexpr int map_header_id = 0;
 

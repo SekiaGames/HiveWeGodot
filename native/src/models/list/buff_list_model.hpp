@@ -4,8 +4,8 @@
 #include <QSortFilterProxyModel>
 
 
-#include "BaseListModel.hpp"
-#include "Globals.hpp"
+#include "base_list_model.hpp"
+#include "globals.hpp"
 
 class BuffListModel: public BaseListModel {
 	Q_OBJECT

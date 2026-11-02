@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""把 HiveWE 的 C++20 模块（.ixx）转成普通头文件（.hpp）。
-
-Apple clang 不支持 `export module`，去模块化之后才能编。
-保留原目录结构，因为 `import "brush/brush.h";` 这类引号 import 依赖层级。
-
-    python3 tools/decomod.py --src native/_upstream/src --dst native/src
-"""
 
 import argparse
 import os
@@ -18,48 +11,82 @@ STD_HEADERS = """#include <algorithm>
 #include <bit>
 #include <bitset>
 #include <cassert>
+#include <cctype>
+#include <cerrno>
 #include <charconv>
 #include <chrono>
+#include <cinttypes>
+#include <climits>
 #include <cmath>
+#include <codecvt>
+#include <compare>
+#include <complex>
+#include <concepts>
+#include <coroutine>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <cwchar>
+#include <cwctype>
 #include <deque>
 #include <exception>
 #include <execution>
+#include <expected>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
 #include <future>
+#include <initializer_list>
 #include <iomanip>
+#include <ios>
+#include <iosfwd>
 #include <iostream>
+#include <istream>
+#include <iterator>
 #include <limits>
+#include <locale>
 #include <map>
 #include <memory>
+#include <memory_resource>
 #include <mutex>
+#include <new>
+#include <numbers>
 #include <numeric>
 #include <optional>
+#include <ostream>
 #include <print>
 #include <queue>
 #include <random>
 #include <ranges>
+#include <ratio>
+#include <regex>
 #include <set>
+#include <shared_mutex>
+#include <source_location>
 #include <span>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <stop_token>
+#include <streambuf>
 #include <string>
 #include <string_view>
+#include <syncstream>
 #include <system_error>
 #include <thread>
 #include <tuple>
 #include <type_traits>
+#include <typeindex>
+#include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <valarray>
 #include <variant>
 #include <vector>"""
 
@@ -84,6 +111,13 @@ def collect_modules(src):
     return modules
 
 
+def build_include_map(modules):
+    return {
+        module: os.path.splitext(os.path.basename(path))[0] + '.hpp'
+        for module, path in modules.items()
+    }
+
+
 def strip_export_block(lines):
     out = []
     i = 0
@@ -105,7 +139,7 @@ def strip_export_block(lines):
     return out
 
 
-def rewrite(lines, keep_pragma):
+def rewrite(lines, includes, keep_pragma):
     out = []
     pragma_done = False
     for line in lines:
@@ -136,7 +170,8 @@ def rewrite(lines, keep_pragma):
 
         named = RE_IMPORT_NAMED.match(stripped)
         if named:
-            out.append(f'#include "{named.group(1)}.hpp"')
+            module = named.group(1)
+            out.append(f'#include "{includes.get(module, module + ".hpp")}"')
             continue
 
         if stripped.startswith('export '):
@@ -146,9 +181,9 @@ def rewrite(lines, keep_pragma):
     return out
 
 
-def convert_ixx(path, dst, src):
+def convert_ixx(path, dst, src, includes):
     text = open(path, encoding='utf-8', errors='ignore').read()
-    lines = rewrite(strip_export_block(text.split('\n')), keep_pragma=True)
+    lines = rewrite(strip_export_block(text.split('\n')), includes, keep_pragma=True)
     if '#pragma once' in lines:
         lines.remove('#pragma once')
         lines.insert(0, '#pragma once')
@@ -161,9 +196,9 @@ def convert_ixx(path, dst, src):
         f.write('\n'.join(lines))
 
 
-def convert_cpp(path, dst, src):
+def convert_cpp(path, dst, src, includes):
     text = open(path, encoding='utf-8', errors='ignore').read()
-    lines = rewrite(text.split('\n'), keep_pragma=False)
+    lines = rewrite(text.split('\n'), includes, keep_pragma=False)
     rel = os.path.relpath(path, src)
     out = os.path.join(dst, rel)
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -185,20 +220,19 @@ def main():
     os.makedirs(dst)
 
     modules = collect_modules(src)
+    includes = build_include_map(modules)
 
-    ixx = 0
     for path in modules.values():
-        convert_ixx(path, dst, src)
-        ixx += 1
+        convert_ixx(path, dst, src, includes)
 
     cpp = 0
     for dirpath, _, files in os.walk(src):
         for name in files:
             if name.endswith('.cpp'):
-                convert_cpp(os.path.join(dirpath, name), dst, src)
+                convert_cpp(os.path.join(dirpath, name), dst, src, includes)
                 cpp += 1
 
-    print(f'{ixx} 个模块 → {dst}')
+    print(f'{len(modules)} 个模块 → {dst}')
     print(f'{cpp} 个 cpp 同步改写')
 
 
