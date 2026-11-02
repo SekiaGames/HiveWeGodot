@@ -89,3 +89,18 @@ target_link_libraries(probe_files PRIVATE hivewe_core
 	absl::strings absl::str_format absl::flat_hash_map absl::flat_hash_set
 )
 target_link_options(probe_files PRIVATE "-Wl,-rpath,${VULKAN_SDK}/lib")
+
+add_executable(extract_assets test/extract_assets.cpp)
+target_link_libraries(extract_assets PRIVATE hivewe_core
+	"/opt/homebrew/opt/stormlib/lib/libstorm.a" "-lbz2" "-lz"
+	"/opt/homebrew/opt/bullet/lib/libBulletDynamics.a"
+	"/opt/homebrew/opt/bullet/lib/libBulletCollision.a"
+	"/opt/homebrew/opt/bullet/lib/libBulletSoftBody.a"
+	"/opt/homebrew/opt/bullet/lib/libLinearMath.a"
+	"/opt/homebrew/opt/tbb/lib/libtbb.dylib"
+	"/opt/homebrew/opt/jpeg-turbo/lib/libjpeg.dylib"
+	"/opt/homebrew/opt/jpeg-turbo/lib/libturbojpeg.dylib"
+	"${VULKAN_SDK}/lib/libMoltenVK.dylib"
+	absl::strings absl::str_format absl::flat_hash_map absl::flat_hash_set
+)
+target_link_options(extract_assets PRIVATE "-Wl,-rpath,${VULKAN_SDK}/lib")

@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 
@@ -15,17 +16,22 @@ namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
 	setvbuf(stdout, nullptr, _IONBF, 0);
-	const fs::path game_dir = argc > 1 ? argv[1] : "/Volumes/Data/Work/Open-Warcraft3/Warcraft3-11hf";
-	const fs::path map_path = argc > 2 ? argv[2] : "/Volumes/Data/Work/Open-Warcraft3/Warcraft3-11hf/Maps/(2)BootyBay.w3m";
+	const fs::path map_path = argc > 1 ? argv[1] : "testdata/maps/(2)BootyBay.w3m";
+	const fs::path game_dir = argc > 2 ? argv[2] : "testdata/warcraft";
 
-	if (!hierarchy.game_data.open(game_dir / "WAR3.MPQ")) {
-		std::printf("打不开 WAR3.MPQ\n");
-		return 1;
+	if (const char* log_path = std::getenv("HIVE_ACCESS_LOG")) {
+		mpq::start_access_log(log_path);
 	}
 
-	for (const char* patch : {"War3x.mpq", "War3xlocal.mpq", "War3Patch.mpq", "Patch127.mpq"}) {
-		if (!hierarchy.game_data.add_patch(game_dir / patch)) {
-			std::printf("叠加 %s 失败\n", patch);
+	if (fs::exists(game_dir / "WAR3.MPQ")) {
+		if (!hierarchy.game_data.open(game_dir / "WAR3.MPQ")) {
+			std::printf("打不开 WAR3.MPQ\n");
+			return 1;
+		}
+		for (const char* patch : {"War3x.mpq", "War3xlocal.mpq", "War3Patch.mpq", "Patch127.mpq"}) {
+			if (!hierarchy.game_data.add_patch(game_dir / patch)) {
+				std::printf("叠加 %s 失败\n", patch);
+			}
 		}
 	}
 

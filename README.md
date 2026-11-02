@@ -50,13 +50,20 @@ cmake --build build -j8
 
 产物 `native/build/libhivewe_core.a`。
 
-验证读图（要先装好游戏 MPQ）：
+验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：
 
 ```bash
-./build/hivewe_smoke <游戏目录> <地图.w3m>
+./native/build/hivewe_smoke
+./native/build/hivewe_smoke "testdata/maps/(12)IceCrown.w3m"
 ```
 
-或者用 `probe_files` 单独查某个文件在不在 MPQ 里。
+也可以指向装了客户端的目录，程序会优先用里面的 MPQ：
+
+```bash
+./native/build/hivewe_smoke "testdata/maps/(2)BootyBay.w3m" "/path/to/Warcraft III"
+```
+
+`testdata/warcraft` 是从完整客户端按访问清单提取出来的，重建见架构文档。
 
 ## 目录
 

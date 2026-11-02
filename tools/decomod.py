@@ -223,6 +223,10 @@ PATCHES = [
         '\tint map_version = 1;\n\tint editor_version = 6059;\n\tint game_version_major = 1;\n\tint game_version_minor = 27;\n\tint game_version_patch = 0;\n\tint game_version_build = 0;',
     ),
     (
+        '\t\t\tTRY_OPEN(read_file(root_directory / p));',
+        '\t\t\tTRY_OPEN(read_file(root_directory / string_replaced(p, \"\\\\\", \"/\")));',
+    ),
+    (
         'class Terrain: public QObject {',
         'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
     ),

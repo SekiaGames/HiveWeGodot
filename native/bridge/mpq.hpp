@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <format>
 #include <memory>
+#include <fstream>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -18,6 +19,21 @@
 namespace mpq {
 
 namespace fs = std::filesystem;
+
+inline std::mutex access_log_mutex;
+inline std::ofstream access_log;
+
+inline void start_access_log(const fs::path& path) {
+	std::scoped_lock lock(access_log_mutex);
+	access_log.open(path, std::ios::trunc);
+}
+
+inline void log_access(const std::string& archive_path) {
+	std::scoped_lock lock(access_log_mutex);
+	if (access_log) {
+		access_log << archive_path << '\n';
+	}
+}
 
 inline std::string to_archive_path(std::string_view path) {
 	static constexpr std::string_view w3mod_prefix = "war3.w3mod:";
@@ -154,6 +170,8 @@ class MPQ {
 		if (!ok) {
 			return std::unexpected(std::format("failed reading {}", archive_path));
 		}
+
+		log_access(archive_path);
 
 		buffer.resize(read);
 		return BinaryReader(std::move(buffer));

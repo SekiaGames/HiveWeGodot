@@ -5,6 +5,7 @@ native/_upstream/
 
 # 构建产物
 native/build/
+native/build-asan/
 native/lib/
 godot/.godot/
 godot/bin/

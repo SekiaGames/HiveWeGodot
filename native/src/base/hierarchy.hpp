@@ -252,7 +252,7 @@ class Hierarchy {
 
 		if (local && allow_local_files) {
 			// TODO, probably also follows: tilesets, locales, teen, base.
-			TRY_OPEN(read_file(root_directory / p));
+			TRY_OPEN(read_file(root_directory / string_replaced(p, "\\", "/")));
 		}
 
 		if (casc && remastered) {
