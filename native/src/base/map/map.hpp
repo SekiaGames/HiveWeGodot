@@ -759,6 +759,7 @@ class Map: public QObject {
 			mode = ScriptMode::lua;
 		}
 
+#if !HIVE_HEADLESS
 		const auto result = triggers.generate_map_script(terrain, units, doodads, info, sounds, regions, cameras, tilesets, mode);
 		if (!result.has_value()) {
 			QMessageBox::information(
@@ -768,6 +769,7 @@ class Map: public QObject {
 				QMessageBox::StandardButton::Ok
 			);
 		}
+#endif
 
 		gameplay_constants.save();
 

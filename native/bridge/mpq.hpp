@@ -57,7 +57,6 @@ class MPQ {
 	mutable std::mutex mutex;
 
   public:
-
 	MPQ() = default;
 
 	explicit MPQ(const fs::path& path) {
@@ -187,5 +186,51 @@ class MPQ {
 		return file_exists(path);
 	}
 };
+
+[[nodiscard]] inline bool pack_directory(const fs::path& directory, const fs::path& archive_path, std::string& error) {
+	std::vector<fs::path> files;
+	for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+		if (!entry.is_regular_file()) {
+			continue;
+		}
+		const std::string name = fs::relative(entry.path(), directory).string();
+		if (!name.empty() && name.front() == '(') {
+			continue;
+		}
+		files.push_back(entry.path());
+	}
+
+	if (files.empty()) {
+		error = "目录里没有文件：" + directory.string();
+		return false;
+	}
+
+	std::error_code ec;
+	fs::remove(archive_path, ec);
+
+	uint32_t table_size = 1024;
+	while (table_size < files.size() * 4) {
+		table_size *= 2;
+	}
+
+	HANDLE archive = nullptr;
+	if (!SFileCreateArchive(archive_path.string().c_str(), MPQ_CREATE_ARCHIVE_V1 | MPQ_CREATE_LISTFILE, table_size, &archive)) {
+		error = "创建归档失败：" + archive_path.string();
+		return false;
+	}
+
+	for (const auto& file : files) {
+		const std::string name = to_archive_path(fs::relative(file, directory).string());
+		if (!SFileAddFileEx(archive, file.string().c_str(), name.c_str(), MPQ_FILE_COMPRESS | MPQ_FILE_REPLACEEXISTING,
+							MPQ_COMPRESSION_ZLIB, MPQ_COMPRESSION_NEXT_SAME)) {
+			error = "写入失败：" + name;
+			SFileCloseArchive(archive);
+			return false;
+		}
+	}
+
+	SFileCloseArchive(archive);
+	return true;
+}
 
 }

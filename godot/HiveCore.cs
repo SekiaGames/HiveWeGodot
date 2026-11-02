@@ -83,6 +83,12 @@ public static class HiveCore
     private static extern int hive_copy_water_exists(IntPtr hive, byte[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_water_heights(IntPtr hive, float[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern float hive_water_offset(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_texture_id(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -90,6 +96,45 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_texture(IntPtr hive, int index, byte[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_move(IntPtr hive, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_size(IntPtr hive, int size);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_shape(IntPtr hive, int shape);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_texture_tool(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string tileId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_height_tool(IntPtr hive, int deformation);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_cliff_tool(IntPtr hive, int operation, [MarshalAs(UnmanagedType.LPUTF8Str)] string? cliffId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_cell_tool(IntPtr hive, int operation);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_begin(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_apply(IntPtr hive, double frameDelta);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_brush_end(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_save_map(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string mapPath, byte[] error, int errorSize);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_undo(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_redo(IntPtr hive);
 
     public static bool IsOpen => handle != IntPtr.Zero;
 
@@ -155,6 +200,20 @@ public static class HiveCore
         return data;
     }
 
+    public static float[] WaterHeights()
+    {
+        HiveMapInfo info = MapInfo;
+        float[] data = new float[info.Width * info.Height];
+        hive_copy_water_heights(handle, data, data.Length);
+        return data;
+    }
+
+    public static float WaterOffset() => hive_water_offset(handle);
+
+    public static void CopyWaterHeights(float[] output) => hive_copy_water_heights(handle, output, output.Length);
+
+    public static void CopyWaterExists(byte[] output) => hive_copy_water_exists(handle, output, output.Length);
+
     public static bool TextureInfo(int index, out int tileSize, out int layers)
     {
         int result = hive_texture_info(handle, index, out tileSize, out layers, out _);
@@ -173,4 +232,45 @@ public static class HiveCore
         IntPtr pointer = hive_texture_id(handle, index);
         return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
     }
+
+    public static void BrushMove(float x, float y) => hive_brush_move(handle, x, y);
+
+    public static void BrushSize(int size) => hive_brush_size(handle, size);
+
+    public static void BrushShape(int shape) => hive_brush_shape(handle, shape);
+
+    public static bool SetTextureTool(string tileId) => hive_set_texture_tool(handle, tileId) == 0;
+
+    public static bool SetHeightTool(int deformation) => hive_set_height_tool(handle, deformation) == 0;
+
+    public static bool SetCliffTool(int operation, string? cliffId) => hive_set_cliff_tool(handle, operation, cliffId) == 0;
+
+    public static bool SetCellTool(int operation) => hive_set_cell_tool(handle, operation) == 0;
+
+    public static void BrushBegin() => hive_brush_begin(handle);
+
+    public static void BrushApply(double frameDelta) => hive_brush_apply(handle, frameDelta);
+
+    public static void BrushEnd() => hive_brush_end(handle);
+
+    public static bool SaveMap(string mapPath, out string error)
+    {
+        byte[] buffer = new byte[512];
+        if (hive_save_map(handle, mapPath, buffer, buffer.Length) == 0)
+        {
+            error = string.Empty;
+            return true;
+        }
+        int end = Array.IndexOf(buffer, (byte)0);
+        error = System.Text.Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);
+        return false;
+    }
+
+    public static void Undo() => hive_undo(handle);
+
+    public static void Redo() => hive_redo(handle);
+
+    public static void CopyHeights(float[] output) => hive_copy_heights(handle, output, output.Length);
+
+    public static void CopyTiles(HiveTile[] output) => hive_copy_tiles(handle, output, output.Length);
 }

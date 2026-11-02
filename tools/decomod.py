@@ -341,6 +341,14 @@ PATCHES = [
         '\t\tstored_tiles = tiles;\n\t\tlayer_count = layers;\n\t\timage = create_rgba8_array_image(',
     ),
     (
+        '\t\tconst auto result = triggers.generate_map_script(terrain, units, doodads, info, sounds, regions, cameras, tilesets, mode);',
+        '#if !HIVE_HEADLESS\n\t\tconst auto result = triggers.generate_map_script(terrain, units, doodads, info, sounds, regions, cameras, tilesets, mode);',
+    ),
+    (
+        '\t\t}\n\n\t\tgameplay_constants.save();',
+        '\t\t}\n#endif\n\n\t\tgameplay_constants.save();',
+    ),
+    (
         'class Terrain: public QObject {',
         'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
     ),

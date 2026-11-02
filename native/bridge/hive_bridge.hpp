@@ -30,4 +30,12 @@ struct HiveBridge {
 	static const std::vector<std::string>& tileset_ids(const Terrain& terrain) {
 		return terrain.tileset_ids;
 	}
+
+	static const std::vector<float>& water_heights(const Terrain& terrain) {
+		return terrain.corner_water_height;
+	}
+
+	static float water_offset(const Terrain& terrain) {
+		return terrain.water_offset;
+	}
 };

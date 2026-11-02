@@ -12,6 +12,9 @@ godot/lib/*.dylib
 godot/bin/
 godot/obj/
 
+# 编辑器保存出来的地图
+output/
+
 # 第三方库按需下载，不入库
 third_party/vulkan/
 third_party/volk/

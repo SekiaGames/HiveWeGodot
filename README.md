@@ -14,10 +14,12 @@
 | 核心库 | 已出 `libhivewe_core.a`，7.3 MB，6291 个符号 |
 | headless 化 | 完成，`HIVE_HEADLESS` 在 8 处短路 Vulkan 副作用 |
 | 读地图 | 完成：解包 w3m 后 60 ms 加载完，193×97、7 种纹理、2011 装饰物、61 单位、18721 高度点 |
-| C ABI | 完成：`libhivewe.dylib` 2.9 MB，9 个函数，纯 C 测试程序跑通 |
-| Godot 接入 | 完成：Godot 4.7 + .NET 8，DllImport 调到核心，地形数据在界面里显示 |
-| 地形渲染 | 完成：MultiMesh + 高度图 + 四层纹理混合，BootyBay 出画面 |
-| Godot 界面 | 未开始 |
+| C ABI | 完成：`libhivewe.dylib`，24 个函数，纯 C 测试程序跑通 |
+| Godot 接入 | 完成：Godot 4.7 + .NET 8，DllImport 调到核心 |
+| 地形渲染 | 完成：MultiMesh + 高度图 + 四层纹理混合 + 水面，BootyBay 出画面 |
+| 笔刷 | 完成：纹理 / 高度 / 水 / 悬崖，带撤销重做 |
+| 保存 | 完成：改完能存回 `.w3m`，重开数据一致 |
+| Godot 界面 | 未开始：现在是测试用的单窗口，没有 Ribbon 和调色板面板 |
 
 ## 文档
 
@@ -66,6 +68,29 @@ cmake --build native/build --target hivewe -j8
 ```bash
 bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/lib
 /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot
+```
+
+操作：
+
+| 按键 | 作用 |
+|---|---|
+| 1 / 2 / 3 / 4 | 纹理笔 / 高度抬升 / 加水 / 悬崖抬升 |
+| Tab | 换纹理 |
+| Q / E | 笔刷缩小 / 放大 |
+| Z / Y | 撤销 / 重做 |
+| 右键拖动 | 平移 |
+| 滚轮 | 缩放 |
+| 左键 | 绘制 |
+| Ctrl+S | 保存到 `output/edited.w3m` |
+
+回归测试：
+
+```bash
+bash tools/run_native_tests.sh                      # 纯 C 测 ABI、笔刷、保存、打包
+HIVE_SCREENSHOT=/tmp/shot.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 存一张截图后退出
+HIVE_AUTOTEST=/tmp/edit HIVE_SCREENSHOT=/tmp/edit \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 自动画三笔再截图
 ```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：
