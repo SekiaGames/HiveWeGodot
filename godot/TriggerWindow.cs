@@ -13,8 +13,12 @@ public partial class TriggerWindow : AcceptDialog
     private CheckBox enabledBox = null!;
     private CheckBox initiallyBox = null!;
     private VBoxContainer ecaColumn = null!;
+    private VBoxContainer scriptBox = null!;
+    private CodeEdit globalScript = null!;
+    private Label status = null!;
 
     private int current = -1;
+    private readonly Dictionary<TreeItem, int> categoryIds = new();
 
     private static readonly Color Muted = new(0.65f, 0.7f, 0.78f);
 
@@ -23,12 +27,19 @@ public partial class TriggerWindow : AcceptDialog
         Title = "触发器";
         OkButtonText = "关闭";
 
-        var split = new HSplitContainer
+        var tabs = new TabContainer
         {
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(820, 540),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        AddChild(split);
+        AddChild(tabs);
+
+        var triggerPage = new HSplitContainer
+        {
+            Name = "触发器",
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        tabs.AddChild(triggerPage);
 
         tree = new Tree
         {
@@ -37,14 +48,14 @@ public partial class TriggerWindow : AcceptDialog
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
         tree.ItemSelected += OnTreeSelected;
-        split.AddChild(tree);
+        triggerPage.AddChild(tree);
 
         var right = new VBoxContainer
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         right.AddThemeConstantOverride("separation", 6);
-        split.AddChild(right);
+        triggerPage.AddChild(right);
 
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 6);
@@ -107,7 +118,7 @@ public partial class TriggerWindow : AcceptDialog
         right.AddChild(flagsRow);
 
         right.AddChild(new Label { Text = "描述" });
-        descriptionEdit = new TextEdit { CustomMinimumSize = new Vector2(0, 80) };
+        descriptionEdit = new TextEdit { CustomMinimumSize = new Vector2(0, 70) };
         descriptionEdit.FocusExited += () =>
         {
             if (current >= 0)
@@ -116,6 +127,10 @@ public partial class TriggerWindow : AcceptDialog
             }
         };
         right.AddChild(descriptionEdit);
+
+        scriptBox = new VBoxContainer();
+        scriptBox.AddThemeConstantOverride("separation", 4);
+        right.AddChild(scriptBox);
 
         var scroll = new ScrollContainer
         {
@@ -128,35 +143,100 @@ public partial class TriggerWindow : AcceptDialog
         ecaColumn.AddThemeConstantOverride("separation", 4);
         scroll.AddChild(ecaColumn);
 
+        var scriptPage = new VBoxContainer
+        {
+            Name = "全局脚本",
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        scriptPage.AddThemeConstantOverride("separation", 6);
+        tabs.AddChild(scriptPage);
+
+        globalScript = new CodeEdit
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            GuttersDrawLineNumbers = true,
+        };
+        scriptPage.AddChild(globalScript);
+
+        var scriptButtons = new HBoxContainer();
+        scriptButtons.AddThemeConstantOverride("separation", 6);
+        scriptPage.AddChild(scriptButtons);
+
+        var applyScript = new Button { Text = "应用脚本" };
+        applyScript.Pressed += () =>
+        {
+            HiveCore.SetMapGlobalScript(globalScript.Text);
+            status.Text = "全局脚本已写回，Ctrl+S 存进地图";
+        };
+        scriptButtons.AddChild(applyScript);
+
+        status = new Label { Text = string.Empty, Modulate = Muted };
+        scriptButtons.AddChild(status);
+
         Reload();
+    }
+
+    private void ReloadScript()
+    {
+        globalScript.Text = HiveCore.MapGlobalScript ?? string.Empty;
     }
 
     public void Reload()
     {
         tree.Clear();
+        categoryIds.Clear();
         TreeItem root = tree.CreateItem();
 
         var categoryItems = new Dictionary<int, TreeItem>();
-        var categoryParents = new Dictionary<TreeItem, int>();
+        var childrenOf = new Dictionary<int, List<(int Id, string Name)>>();
+        var known = new HashSet<int>();
+        var roots = new List<(int Id, string Name)>();
 
         int categoryCount = HiveCore.TriggerCategoryCount;
+        var categories = new List<(int Id, string Name, int Parent)>();
         for (int i = 0; i < categoryCount; i++)
         {
             (int id, string name, int parent) = HiveCore.TriggerCategory(i);
-            TreeItem item = tree.CreateItem(root);
-            item.SetText(0, name);
-            item.SetMetadata(0, -1);
-            item.SetMetadata(1, id);
-            categoryItems[id] = item;
-            categoryParents[item] = parent;
+            categories.Add((id, name, parent));
+            known.Add(id);
+        }
+        foreach (var entry in categories)
+        {
+            if (!childrenOf.TryGetValue(entry.Parent, out var list))
+            {
+                list = new List<(int, string)>();
+                childrenOf[entry.Parent] = list;
+            }
+            list.Add((entry.Id, entry.Name));
+        }
+        foreach (var entry in categories)
+        {
+            if (!known.Contains(entry.Parent))
+            {
+                roots.Add((entry.Id, entry.Name));
+            }
         }
 
-        foreach (var pair in categoryParents)
+        TreeItem CreateCategoryItem(TreeItem parentItem, int id, string name)
         {
-            if (categoryItems.TryGetValue(pair.Value, out TreeItem? parentItem))
+            TreeItem item = tree.CreateItem(parentItem);
+            item.SetText(0, name);
+            item.SetMetadata(0, -1);
+            categoryItems[id] = item;
+            categoryIds[item] = id;
+            if (childrenOf.TryGetValue(id, out var children))
             {
-                parentItem.AddChild(pair.Key);
+                foreach (var (childId, childName) in children)
+                {
+                    CreateCategoryItem(item, childId, childName);
+                }
             }
+            return item;
+        }
+
+        foreach (var (id, name) in roots)
+        {
+            CreateCategoryItem(root, id, name);
         }
 
         int triggerCount = HiveCore.TriggerCount;
@@ -190,6 +270,8 @@ public partial class TriggerWindow : AcceptDialog
 
         tree.SetColumnTitle(0, $"分类 {categoryCount}，触发器 {triggerCount}，变量 {variableCount}");
 
+        ReloadScript();
+
         if (firstTrigger != null)
         {
             firstTrigger.Select(0);
@@ -214,8 +296,7 @@ public partial class TriggerWindow : AcceptDialog
         {
             return HiveCore.Trigger(index).Parent;
         }
-        Variant id = item.GetMetadata(1);
-        return id.VariantType == Variant.Type.Nil ? 0 : (int)id;
+        return categoryIds.TryGetValue(item, out int id) ? id : 0;
     }
 
     private void OnTreeSelected()
@@ -253,6 +334,20 @@ public partial class TriggerWindow : AcceptDialog
         descriptionEdit.Text = HiveCore.TriggerDescription(index) ?? string.Empty;
         enabledBox.ButtonPressed = HiveCore.TriggerIsEnabled(index);
         initiallyBox.ButtonPressed = HiveCore.TriggerInitiallyOn(index);
+
+        ClearScript();
+        if (HiveCore.TriggerIsScript(index) || (HiveCore.TriggerCustomText(index) ?? string.Empty).Length > 0)
+        {
+            scriptBox.AddChild(new Label { Text = "自定义脚本" });
+            var edit = new CodeEdit
+            {
+                Text = HiveCore.TriggerCustomText(index) ?? string.Empty,
+                CustomMinimumSize = new Vector2(0, 110),
+                GuttersDrawLineNumbers = true,
+            };
+            edit.FocusExited += () => HiveCore.SetTriggerCustomText(index, edit.Text);
+            scriptBox.AddChild(edit);
+        }
 
         ClearEca();
         ListEca(index, 0, "事件");
@@ -397,6 +492,15 @@ public partial class TriggerWindow : AcceptDialog
         dialog.AddChild(column);
         AddChild(dialog);
         dialog.PopupCentered(new Vector2I(460, 520));
+    }
+
+    private void ClearScript()
+    {
+        foreach (Node child in scriptBox.GetChildren())
+        {
+            scriptBox.RemoveChild(child);
+            child.QueueFree();
+        }
     }
 
     private void ClearEca()

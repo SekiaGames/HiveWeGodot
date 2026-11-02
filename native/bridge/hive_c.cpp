@@ -2519,6 +2519,25 @@ int32_t hive_trigger_initially_on(void* handle, const int32_t index) {
 	return trigger != nullptr && trigger->initially_on ? 1 : 0;
 }
 
+int32_t hive_trigger_is_script(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger != nullptr && trigger->classifier == Classifier::script ? 1 : 0;
+}
+
+const char* hive_trigger_custom_text(void* handle, const int32_t index) {
+	const Trigger* trigger = trigger_at(handle, index);
+	return trigger == nullptr ? nullptr : trigger->custom_text.c_str();
+}
+
+int32_t hive_set_trigger_custom_text(void* handle, const int32_t index, const char* value) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr || value == nullptr) {
+		return -1;
+	}
+	trigger->custom_text = value;
+	return 0;
+}
+
 int32_t hive_trigger_eca_count(void* handle, const int32_t index, const int32_t type) {
 	const Trigger* trigger = trigger_at(handle, index);
 	if (trigger == nullptr) {

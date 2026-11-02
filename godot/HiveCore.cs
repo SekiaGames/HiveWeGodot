@@ -464,6 +464,15 @@ public static class HiveCore
     private static extern int hive_trigger_initially_on(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_is_script(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_custom_text(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_custom_text(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_trigger_eca_count(IntPtr hive, int index, int type);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1003,6 +1012,12 @@ public static class HiveCore
     public static bool TriggerIsEnabled(int index) => hive_trigger_is_enabled(handle, index) != 0;
 
     public static bool TriggerInitiallyOn(int index) => hive_trigger_initially_on(handle, index) != 0;
+
+    public static bool TriggerIsScript(int index) => hive_trigger_is_script(handle, index) != 0;
+
+    public static string? TriggerCustomText(int index) => ReadString(hive_trigger_custom_text(handle, index));
+
+    public static void SetTriggerCustomText(int index, string value) => hive_set_trigger_custom_text(handle, index, value);
 
     public static int TriggerEcaCount(int index, int type) => hive_trigger_eca_count(handle, index, type);
 

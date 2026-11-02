@@ -322,6 +322,10 @@ int32_t hive_trigger_parent(void* handle, int32_t index);
 int32_t hive_trigger_is_comment(void* handle, int32_t index);
 int32_t hive_trigger_is_enabled(void* handle, int32_t index);
 int32_t hive_trigger_initially_on(void* handle, int32_t index);
+/* 脚本类触发器（classifier 是 script）的脚本文本。 */
+int32_t hive_trigger_is_script(void* handle, int32_t index);
+const char* hive_trigger_custom_text(void* handle, int32_t index);
+int32_t hive_set_trigger_custom_text(void* handle, int32_t index, const char* value);
 /* type：0 事件、1 条件、2 动作。 */
 int32_t hive_trigger_eca_count(void* handle, int32_t index, int32_t type);
 const char* hive_trigger_eca_name(void* handle, int32_t index, int32_t type, int32_t eca);

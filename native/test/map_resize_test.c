@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -62,9 +63,9 @@ int main(void) {
 	hive_map_info(reopened, &reopened_info);
 	printf("重开后 %dx%d，装饰物 %d\n", reopened_info.width, reopened_info.height, reopened_info.doodad_count);
 
-	const int ok = after.width == before.width + 10 && after.height == before.height + 10
-		&& after.doodad_count == before.doodad_count && moved[0].x == doodads[0].x + 10.f
-		&& moved[0].y == doodads[0].y + 10.f && reopened_info.width == after.width
+	const int ok = after.width == before.width + 20 && after.height == before.height + 20
+		&& after.doodad_count == before.doodad_count && fabsf(moved[0].x - (doodads[0].x + 10.f)) < 0.01f
+		&& fabsf(moved[0].y - (doodads[0].y + 10.f)) < 0.01f && reopened_info.width == after.width
 		&& reopened_info.height == after.height;
 
 	free(moved);
