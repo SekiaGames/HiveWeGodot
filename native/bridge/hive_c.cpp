@@ -13,7 +13,9 @@
 #include "hive_bridge.hpp"
 #include "map.hpp"
 #include "mpq.hpp"
+#include "doodads_undo.hpp"
 #include "skinned_mesh.hpp"
+#include "units_undo.hpp"
 #include "terrain_brush.h"
 
 namespace fs = std::filesystem;
@@ -1050,6 +1052,33 @@ int32_t hive_remove_doodad(void* handle, const int32_t index) {
 	if (static_cast<std::size_t>(index) >= list.size()) {
 		return -1;
 	}
+
+	auto action = std::make_unique<DoodadDeleteAction>();
+	action->doodads.push_back(list[static_cast<std::size_t>(index)]);
+
+	hive->map->world_undo.new_undo_group();
+	hive->map->world_undo.add_undo_action(std::move(action));
+
+	list.erase(list.begin() + index);
+	return 0;
+}
+
+int32_t hive_remove_unit(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& list = hive->map->units.units;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+
+	auto action = std::make_unique<UnitDeleteAction>();
+	action->units.push_back(list[static_cast<std::size_t>(index)]);
+
+	hive->map->world_undo.new_undo_group();
+	hive->map->world_undo.add_undo_action(std::move(action));
+
 	list.erase(list.begin() + index);
 	return 0;
 }

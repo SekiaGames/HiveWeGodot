@@ -399,6 +399,9 @@ public partial class Main : Node3D
     {
         switch (key.Keycode)
         {
+            case Key.Delete:
+                DeleteSelection();
+                break;
             case Key.Z:
                 Undo();
                 break;
@@ -495,16 +498,48 @@ public partial class Main : Node3D
         UpdateStatus();
     }
 
+    private void DeleteSelection()
+    {
+        if (selectionIndex < 0)
+        {
+            return;
+        }
+
+        bool removed = selectionIsUnit
+            ? HiveCore.RemoveUnit(selectionIndex)
+            : HiveCore.RemoveDoodad(selectionIndex);
+
+        if (!removed)
+        {
+            ui.SetStatus($"删除失败，索引 {selectionIndex}");
+            return;
+        }
+
+        selectionIndex = -1;
+        view.ClearSelection();
+        ReloadObjects();
+        ui.SetStatus("已删除，Ctrl+Z 可撤销");
+    }
+
+    private void ReloadObjects()
+    {
+        view.BuildDoodads();
+        view.BuildUnits();
+        UpdateStatus();
+    }
+
     private void Undo()
     {
         HiveCore.Undo();
         ReloadView();
+        ReloadObjects();
     }
 
     private void Redo()
     {
         HiveCore.Redo();
         ReloadView();
+        ReloadObjects();
     }
 
     private void SaveMap()
@@ -547,6 +582,14 @@ public partial class Main : Node3D
             {
                 Capture(screenshotPath);
                 GD.Print($"拾取测试：选中装饰物 {HiveCore.DoodadId(selectionIndex)}");
+
+                int before = HiveCore.MapInfo.DoodadCount;
+                DeleteSelection();
+                int after = HiveCore.MapInfo.DoodadCount;
+                HiveCore.Undo();
+                ReloadObjects();
+                int restored = HiveCore.MapInfo.DoodadCount;
+                GD.Print($"删除测试：{before} -> {after} -> 撤销 {restored}");
                 GetTree().Quit();
             }
             return;

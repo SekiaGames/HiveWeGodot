@@ -242,6 +242,9 @@ public static class HiveCore
     private static extern int hive_remove_doodad(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_remove_unit(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_units(IntPtr hive, [Out] HiveUnit[] output, int capacity);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -532,6 +535,8 @@ public static class HiveCore
         => hive_add_doodad(handle, id, x, y, z, angle);
 
     public static bool RemoveDoodad(int index) => hive_remove_doodad(handle, index) == 0;
+
+    public static bool RemoveUnit(int index) => hive_remove_unit(handle, index) == 0;
 
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 

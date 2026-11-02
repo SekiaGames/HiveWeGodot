@@ -134,8 +134,10 @@ int32_t hive_doodad_type_count(void* handle);
 const char* hive_doodad_type_id(void* handle, int32_t index);
 /* 放一个装饰物，返回新索引，失败返回 -1。坐标是 tile，angle 是弧度。 */
 int32_t hive_add_doodad(void* handle, const char* id, float x, float y, float z, float angle);
-/* 删掉第 index 个，成功返回 0。 */
+/* 删掉第 index 个装饰物，进撤销栈，成功返回 0。 */
 int32_t hive_remove_doodad(void* handle, int32_t index);
+/* 删掉第 index 个单位，进撤销栈，成功返回 0。 */
+int32_t hive_remove_unit(void* handle, int32_t index);
 
 /* 射线拾取。origin / direction 用 Godot 坐标（X 水平、Y 高度、Z 水平），
    max_distance 是 tile 单位。返回最近的装饰物或单位索引，没打中返回 -1。

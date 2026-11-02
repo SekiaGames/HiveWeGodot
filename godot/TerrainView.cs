@@ -523,8 +523,18 @@ public partial class TerrainView : Node3D
         }
     }
 
+    private Node3D? unitRoot;
+
     public void BuildUnits()
     {
+        if (unitRoot != null)
+        {
+            RemoveChild(unitRoot);
+            unitRoot.QueueFree();
+        }
+        unitRoot = new Node3D { Name = "Units" };
+        AddChild(unitRoot);
+
         HiveUnit[] units = HiveCore.Units();
         var byModel = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
 
@@ -567,7 +577,7 @@ public partial class TerrainView : Node3D
                 multi.SetInstanceTransform(k, new Transform3D(basis, new Vector3(unit.X, unit.Z, unit.Y)));
             }
 
-            AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Units" });
+            unitRoot.AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Units" });
             placed += pair.Value.Count;
         }
 

@@ -57,6 +57,11 @@ int main(void) {
 		HiveMapInfo removed;
 		hive_map_info(second, &removed);
 		printf("删掉一个后 %d 个\n", removed.doodad_count);
+
+		hive_undo(second);
+		HiveMapInfo undone;
+		hive_map_info(second, &undone);
+		printf("撤销后 %d 个\n", undone.doodad_count);
 	}
 
 	hive_close(second);
