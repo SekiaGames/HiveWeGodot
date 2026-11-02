@@ -2561,6 +2561,24 @@ int32_t hive_trigger_eca_parameter_count(void* handle, const int32_t index, cons
 	return eca == nullptr ? 0 : static_cast<int32_t>(eca->parameters.size());
 }
 
+int32_t hive_trigger_eca_parameter_type(void* handle, const int32_t index, const int32_t type, const int32_t eca_index,
+										const int32_t parameter) {
+	const ECA* eca = eca_at(handle, index, type, eca_index);
+	if (eca == nullptr || parameter < 0 || static_cast<std::size_t>(parameter) >= eca->parameters.size()) {
+		return -1;
+	}
+	return static_cast<int32_t>(eca->parameters[static_cast<std::size_t>(parameter)].type);
+}
+
+const char* hive_trigger_eca_parameter_value(void* handle, const int32_t index, const int32_t type,
+											 const int32_t eca_index, const int32_t parameter) {
+	const ECA* eca = eca_at(handle, index, type, eca_index);
+	if (eca == nullptr || parameter < 0 || static_cast<std::size_t>(parameter) >= eca->parameters.size()) {
+		return nullptr;
+	}
+	return eca->parameters[static_cast<std::size_t>(parameter)].value.c_str();
+}
+
 int32_t hive_set_trigger_name(void* handle, const int32_t index, const char* value) {
 	Trigger* trigger = trigger_at(handle, index);
 	if (trigger == nullptr || value == nullptr) {

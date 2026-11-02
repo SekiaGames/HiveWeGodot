@@ -473,6 +473,12 @@ public static class HiveCore
     private static extern int hive_trigger_eca_parameter_count(IntPtr hive, int index, int type, int eca);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_eca_parameter_type(IntPtr hive, int index, int type, int eca, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_set_trigger_name(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -972,6 +978,12 @@ public static class HiveCore
 
     public static int TriggerEcaParameterCount(int index, int type, int eca)
         => hive_trigger_eca_parameter_count(handle, index, type, eca);
+
+    public static int TriggerEcaParameterType(int index, int type, int eca, int parameter)
+        => hive_trigger_eca_parameter_type(handle, index, type, eca, parameter);
+
+    public static string? TriggerEcaParameterValue(int index, int type, int eca, int parameter)
+        => ReadString(hive_trigger_eca_parameter_value(handle, index, type, eca, parameter));
 
     public static bool SetTriggerName(int index, string value) => hive_set_trigger_name(handle, index, value) == 0;
 

@@ -326,6 +326,9 @@ int32_t hive_trigger_initially_on(void* handle, int32_t index);
 int32_t hive_trigger_eca_count(void* handle, int32_t index, int32_t type);
 const char* hive_trigger_eca_name(void* handle, int32_t index, int32_t type, int32_t eca);
 int32_t hive_trigger_eca_parameter_count(void* handle, int32_t index, int32_t type, int32_t eca);
+/* 参数类型：-1 无效、0 预设、1 变量、2 函数、3 字符串。 */
+int32_t hive_trigger_eca_parameter_type(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
+const char* hive_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
 
 int32_t hive_set_trigger_name(void* handle, int32_t index, const char* value);
 int32_t hive_set_trigger_description(void* handle, int32_t index, const char* value);

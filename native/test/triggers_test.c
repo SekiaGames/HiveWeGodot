@@ -3,9 +3,10 @@
 
 #include "hive_c.h"
 
-int main(void) {
+int main(int argc, char** argv) {
+	const char* map_path = argc > 1 ? argv[1] : "testdata/maps/(2)BootyBay.w3m";
 	char error[512] = {0};
-	void* hive = hive_open("testdata/maps/(2)BootyBay.w3m", "testdata/warcraft", error, sizeof(error));
+	void* hive = hive_open(map_path, "testdata/warcraft", error, sizeof(error));
 	if (hive == NULL) {
 		printf("打开失败：%s\n", error);
 		return 1;

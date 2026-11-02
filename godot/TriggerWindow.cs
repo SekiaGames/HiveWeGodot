@@ -229,7 +229,26 @@ public partial class TriggerWindow : AcceptDialog
         {
             string name = HiveCore.TriggerEcaName(index, type, i) ?? "?";
             int parameters = HiveCore.TriggerEcaParameterCount(index, type, i);
-            ecaColumn.AddChild(new Label { Text = $"  {name}  ·  {parameters} 个参数" });
+
+            var values = new List<string>();
+            for (int p = 0; p < parameters; p++)
+            {
+                int kind = HiveCore.TriggerEcaParameterType(index, type, i, p);
+                string value = HiveCore.TriggerEcaParameterValue(index, type, i, p) ?? string.Empty;
+                values.Add(kind switch
+                {
+                    0 => value,
+                    1 => value,
+                    2 => $"{value}()",
+                    3 => $"\"{value}\"",
+                    _ => value,
+                });
+            }
+
+            string text = values.Count == 0
+                ? $"  {name}"
+                : $"  {name}（{string.Join("，", values)}）";
+            ecaColumn.AddChild(new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
         }
     }
 
