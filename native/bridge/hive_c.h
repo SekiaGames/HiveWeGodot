@@ -59,6 +59,11 @@ const char* hive_texture_id(void* handle, int32_t index);
 int32_t hive_texture_info(void* handle, int32_t index, int32_t* width, int32_t* height, int32_t* channels);
 int32_t hive_copy_texture(void* handle, int32_t index, uint8_t* out, int32_t capacity);
 
+/* 路径图。宽高是 tile 数 × 4，每格一个字节，位标志见 HivePathing。
+   1 不可走，2 不可飞，4 不可建，8 可采集，16 枯萎，32 水，64 两栖。 */
+int32_t hive_pathing_info(void* handle, int32_t* width, int32_t* height);
+int32_t hive_copy_pathing(void* handle, uint8_t* out, int32_t capacity);
+
 /* 小地图，尺寸同顶点网格，RGBA8，自上而下。 */
 int32_t hive_minimap_info(void* handle, int32_t* width, int32_t* height);
 int32_t hive_copy_minimap(void* handle, uint8_t* out, int32_t capacity);

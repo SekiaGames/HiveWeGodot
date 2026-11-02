@@ -20,6 +20,7 @@ public partial class TerrainView : Node3D
     private int totalLayers;
     private int tileSize;
     private Texture2DArray textureArray = null!;
+    private ShaderMaterial terrainMaterial = null!;
 
     public int LayerCount => totalLayers;
     public int TileSize => tileSize;
@@ -104,10 +105,13 @@ public partial class TerrainView : Node3D
         }
         RefreshTiles();
 
-        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/terrain.gdshader") };
-        material.SetShaderParameter("ground_tex", textureArray);
-        material.SetShaderParameter("height_map", heightTexture);
-        material.SetShaderParameter("vertex_size", new Vector2(Info.Width, Info.Height));
+        terrainMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/terrain.gdshader") };
+        terrainMaterial.SetShaderParameter("ground_tex", textureArray);
+        terrainMaterial.SetShaderParameter("height_map", heightTexture);
+        terrainMaterial.SetShaderParameter("vertex_size", new Vector2(Info.Width, Info.Height));
+        BuildPathingOverlay();
+
+        var material = terrainMaterial;
 
         AddChild(new MultiMeshInstance3D
         {
@@ -115,6 +119,44 @@ public partial class TerrainView : Node3D
             MaterialOverride = material,
             Name = "Terrain",
         });
+    }
+
+    private void BuildPathingOverlay()
+    {
+        byte[]? cells = HiveCore.Pathing(out int width, out int height);
+        if (cells == null)
+        {
+            return;
+        }
+
+        byte[] rgba = new byte[width * height * 4];
+        int blocked = 0;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            const int unwalkable = 0x02;
+            const int water = 0x40;
+
+            if ((cells[i] & unwalkable) != 0 && (cells[i] & water) == 0)
+            {
+                rgba[i * 4] = 220;
+                rgba[i * 4 + 1] = 45;
+                rgba[i * 4 + 2] = 45;
+                rgba[i * 4 + 3] = 95;
+                blocked++;
+            }
+        }
+
+        Image image = Image.CreateFromData(width, height, false, Image.Format.Rgba8, rgba);
+        terrainMaterial.SetShaderParameter("pathing_overlay", ImageTexture.CreateFromImage(image));
+        PathingBlocked = blocked;
+        GD.Print($"路径图 {width}×{height}，不可走 {blocked} 格");
+    }
+
+    public int PathingBlocked { get; private set; }
+
+    public void SetPathingVisible(bool visible)
+    {
+        terrainMaterial.SetShaderParameter("show_pathing", visible);
     }
 
     private void BuildWaterMesh()

@@ -541,6 +541,30 @@ int32_t hive_copy_texture(void* handle, const int32_t index, uint8_t* out, const
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_pathing_info(void* handle, int32_t* width, int32_t* height) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	const PathingMap& pathing = static_cast<HiveHandle*>(handle)->map->pathing_map;
+	if (width != nullptr) {
+		*width = pathing.width;
+	}
+	if (height != nullptr) {
+		*height = pathing.height;
+	}
+	return 0;
+}
+
+int32_t hive_copy_pathing(void* handle, uint8_t* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->map->pathing_map.pathing_cells_static;
+	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
+	std::memcpy(out, source.data(), count);
+	return static_cast<int32_t>(count);
+}
+
 int32_t hive_minimap_info(void* handle, int32_t* width, int32_t* height) {
 	if (handle == nullptr) {
 		return -1;

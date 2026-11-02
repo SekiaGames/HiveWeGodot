@@ -107,6 +107,7 @@ public partial class Main : Node3D
         ui.RedoRequested += Redo;
         ui.SaveRequested += SaveMap;
         ui.OpenRequested += ShowOpenDialog;
+        ui.PathingToggled += view.SetPathingVisible;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -114,6 +115,10 @@ public partial class Main : Node3D
         };
 
         ui.SetBrushSize(brushSize);
+        if (OS.GetEnvironment("HIVE_SHOW_PATHING").Length > 0)
+        {
+            ui.SetPathingChecked(true);
+        }
         ApplyTool();
         UpdateStatus();
         GD.Print($"已打开 {mapPath}：{view.Info.Width}×{view.Info.Height}");

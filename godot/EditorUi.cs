@@ -30,6 +30,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? SaveRequested;
     public event Action? OpenRequested;
     public event Action<Vector2>? MinimapClicked;
+    public event Action<bool>? PathingToggled;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -38,6 +39,7 @@ public partial class EditorUi : CanvasLayer
     private readonly ButtonGroup toolGroup = new();
     private readonly ButtonGroup shapeGroup = new();
     private SpinBox brushSize = null!;
+    private CheckBox pathingToggle = null!;
 
     private static readonly Color PanelColor = new(0.11f, 0.12f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new(0.18f, 0.19f, 0.22f);
@@ -141,6 +143,12 @@ public partial class EditorUi : CanvasLayer
         cliffGrid.AddChild(ToolButton("斜坡", ToolMode.CliffRamp));
 
         column.AddChild(Spacer(10));
+
+        pathingToggle = new CheckBox { Text = "显示路径" };
+        pathingToggle.Toggled += on => PathingToggled?.Invoke(on);
+        column.AddChild(pathingToggle);
+
+        column.AddChild(Spacer(6));
         column.AddChild(SectionTitle("笔刷"));
 
         var sizeRow = new HBoxContainer();
@@ -267,6 +275,12 @@ public partial class EditorUi : CanvasLayer
     public void SetActiveTool(string name) => toolLabel.Text = name;
 
     public void SetBrushSize(int size) => brushSize.Value = size;
+
+    public void SetPathingChecked(bool on)
+    {
+        pathingToggle.ButtonPressed = on;
+        PathingToggled?.Invoke(on);
+    }
 
     private Button ToolButton(string text, ToolMode mode)
     {
