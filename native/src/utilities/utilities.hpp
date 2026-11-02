@@ -96,7 +96,7 @@
 namespace fs = std::filesystem;
 
 // String functions
-std::string_view trimmed(const std::string_view string) {
+inline std::string_view trimmed(const std::string_view string) {
 	size_t start = 0;
 	while (start < string.size() && std::isspace(string[start])) {
 		start += 1;
@@ -110,7 +110,7 @@ std::string_view trimmed(const std::string_view string) {
 	return string.substr(start, end - start);
 }
 
-std::string string_replaced(const std::string_view source, const std::string_view from, const std::string_view to) {
+inline std::string string_replaced(const std::string_view source, const std::string_view from, const std::string_view to) {
 	std::string new_string;
 	new_string.reserve(source.length()); // avoids a few memory allocations
 
@@ -129,7 +129,7 @@ std::string string_replaced(const std::string_view source, const std::string_vie
 	return new_string;
 }
 
-std::string to_lowercase_copy(const std::string_view string) {
+inline std::string to_lowercase_copy(const std::string_view string) {
 	std::string output(string);
 	std::ranges::transform(output, output.begin(), [](unsigned char c) {
 		return std::tolower(c);
@@ -137,33 +137,33 @@ std::string to_lowercase_copy(const std::string_view string) {
 	return output;
 }
 
-void to_lowercase(std::string& string) {
+inline void to_lowercase(std::string& string) {
 	std::ranges::transform(string, string.begin(), [](unsigned char c) {
 		return std::tolower(c);
 	});
 }
 
-void normalize_path_to_backslash(std::string& path) {
+inline void normalize_path_to_backslash(std::string& path) {
 	std::ranges::transform(path, path.begin(), [](const unsigned char c) {
 		return c == '/' ? '\\' : c;
 	});
 }
 
-void normalize_path_to_forward_slash(std::string& path) {
+inline void normalize_path_to_forward_slash(std::string& path) {
 	std::ranges::transform(path, path.begin(), [](const unsigned char c) {
 		return c == '\\' ? '/' : c;
 	});
 }
 
 // trim from start (in place)
-void ltrim(std::string& s) {
+inline void ltrim(std::string& s) {
 	s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](const int ch) {
 				return !std::isspace(ch);
 			}));
 }
 
 // trim from end (in place)
-void rtrim(std::string& s) {
+inline void rtrim(std::string& s) {
 	s.erase(
 		std::find_if(
 			s.rbegin(),
@@ -177,12 +177,12 @@ void rtrim(std::string& s) {
 }
 
 // trim from both ends (in place)
-void trim(std::string& s) {
+inline void trim(std::string& s) {
 	ltrim(s);
 	rtrim(s);
 }
 
-bool is_number(const std::string& s) {
+inline bool is_number(const std::string& s) {
 	return !s.empty()
 		&& std::find_if(
 			   s.begin(),
@@ -194,7 +194,7 @@ bool is_number(const std::string& s) {
 		== s.end();
 }
 
-std::vector<std::string> split_string_escaped(const std::string_view input) {
+inline std::vector<std::string> split_string_escaped(const std::string_view input) {
 	std::vector<std::string> result;
 	// Pre-allocate space for some fields to avoid initial reallocations
 	result.reserve(std::count(input.begin(), input.end(), ',') + 1);
@@ -220,7 +220,7 @@ std::vector<std::string> split_string_escaped(const std::string_view input) {
 	return result;
 }
 
-std::string read_text_file(const fs::path& path) {
+inline std::string read_text_file(const fs::path& path) {
 	std::ifstream file(path, std::ios::binary | std::ios::ate);
 
 	if (!file) {
@@ -241,7 +241,7 @@ std::string read_text_file(const fs::path& path) {
 	return text;
 }
 
-auto read_file(const fs::path& path) -> std::expected<BinaryReader, std::string> {
+inline auto read_file(const fs::path& path) -> std::expected<BinaryReader, std::string> {
 	// Open at the end (ate) to get size in one go
 	std::ifstream stream(path, std::ios::binary | std::ios::ate);
 
@@ -286,12 +286,12 @@ struct ItemSet {
 };
 
 // Returns 1 or -1
-glm::vec2 sign_not_zero(glm::vec2 v) {
+inline glm::vec2 sign_not_zero(glm::vec2 v) {
 	return glm::vec2((v.x >= 0.f) ? +1.f : -1.f, (v.y >= 0.f) ? +1.f : -1.f);
 }
 
 // Assume normalized input. Output is on [-1, 1] for each component.
-glm::vec2 float32x3_to_oct(glm::vec3 v) {
+inline glm::vec2 float32x3_to_oct(glm::vec3 v) {
 	// Project the sphere onto the octahedron, and then onto the xy plane
 	glm::vec2 p = glm::vec2(v) * (1.f / (std::abs(v.x) + std::abs(v.y) + std::abs(v.z)));
 	// Reflect the folds of the lower hemisphere over the diagonals
@@ -300,7 +300,7 @@ glm::vec2 float32x3_to_oct(glm::vec3 v) {
 
 /// 21 bits per component ~= 2,097,152 distinct values
 /// With an extent of 4096 that would give a precision of ~0.0019
-glm::uvec2 pack_vec3_to_uvec2(const glm::vec3 v, const float extent) {
+inline glm::uvec2 pack_vec3_to_uvec2(const glm::vec3 v, const float extent) {
 	glm::vec3 normalized = glm::clamp(v / extent, glm::vec3(-1.0f), glm::vec3(1.0f));
 	normalized = (normalized + 1.0f) * 0.5f;
 
@@ -313,7 +313,7 @@ glm::uvec2 pack_vec3_to_uvec2(const glm::vec3 v, const float extent) {
 }
 
 // From http://www.jcgt.org/published/0006/02/01/
-bool intersect_aabb(const glm::vec3& aabb_min, const glm::vec3& aabb_max, const glm::vec3& origin, const glm::vec3& direction) {
+inline bool intersect_aabb(const glm::vec3& aabb_min, const glm::vec3& aabb_max, const glm::vec3& origin, const glm::vec3& direction) {
 	const glm::vec3 t1 = (aabb_min - origin) / direction;
 	const glm::vec3 t2 = (aabb_max - origin) / direction;
 	const glm::vec3 tmin = glm::min(t1, t2);
@@ -322,7 +322,7 @@ bool intersect_aabb(const glm::vec3& aabb_min, const glm::vec3& aabb_max, const 
 	return glm::min(tmax.x, glm::min(tmax.y, tmax.z)) > glm::max(glm::max(tmin.x, 0.f), glm::max(tmin.y, tmin.z));
 }
 
-bool intersect_sphere(const glm::vec3& origin, const glm::vec3& direction, glm::vec3 position, float radius) {
+inline bool intersect_sphere(const glm::vec3& origin, const glm::vec3& direction, glm::vec3 position, float radius) {
 	glm::vec3 op = position - origin;
 	float b = glm::dot(op, direction);
 	float disc = b * b - dot(op, op) + radius * radius;
@@ -331,7 +331,7 @@ bool intersect_sphere(const glm::vec3& origin, const glm::vec3& direction, glm::
 
 // Only works with uniform scaling
 void
-transform_aabb_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3& new_min, glm::vec3& new_max, const glm::mat4& transform) {
+inline transform_aabb_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3& new_min, glm::vec3& new_max, const glm::mat4& transform) {
 	new_min = transform[3];
 	new_max = transform[3];
 	for (size_t i = 0; i < 3; i++) {
@@ -351,7 +351,7 @@ transform_aabb_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3& ne
 
 // Works with non uniform scaling. For uniform scaling use the faster transform_aabb_uniform()
 void
-transform_aabb_non_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3& new_min, glm::vec3& new_max, const glm::mat4& transform) {
+inline transform_aabb_non_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3& new_min, glm::vec3& new_max, const glm::mat4& transform) {
 	glm::vec4 p1 = transform * glm::vec4(min, 1.f);
 	glm::vec4 p2 = transform * glm::vec4(max.x, min.y, min.z, 1.f);
 	glm::vec4 p3 = transform * glm::vec4(max.x, max.y, min.z, 1.f);
@@ -365,7 +365,7 @@ transform_aabb_non_uniform(const glm::vec3& min, const glm::vec3& max, glm::vec3
 	new_max = glm::max(p1, glm::max(p2, glm::max(p3, glm::max(p4, glm::max(p5, glm::max(p6, glm::max(p7, p8)))))));
 }
 
-fs::path find_warcraft_directory() {
+inline fs::path find_warcraft_directory() {
 	QSettings settings;
 	if (settings.contains("warcraftDirectory")) {
 		return settings.value("warcraftDirectory").toString().toStdString();

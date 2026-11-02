@@ -98,7 +98,7 @@ struct EmitterPool {
 	uint32_t rng_state = 0;
 };
 
-auto rand_bits(EmitterPool& p) -> uint32_t {
+inline auto rand_bits(EmitterPool& p) -> uint32_t {
 	uint32_t x = p.rng_state;
 	x ^= x << 13;
 	x ^= x >> 17;
@@ -110,11 +110,11 @@ auto rand_bits(EmitterPool& p) -> uint32_t {
 	return x;
 }
 
-auto rand01(EmitterPool& p) -> float {
+inline auto rand01(EmitterPool& p) -> float {
 	return static_cast<float>(rand_bits(p)) * (1.f / 4294967296.f);
 }
 
-auto rand_signed(EmitterPool& p) -> float {
+inline auto rand_signed(EmitterPool& p) -> float {
 	return rand01(p) * 2.f - 1.f;
 }
 

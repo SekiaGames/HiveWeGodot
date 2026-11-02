@@ -95,6 +95,80 @@ RE_IMPORT_STD = re.compile(r'^import std(?:\.compat)?;\s*$')
 RE_IMPORT_ANGLE = re.compile(r'^import\s+<([^>]+)>;\s*$')
 RE_IMPORT_QUOTED = re.compile(r'^import\s+"([^"]+)"\s*;\s*$')
 RE_IMPORT_NAMED = re.compile(r'^import\s+([\w.]+)\s*;\s*$')
+
+FORBIDDEN_HEADS = (
+	'template', 'class ', 'struct ', 'enum ', 'union ', 'namespace ', 'using ', 'typedef ', 'extern ',
+	'static ', 'inline ', 'constexpr ', 'consteval ', 'concept ', 'export ', 'import ', 'module ', 'requires ',
+	'//', '/*', '*', '#', 'if ', 'if(', 'for ', 'for(', 'while ', 'while(', 'switch ', 'switch(',
+	'return', 'else', 'do ', 'case ', 'default:', 'public:', 'private:', 'protected:', 'try', 'catch',
+	'}', 'operator', 'friend ', '"',
+)
+
+
+def is_free_function_head(line: str) -> bool:
+	stripped = line.lstrip('\t ')
+	if not stripped:
+		return False
+	if len(line) - len(line.lstrip('\t')) > 0:
+		return False
+	for head in FORBIDDEN_HEADS:
+		if stripped.startswith(head):
+			return False
+	if stripped.startswith('[['):
+		close = stripped.find(']]')
+		if close < 0:
+			return False
+		stripped = stripped[close + 2:].lstrip()
+		if not stripped:
+			return False
+	if '(' not in stripped:
+		return False
+	return ';' not in stripped.split('{')[0]
+
+
+def add_inline(text: str) -> str:
+	lines = text.split('\n')
+	out = []
+	index = 0
+	while index < len(lines):
+		line = lines[index]
+		if not is_free_function_head(line):
+			out.append(line)
+			index += 1
+			continue
+
+		block = [line]
+		cursor = index + 1
+		while cursor < len(lines) and cursor - index < 24 and '{' not in block[-1]:
+			block.append(lines[cursor])
+			cursor += 1
+
+		joined = '\n'.join(block)
+		head = (line if '{' in line else joined).split('{')[0]
+		if '{' in joined and ';' not in head and ')' in head:
+			if line.lstrip().startswith('[[') and ']]' in line:
+				cut = line.rindex(']]') + 2
+				out.append(line[:cut] + ' inline' + line[cut:])
+			else:
+				out.append('inline ' + line)
+			out.extend(block[1:])
+			index = cursor
+		else:
+			out.append(line)
+			index += 1
+	return '\n'.join(out)
+
+
+RE_TOP_CONST = re.compile(
+	r'^(?!\s)(?!//|/\*|\*|#|extern\b|inline\b|static\b|using\b|typedef\b|template\b)'
+	r'((?:const|constexpr)\s+[A-Za-z_][\w:<>,\s\*&]*\s+[A-Za-z_]\w*\s*(?:\{[^;]*\}|=[^;]*);)$',
+	re.M,
+)
+
+
+def add_inline_variables(text: str) -> str:
+    return RE_TOP_CONST.sub(lambda m: 'inline ' + m.group(1), text)
+
 RE_MOC = re.compile(r'^#include "[\w/]+\.moc"\n?', re.M)
 RE_EMIT = re.compile(r'^(\s*)emit (?!dataChanged)(\w+)\((.*)\);$', re.M)
 RE_SLOTS = re.compile(r'^(\s*)(?:public|protected|private)?\s*slots:\s*$', re.M)
@@ -227,6 +301,38 @@ PATCHES = [
         '\t\t\tTRY_OPEN(read_file(root_directory / string_replaced(p, \"\\\\\", \"/\")));',
     ),
     (
+        'extern const glm::quat ROTATION_IDENTITY',
+        'inline const glm::quat ROTATION_IDENTITY',
+    ),
+    (
+        'extern const glm::vec3 TRANSLATION_IDENTITY',
+        'inline const glm::vec3 TRANSLATION_IDENTITY',
+    ),
+    (
+        'extern const glm::vec3 SCALE_IDENTITY',
+        'inline const glm::vec3 SCALE_IDENTITY',
+    ),
+    (
+        '\tbool is_blp(const BinaryReader& reader) {',
+        '\tinline bool is_blp(const BinaryReader& reader) {',
+    ),
+    (
+        '\tstd::expected<Image, std::string> load(BinaryReader& reader) {',
+        '\tinline std::expected<Image, std::string> load(BinaryReader& reader) {',
+    ),
+    (
+        '\tfs::path hive_data_folder(const fs::path& map_directory) {',
+        '\tinline fs::path hive_data_folder(const fs::path& map_directory) {',
+    ),
+    (
+        '\tfs::path terrain_pathing_file(const fs::path& map_directory) {',
+        '\tinline fs::path terrain_pathing_file(const fs::path& map_directory) {',
+    ),
+    (
+        '\tfs::path map_info_extras_file(const fs::path& map_directory) {',
+        '\tinline fs::path map_info_extras_file(const fs::path& map_directory) {',
+    ),
+    (
         'class Terrain: public QObject {',
         'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
     ),
@@ -246,9 +352,11 @@ PATCHES = [
 ]
 
 
-def apply_patches(text):
+def apply_patches(text, header=True):
     for old, new in PATCHES:
         text = text.replace(old, new)
+    if header:
+        text = add_inline_variables(add_inline(text))
     text = RE_EMIT.sub(r'\1if (\2) { \2(\3); }', text)
     text = RE_SLOTS.sub(r'\1public:', text)
     text = RE_EXEC_PAR.sub(r'std::\1(', text)
@@ -356,7 +464,7 @@ def emit(path, dst, src, includes, keep_pragma, suffix):
     else:
         lines = rewrite(text.split('\n'), includes, keep_pragma=False)
 
-    content = apply_patches('\n'.join(lines))
+    content = apply_patches('\n'.join(lines), header=not str(path).endswith('.cpp'))
     rel = os.path.relpath(path, src)
     out = os.path.join(dst, os.path.splitext(rel)[0] + suffix)
     os.makedirs(os.path.dirname(out), exist_ok=True)

@@ -489,7 +489,7 @@ class VkContext {
 /// can still reach it. The OS reclaims the device when the process ends.
 inline VkContext& vk_context = *new VkContext;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 	const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	const VkDebugUtilsMessageTypeFlagsEXT,
 	const VkDebugUtilsMessengerCallbackDataEXT* data,

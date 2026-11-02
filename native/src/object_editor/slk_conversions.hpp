@@ -90,7 +90,7 @@
 #include "globals.hpp"
 
 /// Returns the new destructible ID
-std::string convert_doodad_to_destructible(const std::string_view doodad_id, const std::string_view base_destructible) {
+inline std::string convert_doodad_to_destructible(const std::string_view doodad_id, const std::string_view base_destructible) {
 	const auto new_id = get_unique_id(true);
 	destructibles_slk.copy_row(base_destructible, new_id, false);
 

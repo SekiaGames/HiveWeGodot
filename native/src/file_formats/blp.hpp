@@ -97,12 +97,12 @@ namespace blp {
 		std::vector<u8> data;
 	};
 
-	bool is_blp(const BinaryReader& reader) {
+	inline bool is_blp(const BinaryReader& reader) {
 		return reader.buffer.size() >= 4 && std::memcmp(reader.buffer.data(), "BLP1", 4) == 0;
 	}
 
 	/// Decodes a BLP1 texture. Returns the decoded RGBA image
-	std::expected<Image, std::string> load(BinaryReader& reader) {
+	inline std::expected<Image, std::string> load(BinaryReader& reader) {
 		try {
 			const std::string magic_number = reader.read_string(4);
 			if (magic_number != "BLP1") {

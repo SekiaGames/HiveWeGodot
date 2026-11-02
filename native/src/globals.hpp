@@ -118,7 +118,7 @@ inline slk::SLK buff_meta_slk;
 
 
 /// Generates a four character ID that is not in use by any of the object types
-std::string get_unique_id(bool first_uppercase) {
+inline std::string get_unique_id(bool first_uppercase) {
 	std::random_device rd;
 	std::mt19937 mt(rd());
 	std::uniform_int_distribution<int> dist(0, 25);

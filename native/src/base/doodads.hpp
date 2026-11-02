@@ -198,11 +198,11 @@ namespace fs = std::filesystem;
 template<class T>
 concept DoodadLike = std::derived_from<std::remove_pointer_t<T>, Doodad>;
 
-const Doodad& as_doodad(const Doodad* t) {
+inline const Doodad& as_doodad(const Doodad* t) {
 	return *t;
 }
 
-const Doodad& as_doodad(const Doodad& t) {
+inline const Doodad& as_doodad(const Doodad& t) {
 	return t;
 }
 

@@ -14,7 +14,7 @@ namespace QtImGui {
 
 class WindowWrapper {
 public:
-    virtual ~WindowWrapper() {}
+inline     virtual ~WindowWrapper() {}
     virtual void installEventFilter(QObject *object) = 0;
     virtual QSize size() const = 0;
     virtual qreal devicePixelRatio() const = 0;

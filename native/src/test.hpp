@@ -92,7 +92,7 @@
 
 namespace fs = std::filesystem;
 
-void parse_all_mdx() {
+inline void parse_all_mdx() {
 	std::vector<fs::path> paths;
 
 	for (const auto i : fs::recursive_directory_iterator("D:/Warcraft/2.0/war3.w3mod")) {
@@ -139,7 +139,7 @@ void parse_all_mdx() {
 	// std::println("Rows avg {}, Cols avg {}", static_cast<float>(rows) / checked.load(), static_cast<float>(columns) / checked.load());
 }
 
-void execute_tests() {
+inline void execute_tests() {
 	std::print("[INFO] Parsing all MDX files\n");
 	auto begin = std::chrono::steady_clock::now();
 	parse_all_mdx();

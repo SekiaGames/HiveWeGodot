@@ -91,15 +91,15 @@ struct string_hash {
     using is_transparent = void; // enable heterogeneous lookup
     using is_avalanching = void; // mark class as high quality avalanching hash
 
-    [[nodiscard]] auto operator()(const char* str) const noexcept -> uint64_t {
+    [[nodiscard]] inline auto operator()(const char* str) const noexcept -> uint64_t {
         return ankerl::unordered_dense::hash<std::string_view>{}(str);
     }
 
-    [[nodiscard]] auto operator()(std::string_view str) const noexcept -> uint64_t {
+    [[nodiscard]] inline auto operator()(std::string_view str) const noexcept -> uint64_t {
         return ankerl::unordered_dense::hash<std::string_view>{}(str);
     }
 
-    [[nodiscard]] auto operator()(std::string const& str) const noexcept -> uint64_t {
+    [[nodiscard]] inline auto operator()(std::string const& str) const noexcept -> uint64_t {
         return ankerl::unordered_dense::hash<std::string_view>{}(str);
     }
 };

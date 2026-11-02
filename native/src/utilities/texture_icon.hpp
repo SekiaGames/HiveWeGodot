@@ -95,7 +95,7 @@
 namespace fs = std::filesystem;
 
 /// Loads a texture from the hierarchy and returns an icon
-QIcon texture_to_icon(const fs::path& path) {
+inline QIcon texture_to_icon(const fs::path& path) {
 	const auto tex = resource_manager.load<Texture>(path).value();
 	const QImage temp_image = QImage(
 		tex->data.data(),

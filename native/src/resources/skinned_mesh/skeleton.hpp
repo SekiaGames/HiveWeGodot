@@ -912,7 +912,7 @@ static std::vector<int64_t> build_global_sample_times(mdx::MDX& model) {
 }
 
 // Computes per-sequence and overall model extents that account for skeletal animation
-void calculate_animated_extents(const std::shared_ptr<mdx::MDX>& model) {
+inline void calculate_animated_extents(const std::shared_ptr<mdx::MDX>& model) {
 	// Seeds the rest-pose geoset/model extents and the particle emitter bounds.
 	model->calculate_extents();
 

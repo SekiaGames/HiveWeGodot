@@ -95,7 +95,7 @@
 
 namespace fs = std::filesystem;
 
-constexpr const char* constants_row_key = "yeet";
+inline constexpr const char* constants_row_key = "yeet";
 
 class GameplayConstants {
   public:

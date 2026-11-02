@@ -119,13 +119,13 @@ namespace {
 
 /// World matrix of an emitter's node. Appends the pivot translation, since world_matrices[node.id]
 /// is in skinning convention and omits it at rest; this matches the simulation path.
-glm::mat4 emitter_world_matrix(const mdx::MDX& mdx, const Skeleton& skeleton, const mdx::ParticleEmitter2& e) {
+inline glm::mat4 emitter_world_matrix(const mdx::MDX& mdx, const Skeleton& skeleton, const mdx::ParticleEmitter2& e) {
 	return skeleton.world_matrices[e.node.id] * glm::translate(glm::mat4(1.f), mdx.pivots[e.node.id]);
 }
 
 /// Appends the camera-facing quads for every live particle of one emitter to `scratch`, as a triangle list.
 /// Backend independent; `scratch_sort` is reusable storage for far-Z sorting.
-void build_emitter_vertices(
+inline void build_emitter_vertices(
 const mdx::ParticleEmitter2& e,
 const EmitterPool& pool,
 const glm::mat4& emitter_world_matrix,

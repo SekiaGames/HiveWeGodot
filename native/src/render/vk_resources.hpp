@@ -102,7 +102,7 @@ struct Buffer {
 };
 
 /// Host-visible buffers are persistently mapped and meant for sequential CPU writes
-Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const bool host_visible) {
+inline Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, const bool host_visible) {
 #if HIVE_HEADLESS
 	return Buffer {};
 #endif
@@ -132,7 +132,7 @@ Buffer create_buffer(const VkDeviceSize size, const VkBufferUsageFlags usage, co
 	return buffer;
 }
 
-void destroy_buffer_deferred(const Buffer& buffer) {
+inline void destroy_buffer_deferred(const Buffer& buffer) {
 #if HIVE_HEADLESS
 	return;
 #endif
@@ -145,7 +145,7 @@ void destroy_buffer_deferred(const Buffer& buffer) {
 }
 
 /// Makes transfer writes recorded earlier in `cmd` visible to every later command on the queue
-void transfer_write_barrier(const VkCommandBuffer cmd) {
+inline void transfer_write_barrier(const VkCommandBuffer cmd) {
 	const VkMemoryBarrier2 barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
 		.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
@@ -162,7 +162,7 @@ void transfer_write_barrier(const VkCommandBuffer cmd) {
 }
 
 /// Makes every earlier command on the queue finish reading before transfers recorded after this barrier write
-void transfer_after_reads_barrier(const VkCommandBuffer cmd) {
+inline void transfer_after_reads_barrier(const VkCommandBuffer cmd) {
 	const VkMemoryBarrier2 barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
 		.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
@@ -180,7 +180,7 @@ void transfer_after_reads_barrier(const VkCommandBuffer cmd) {
 
 /// Overwrites part of a device-local buffer that frames in flight may still be reading.
 /// The copy waits for all earlier GPU work on the queue, and the call blocks until it is done.
-void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, const VkDeviceSize offset = 0) {
+inline void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, const VkDeviceSize offset = 0) {
 #if HIVE_HEADLESS
 	return;
 #endif
@@ -199,12 +199,12 @@ void upload_buffer(const Buffer& buffer, const std::span<const std::byte> data, 
 }
 
 template <typename T>
-void upload_buffer(const Buffer& buffer, const std::vector<T>& data) {
+inline void upload_buffer(const Buffer& buffer, const std::vector<T>& data) {
 	upload_buffer(buffer, std::as_bytes(std::span(data)));
 }
 
 /// Creates a device-local buffer holding `data`. Blocks until the upload is done.
-Buffer create_device_buffer(const std::span<const std::byte> data, const VkBufferUsageFlags usage) {
+inline Buffer create_device_buffer(const std::span<const std::byte> data, const VkBufferUsageFlags usage) {
 #if HIVE_HEADLESS
 	return Buffer {};
 #endif
@@ -232,7 +232,7 @@ struct Image {
 };
 
 /// `array_view` gives the view type VK_IMAGE_VIEW_TYPE_2D_ARRAY (for sampler2DArray) even with a single layer
-Image create_image(
+inline Image create_image(
 	const VkFormat format,
 	const VkExtent2D extent,
 	const uint32_t mip_levels,
@@ -278,7 +278,7 @@ Image create_image(
 	return image;
 }
 
-void destroy_image_deferred(const Image& image) {
+inline void destroy_image_deferred(const Image& image) {
 #if HIVE_HEADLESS
 	return;
 #endif
@@ -291,7 +291,7 @@ void destroy_image_deferred(const Image& image) {
 	});
 }
 
-void image_barrier(
+inline void image_barrier(
 	const VkCommandBuffer cmd,
 	const VkImage image,
 	const VkImageLayout old_layout,
@@ -572,7 +572,7 @@ class Bindless {
 /// Never destroyed, for the same reason as vk_context
 inline Bindless& bindless = *new Bindless;
 
-std::vector<uint32_t> load_spirv(const fs::path& path) {
+inline std::vector<uint32_t> load_spirv(const fs::path& path) {
 	std::ifstream file(path, std::ios::binary | std::ios::ate);
 	if (!file) {
 		throw std::runtime_error(std::format("Missing SPIR-V shader {}", path.string()));
@@ -585,8 +585,8 @@ std::vector<uint32_t> load_spirv(const fs::path& path) {
 
 /// Every viewport renders to a swapchain image in this format plus a depth attachment in depth_attachment_format.
 /// Desktop drivers and MoltenVK all offer both, so pipelines are built once, for these formats.
-constexpr VkFormat color_attachment_format = VK_FORMAT_B8G8R8A8_UNORM;
-constexpr VkFormat depth_attachment_format = VK_FORMAT_D32_SFLOAT;
+inline constexpr VkFormat color_attachment_format = VK_FORMAT_B8G8R8A8_UNORM;
+inline constexpr VkFormat depth_attachment_format = VK_FORMAT_D32_SFLOAT;
 
 /// Everything that varies between HiveWE's graphics pipelines. The rest is fixed: the bindless pipeline layout,
 /// counter-clockwise front faces (matching OpenGL under the flipped viewport), no MSAA, depth compare LEQUAL,
@@ -603,7 +603,7 @@ struct PipelineDescription {
 	VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 };
 
-VkPipeline create_graphics_pipeline(const PipelineDescription& description) {
+inline VkPipeline create_graphics_pipeline(const PipelineDescription& description) {
 #if HIVE_HEADLESS
 	return VK_NULL_HANDLE;
 #endif
@@ -766,7 +766,7 @@ class Pipeline {
 /// Sets the viewport to a rectangle given in framebuffer pixels from the top-left, with a negative viewport height
 /// so clip space is Y-up like OpenGL. The rectangle may extend past the framebuffer; the scissor is clipped to it.
 /// Returns that scissor, which is empty when nothing of the rectangle is on screen.
-VkRect2D set_viewport(const VkCommandBuffer cmd, const VkRect2D rect, const VkExtent2D framebuffer) {
+inline VkRect2D set_viewport(const VkCommandBuffer cmd, const VkRect2D rect, const VkExtent2D framebuffer) {
 	const VkViewport viewport = {
 		static_cast<float>(rect.offset.x),
 		static_cast<float>(rect.offset.y + static_cast<int32_t>(rect.extent.height)),

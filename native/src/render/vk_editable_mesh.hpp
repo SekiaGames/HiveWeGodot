@@ -106,7 +106,7 @@ struct MeshTextureRequest {
 
 /// The texture file for each entry in mdx.textures, in order, resolving replaceable IDs and empty file names
 std::vector<MeshTextureRequest>
-mesh_texture_requests(const mdx::MDX& mdx, const std::optional<std::pair<int, std::string>>& replaceable_id_override) {
+inline mesh_texture_requests(const mdx::MDX& mdx, const std::optional<std::pair<int, std::string>>& replaceable_id_override) {
 	std::vector<MeshTextureRequest> requests;
 	requests.reserve(mdx.textures.size());
 
@@ -227,7 +227,7 @@ struct BlendFactors {
 	VkBlendFactor dst;
 };
 
-constexpr std::array<BlendFactors, blend_mode_count> blend_factors = {{
+inline constexpr std::array<BlendFactors, blend_mode_count> blend_factors = {{
 	{false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO},
 	{true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA},
 	{true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE},
@@ -235,7 +235,7 @@ constexpr std::array<BlendFactors, blend_mode_count> blend_factors = {{
 	{true, VK_BLEND_FACTOR_DST_COLOR, VK_BLEND_FACTOR_SRC_COLOR},
 }};
 
-BlendMode layer_blend_mode(const uint32_t mdx_blend_mode) {
+inline BlendMode layer_blend_mode(const uint32_t mdx_blend_mode) {
 	switch (mdx_blend_mode) {
 		case 2:
 			return blend_alpha;
@@ -251,7 +251,7 @@ BlendMode layer_blend_mode(const uint32_t mdx_blend_mode) {
 	}
 }
 
-BlendMode particle_blend_mode(const uint32_t filter_mode) {
+inline BlendMode particle_blend_mode(const uint32_t filter_mode) {
 	switch (filter_mode) {
 		case 1:
 			return blend_additive;

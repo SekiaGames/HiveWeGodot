@@ -178,9 +178,9 @@
 
 namespace fs = std::filesystem;
 
-constexpr int mod_table_write_version = 3;
+inline constexpr int mod_table_write_version = 3;
 
-void load_modification_table(BinaryReader& reader, const uint32_t version, slk::SLK& slk, const slk::SLK& meta_slk, const bool modification, const bool optional_ints) {
+inline void load_modification_table(BinaryReader& reader, const uint32_t version, slk::SLK& slk, const slk::SLK& meta_slk, const bool modification, const bool optional_ints) {
 	const uint32_t objects = reader.read<uint32_t>();
 	for (size_t i = 0; i < objects; i++) {
 		const std::string original_id = reader.read_string(4);
@@ -249,7 +249,7 @@ void load_modification_table(BinaryReader& reader, const uint32_t version, slk::
 	}
 }
 
-void load_modification_file(const std::string_view file_name, slk::SLK& base_data, const slk::SLK& meta_slk, const bool optional_ints) {
+inline void load_modification_file(const std::string_view file_name, slk::SLK& base_data, const slk::SLK& meta_slk, const bool optional_ints) {
 	BinaryReader reader = hierarchy.map_file_read(file_name).value();
 
 	const int version = reader.read<uint32_t>();
@@ -263,7 +263,7 @@ void load_modification_file(const std::string_view file_name, slk::SLK& base_dat
 
 // The idea of SLKs and mod files is quite bad, but I can deal with them
 // The way they are implemented is horrible though
-void save_modification_table(BinaryWriter& writer, const slk::SLK& slk, const slk::SLK& meta_slk, const bool custom, const bool optional_ints, const bool skin) {
+inline void save_modification_table(BinaryWriter& writer, const slk::SLK& slk, const slk::SLK& meta_slk, const bool custom, const bool optional_ints, const bool skin) {
 	BinaryWriter sub_writer;
 
 	size_t count = 0;
@@ -367,7 +367,7 @@ void save_modification_table(BinaryWriter& writer, const slk::SLK& slk, const sl
 	writer.write_vector(sub_writer.buffer);
 }
 
-void save_modification_file(const std::string_view file_name, const slk::SLK& slk, const slk::SLK& meta_slk, const bool optional_ints, const bool skin) {
+inline void save_modification_file(const std::string_view file_name, const slk::SLK& slk, const slk::SLK& meta_slk, const bool optional_ints, const bool skin) {
 	BinaryWriter writer;
 	writer.write<uint32_t>(mod_table_write_version);
 

@@ -5,9 +5,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-extern const glm::vec3 TRANSLATION_IDENTITY(0);
-extern const glm::vec3 SCALE_IDENTITY(1);
-extern const glm::quat ROTATION_IDENTITY(1, 0, 0, 0);
+inline const glm::vec3 TRANSLATION_IDENTITY(0);
+inline const glm::vec3 SCALE_IDENTITY(1);
+inline const glm::quat ROTATION_IDENTITY(1, 0, 0, 0);
 
 // Equivalent to, but much faster than
 // worldMatrix = glm::translate(glm::mat4(1.f), position);
@@ -17,7 +17,7 @@ extern const glm::quat ROTATION_IDENTITY(1, 0, 0, 0);
 // worldMatrix *= glm::mat4_cast(rotation);
 // worldMatrix = glm::translate(worldMatrix, -pivot);
 void
-from_rotation_translation_scale_origin(const glm::quat& q, const glm::vec3& v, const glm::vec3& s, glm::mat4& out, const glm::vec3& pivot) {
+inline from_rotation_translation_scale_origin(const glm::quat& q, const glm::vec3& v, const glm::vec3& s, glm::mat4& out, const glm::vec3& pivot) {
 	// ho tom bambadil
 	// tom bombadillo
 	// Retera was here
@@ -60,7 +60,7 @@ from_rotation_translation_scale_origin(const glm::quat& q, const glm::vec3& v, c
 	out[3][3] = 1;
 }
 
-glm::quat ghostwolfSquad(const glm::quat a, const glm::quat aOutTan, const glm::quat bInTan, const glm::quat b, float t) {
+inline glm::quat ghostwolfSquad(const glm::quat a, const glm::quat aOutTan, const glm::quat bInTan, const glm::quat b, float t) {
 	glm::quat temp1;
 	glm::quat temp2;
 	temp1 = glm::slerp(a, b, t);
@@ -68,7 +68,7 @@ glm::quat ghostwolfSquad(const glm::quat a, const glm::quat aOutTan, const glm::
 	return glm::slerp(temp1, temp2, 2 * t * (1 - t));
 }
 
-float hermite(float a, float aOutTan, float bInTan, float b, float t) {
+inline float hermite(float a, float aOutTan, float bInTan, float b, float t) {
 	float factorTimes2 = t * t;
 	float factor1 = factorTimes2 * (2 * t - 3) + 1;
 	float factor2 = factorTimes2 * (t - 2) + t;
@@ -77,7 +77,7 @@ float hermite(float a, float aOutTan, float bInTan, float b, float t) {
 	return (a * factor1) + (aOutTan * factor2) + (bInTan * factor3) + (b * factor4);
 }
 
-float bezier(float a, float aOutTan, float bInTan, float b, float t) {
+inline float bezier(float a, float aOutTan, float bInTan, float b, float t) {
 	float invt = 1 - t;
 	float factorSquared = t * t;
 	float inverseFactorSquared = invt * invt;
@@ -93,7 +93,7 @@ float bezier(float a, float aOutTan, float bInTan, float b, float t) {
 //	out = *start;
 // }
 
-float interpolate(const float start, const float outTan, const float inTan, const float end, float t, int interpolationType) {
+inline float interpolate(const float start, const float outTan, const float inTan, const float end, float t, int interpolationType) {
 	switch (interpolationType) {
 		case 1: // LINEAR
 			return glm::mix(start, end, t);
@@ -107,7 +107,7 @@ float interpolate(const float start, const float outTan, const float inTan, cons
 }
 
 glm::vec3
-interpolate(const glm::vec3 start, const glm::vec3 outTan, const glm::vec3 inTan, const glm::vec3 end, float t, int interpolationType) {
+inline interpolate(const glm::vec3 start, const glm::vec3 outTan, const glm::vec3 inTan, const glm::vec3 end, float t, int interpolationType) {
 	switch (interpolationType) {
 		case 1: // LINEAR
 			return glm::mix(start, end, t);
@@ -131,7 +131,7 @@ interpolate(const glm::vec3 start, const glm::vec3 outTan, const glm::vec3 inTan
 }
 
 glm::quat
-interpolate(const glm::quat start, const glm::quat outTan, const glm::quat inTan, const glm::quat end, float t, int interpolationType) {
+inline interpolate(const glm::quat start, const glm::quat outTan, const glm::quat inTan, const glm::quat end, float t, int interpolationType) {
 	switch (interpolationType) {
 		case 1: // LINEAR
 			return glm::slerp(start, end, t);
@@ -152,11 +152,11 @@ interpolate(const glm::quat start, const glm::quat outTan, const glm::quat inTan
 	}
 }
 
-uint32_t interpolate(const uint32_t start, const uint32_t, const uint32_t, const uint32_t, float, int) {
+inline uint32_t interpolate(const uint32_t start, const uint32_t, const uint32_t, const uint32_t, float, int) {
 	return start;
 }
 
-glm::quat safeQuatLookAt(glm::vec3 const& lookFrom, glm::vec3 const& lookTo, glm::vec3 const& up, glm::vec3 const& alternativeUp) {
+inline glm::quat safeQuatLookAt(glm::vec3 const& lookFrom, glm::vec3 const& lookTo, glm::vec3 const& up, glm::vec3 const& alternativeUp) {
 	glm::vec3 direction = lookTo - lookFrom;
 	float directionLength = glm::length(direction);
 

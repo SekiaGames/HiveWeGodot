@@ -100,7 +100,7 @@
 
 namespace fs = std::filesystem;
 
-fs::path diffuse_texture_path(const fs::path& path) {
+inline fs::path diffuse_texture_path(const fs::path& path) {
 	if (!hierarchy.remastered) {
 		return path;
 	}

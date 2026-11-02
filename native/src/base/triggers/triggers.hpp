@@ -480,7 +480,7 @@ struct TriggerVariable {
 	int parent_id;
 };
 
-std::string get_base_type(const std::string& type, const ini::INI& trigger_data) {
+inline std::string get_base_type(const std::string& type, const ini::INI& trigger_data) {
 	std::string base_type = trigger_data.data("TriggerTypes", type, 4);
 
 	if (base_type.empty()) {

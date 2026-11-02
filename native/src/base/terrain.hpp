@@ -158,7 +158,7 @@ constexpr std::tuple<int, int> variation_chances[18] = {
 	{15, 1}
 };
 
-int random_ground_variation() {
+inline int random_ground_variation() {
 	thread_local std::mt19937 rng(std::random_device {}());
 	std::uniform_int_distribution<> dist(0, 570);
 	int nr = dist(rng) - 1;
@@ -203,10 +203,10 @@ struct TerrainFrameData {
 static_assert(offsetof(TerrainFrameData, cliff_levels) == 160);
 static_assert(offsetof(TerrainFrameData, region_count) == 224);
 
-constexpr uint32_t terrain_flag_pathing = 1;
-constexpr uint32_t terrain_flag_lighting = 2;
-constexpr uint32_t terrain_flag_regions = 4;
-constexpr uint32_t terrain_flag_brush = 8;
+inline constexpr uint32_t terrain_flag_pathing = 1;
+inline constexpr uint32_t terrain_flag_lighting = 2;
+inline constexpr uint32_t terrain_flag_regions = 4;
+inline constexpr uint32_t terrain_flag_brush = 8;
 
 class Terrain: public QObject {
 	friend struct HiveBridge;

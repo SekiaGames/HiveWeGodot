@@ -281,7 +281,7 @@ namespace {
 
 /// Uploads decoded or block-compressed texture data into a new sampled image in SHADER_READ_ONLY_OPTIMAL layout.
 /// Blocks until the upload is done.
-Image upload_texture(const TextureData& data, const bool generate_mips = true) {
+inline Image upload_texture(const TextureData& data, const bool generate_mips = true) {
 #if HIVE_HEADLESS
 	return Image {};
 #endif
@@ -413,7 +413,7 @@ Image upload_texture(const TextureData& data, const bool generate_mips = true) {
 
 /// Creates a 2D array image from layers of tightly packed 8-bit RGBA pixels, one after another, with a full mip chain.
 /// Blocks until uploaded.
-Image create_rgba8_array_image(
+inline Image create_rgba8_array_image(
 	const VkExtent2D extent,
 	const uint32_t layers,
 	const std::span<const u8> pixels,
@@ -430,7 +430,7 @@ Image create_rgba8_array_image(
 }
 
 /// Expands tightly packed 8-bit pixels with 1 to 4 channels to RGBA; missing color channels are 0 and missing alpha is 255
-std::vector<u8> expand_to_rgba8(const std::span<const u8> pixels, const int channels) {
+inline std::vector<u8> expand_to_rgba8(const std::span<const u8> pixels, const int channels) {
 	if (channels == 4) {
 		return {pixels.begin(), pixels.end()};
 	}
@@ -531,7 +531,7 @@ class UpdatableTexture {
 };
 
 /// Creates a sampled image from tightly packed 8-bit RGBA pixels, with a single mip level. Blocks until uploaded.
-Image create_rgba8_image(const VkExtent2D extent, const std::span<const u8> pixels, const VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) {
+inline Image create_rgba8_image(const VkExtent2D extent, const std::span<const u8> pixels, const VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) {
 	TextureData data;
 	data.format = format;
 	data.extent = extent;

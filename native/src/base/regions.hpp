@@ -97,7 +97,7 @@ constexpr float region_border_size() {
 }
 
 /// Darker pastel colors that new regions cycle through
-constexpr std::array<glm::u8vec4, 10> region_preset_colors = {{
+inline constexpr std::array<glm::u8vec4, 10> region_preset_colors = {{
 	{ 177, 84, 84, 255 },
 	{ 185, 122, 86, 255 },
 	{ 181, 157, 84, 255 },
