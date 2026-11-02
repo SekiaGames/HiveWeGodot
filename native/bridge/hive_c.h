@@ -329,6 +329,22 @@ int32_t hive_trigger_eca_parameter_count(void* handle, int32_t index, int32_t ty
 /* 参数类型：-1 无效、0 预设、1 变量、2 函数、3 字符串。 */
 int32_t hive_trigger_eca_parameter_type(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
 const char* hive_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
+int32_t hive_set_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter,
+											 const char* value);
+/* 参数在 TriggerData 里的类型名，如 unitcode。 */
+const char* hive_trigger_eca_parameter_type_name(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
+
+/* 该类型的预设值（TriggerParams 段里属于这个类型的行）。 */
+int32_t hive_trigger_preset_count(void* handle, const char* type_name);
+const char* hive_trigger_preset_code(void* handle, const char* type_name, int32_t index);
+const char* hive_trigger_preset_display(void* handle, const char* type_name, int32_t index);
+
+/* 可用的 ECA 函数列表。type：0 事件、1 条件、2 动作。 */
+int32_t hive_trigger_function_count(void* handle, int32_t type);
+const char* hive_trigger_function_name(void* handle, int32_t type, int32_t index);
+/* 新增 ECA，参数按 TriggerData 的定义留空。返回新 ECA 在同类型里的序号。 */
+int32_t hive_trigger_add_eca(void* handle, int32_t index, int32_t type, const char* name);
+int32_t hive_trigger_remove_eca(void* handle, int32_t index, int32_t type, int32_t eca);
 
 /* 新建触发器，挂在 parent_id 这个分类下，返回新索引。 */
 int32_t hive_create_trigger(void* handle, const char* name, int32_t parent_id);

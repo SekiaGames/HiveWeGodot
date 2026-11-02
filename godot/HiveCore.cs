@@ -479,6 +479,33 @@ public static class HiveCore
     private static extern IntPtr hive_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_eca_parameter_type_name(IntPtr hive, int index, int type, int eca, int parameter);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_preset_count(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string typeName);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_preset_code(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string typeName, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_preset_display(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string typeName, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_function_count(IntPtr hive, int type);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_trigger_function_name(IntPtr hive, int type, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_add_eca(IntPtr hive, int index, int type, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_trigger_remove_eca(IntPtr hive, int index, int type, int eca);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_create_trigger(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int parentId);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -990,6 +1017,29 @@ public static class HiveCore
 
     public static string? TriggerEcaParameterValue(int index, int type, int eca, int parameter)
         => ReadString(hive_trigger_eca_parameter_value(handle, index, type, eca, parameter));
+
+    public static bool SetTriggerEcaParameterValue(int index, int type, int eca, int parameter, string value)
+        => hive_set_trigger_eca_parameter_value(handle, index, type, eca, parameter, value) == 0;
+
+    public static string? TriggerEcaParameterTypeName(int index, int type, int eca, int parameter)
+        => ReadString(hive_trigger_eca_parameter_type_name(handle, index, type, eca, parameter));
+
+    public static int TriggerPresetCount(string typeName) => hive_trigger_preset_count(handle, typeName);
+
+    public static string? TriggerPresetCode(string typeName, int index)
+        => ReadString(hive_trigger_preset_code(handle, typeName, index));
+
+    public static string? TriggerPresetDisplay(string typeName, int index)
+        => ReadString(hive_trigger_preset_display(handle, typeName, index));
+
+    public static int TriggerFunctionCount(int type) => hive_trigger_function_count(handle, type);
+
+    public static string? TriggerFunctionName(int type, int index)
+        => ReadString(hive_trigger_function_name(handle, type, index));
+
+    public static int AddTriggerEca(int index, int type, string name) => hive_trigger_add_eca(handle, index, type, name);
+
+    public static bool RemoveTriggerEca(int index, int type, int eca) => hive_trigger_remove_eca(handle, index, type, eca) == 0;
 
     public static int CreateTrigger(string name, int parentId) => hive_create_trigger(handle, name, parentId);
 

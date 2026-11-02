@@ -263,36 +263,140 @@ public partial class TriggerWindow : AcceptDialog
     private void ListEca(int index, int type, string title)
     {
         int count = HiveCore.TriggerEcaCount(index, type);
-        ecaColumn.AddChild(new Label
+
+        var header = new HBoxContainer();
+        header.AddChild(new Label
         {
             Text = $"{title}（{count}）",
             Modulate = Muted,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
+        var add = new Button
+        {
+            Text = "添加",
+            TooltipText = $"添加{title}",
+            CustomMinimumSize = new Vector2(56, 0),
+        };
+        add.Pressed += () => ShowFunctionPicker(index, type, title);
+        header.AddChild(add);
+        ecaColumn.AddChild(header);
+
         for (int i = 0; i < count; i++)
         {
-            string name = HiveCore.TriggerEcaName(index, type, i) ?? "?";
-            int parameters = HiveCore.TriggerEcaParameterCount(index, type, i);
-
-            var values = new List<string>();
-            for (int p = 0; p < parameters; p++)
-            {
-                int kind = HiveCore.TriggerEcaParameterType(index, type, i, p);
-                string value = HiveCore.TriggerEcaParameterValue(index, type, i, p) ?? string.Empty;
-                values.Add(kind switch
-                {
-                    0 => value,
-                    1 => value,
-                    2 => $"{value}()",
-                    3 => $"\"{value}\"",
-                    _ => value,
-                });
-            }
-
-            string text = values.Count == 0
-                ? $"  {name}"
-                : $"  {name}（{string.Join("，", values)}）";
-            ecaColumn.AddChild(new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            ecaColumn.AddChild(BuildEcaBlock(index, type, i));
         }
+    }
+
+    private Control BuildEcaBlock(int index, int type, int eca)
+    {
+        var block = new VBoxContainer();
+        block.AddThemeConstantOverride("separation", 2);
+
+        var head = new HBoxContainer();
+        head.AddChild(new Label
+        {
+            Text = HiveCore.TriggerEcaName(index, type, eca) ?? "?",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        var remove = new Button
+        {
+            Text = "×",
+            TooltipText = "删除这一条",
+            CustomMinimumSize = new Vector2(32, 0),
+        };
+        remove.Pressed += () =>
+        {
+            HiveCore.RemoveTriggerEca(index, type, eca);
+            ShowTrigger(index);
+        };
+        head.AddChild(remove);
+        block.AddChild(head);
+
+        int parameters = HiveCore.TriggerEcaParameterCount(index, type, eca);
+        for (int p = 0; p < parameters; p++)
+        {
+            int slot = p;
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 6);
+            row.AddChild(new Label
+            {
+                Text = HiveCore.TriggerEcaParameterTypeName(index, type, eca, p) ?? $"参数 {p + 1}",
+                CustomMinimumSize = new Vector2(110, 0),
+                Modulate = Muted,
+            });
+
+            var edit = new LineEdit
+            {
+                Text = HiveCore.TriggerEcaParameterValue(index, type, eca, p) ?? string.Empty,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            edit.TextSubmitted += text => HiveCore.SetTriggerEcaParameterValue(index, type, eca, slot, text);
+            edit.FocusExited += () => HiveCore.SetTriggerEcaParameterValue(index, type, eca, slot, edit.Text);
+            row.AddChild(edit);
+
+            block.AddChild(row);
+        }
+
+        return block;
+    }
+
+    private void ShowFunctionPicker(int index, int type, string title)
+    {
+        var dialog = new AcceptDialog
+        {
+            Title = $"添加{title}",
+            OkButtonText = "添加",
+        };
+
+        var column = new VBoxContainer { CustomMinimumSize = new Vector2(420, 420) };
+        column.AddThemeConstantOverride("separation", 6);
+
+        var filter = new LineEdit { PlaceholderText = "按名字筛选" };
+        column.AddChild(filter);
+
+        var list = new ItemList { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        column.AddChild(list);
+
+        int total = HiveCore.TriggerFunctionCount(type);
+        var names = new string[total];
+        for (int i = 0; i < total; i++)
+        {
+            names[i] = HiveCore.TriggerFunctionName(type, i) ?? string.Empty;
+        }
+
+        void Fill(string keyword)
+        {
+            list.Clear();
+            foreach (string name in names)
+            {
+                if (keyword.Length == 0 || name.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                {
+                    list.AddItem(name);
+                }
+            }
+        }
+
+        filter.TextChanged += _ => Fill(filter.Text);
+        Fill(string.Empty);
+
+        dialog.Confirmed += () =>
+        {
+            int[] selected = list.GetSelectedItems();
+            if (selected.Length > 0)
+            {
+                string name = list.GetItemText(selected[0]);
+                if (HiveCore.AddTriggerEca(index, type, name) >= 0)
+                {
+                    ShowTrigger(index);
+                }
+            }
+            dialog.QueueFree();
+        };
+        dialog.Canceled += () => dialog.QueueFree();
+
+        dialog.AddChild(column);
+        AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(460, 520));
     }
 
     private void ClearEca()
