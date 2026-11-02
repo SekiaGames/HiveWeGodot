@@ -59,6 +59,21 @@ const char* hive_texture_id(void* handle, int32_t index);
 int32_t hive_texture_info(void* handle, int32_t index, int32_t* width, int32_t* height, int32_t* channels);
 int32_t hive_copy_texture(void* handle, int32_t index, uint8_t* out, int32_t capacity);
 
+/* 区域。坐标是 tile，left/right/top/bottom 已归一化成 left<right、bottom<top。
+   颜色是 0..255 的 RGB。 */
+typedef struct HiveRegion {
+	float left;
+	float right;
+	float bottom;
+	float top;
+	uint8_t red;
+	uint8_t green;
+	uint8_t blue;
+} HiveRegion;
+
+int32_t hive_copy_regions(void* handle, HiveRegion* out, int32_t capacity);
+const char* hive_region_name(void* handle, int32_t index);
+
 /* 路径图。宽高是 tile 数 × 4，每格一个字节，位标志见 HivePathing。
    1 不可走，2 不可飞，4 不可建，8 可采集，16 枯萎，32 水，64 两栖。 */
 int32_t hive_pathing_info(void* handle, int32_t* width, int32_t* height);

@@ -381,6 +381,71 @@ public partial class TerrainView : Node3D
         GD.Print($"装饰物 {placed} / {doodads.Length}，{byModel.Count} 种模型");
     }
 
+    private MeshInstance3D? regionRoot;
+
+    public void BuildRegions()
+    {
+        HiveRegion[] regions = HiveCore.Regions();
+        if (regions.Length == 0)
+        {
+            return;
+        }
+
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+
+        foreach (HiveRegion region in regions)
+        {
+            mesh.SurfaceSetColor(new Color(region.Red / 255f, region.Green / 255f, region.Blue / 255f));
+            AddRegionEdge(mesh, region.Left, region.Bottom, region.Right, region.Bottom);
+            AddRegionEdge(mesh, region.Right, region.Bottom, region.Right, region.Top);
+            AddRegionEdge(mesh, region.Right, region.Top, region.Left, region.Top);
+            AddRegionEdge(mesh, region.Left, region.Top, region.Left, region.Bottom);
+        }
+
+        mesh.SurfaceEnd();
+
+        regionRoot = new MeshInstance3D
+        {
+            Mesh = mesh,
+            Name = "Regions",
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                VertexColorUseAsAlbedo = true,
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                NoDepthTest = true,
+            },
+        };
+        AddChild(regionRoot);
+        GD.Print($"区域 {regions.Length} 个");
+    }
+
+    private void AddRegionEdge(ImmediateMesh mesh, float x0, float z0, float x1, float z1)
+    {
+        int steps = Math.Max(1, (int)(MathF.Max(MathF.Abs(x1 - x0), MathF.Abs(z1 - z0)) * 2f));
+        for (int i = 0; i < steps; i++)
+        {
+            float t0 = (float)i / steps;
+            float t1 = (float)(i + 1) / steps;
+            float ax = Mathf.Lerp(x0, x1, t0);
+            float az = Mathf.Lerp(z0, z1, t0);
+            float bx = Mathf.Lerp(x0, x1, t1);
+            float bz = Mathf.Lerp(z0, z1, t1);
+            mesh.SurfaceAddVertex(new Vector3(ax, HeightAt(ax, az) + 0.15f, az));
+            mesh.SurfaceAddVertex(new Vector3(bx, HeightAt(bx, bz) + 0.15f, bz));
+        }
+    }
+
+    public void SetRegionsVisible(bool visible)
+    {
+        if (regionRoot != null)
+        {
+            regionRoot.Visible = visible;
+        }
+    }
+
     public void BuildUnits()
     {
         HiveUnit[] units = HiveCore.Units();

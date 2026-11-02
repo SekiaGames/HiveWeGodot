@@ -541,6 +541,36 @@ int32_t hive_copy_texture(void* handle, const int32_t index, uint8_t* out, const
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_copy_regions(void* handle, HiveRegion* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const auto& source = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
+	for (std::size_t i = 0; i < count; ++i) {
+		out[i].left = std::min(source[i].left, source[i].right);
+		out[i].right = std::max(source[i].left, source[i].right);
+		out[i].bottom = std::min(source[i].bottom, source[i].top);
+		out[i].top = std::max(source[i].bottom, source[i].top);
+		out[i].red = source[i].color.r;
+		out[i].green = source[i].color.g;
+		out[i].blue = source[i].color.b;
+	}
+	return static_cast<int32_t>(count);
+}
+
+const char* hive_region_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& source = hive->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= source.size()) {
+		return nullptr;
+	}
+	return source[static_cast<std::size_t>(index)].name.c_str();
+}
+
 int32_t hive_pathing_info(void* handle, int32_t* width, int32_t* height) {
 	if (handle == nullptr) {
 		return -1;

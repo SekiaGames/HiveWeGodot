@@ -31,6 +31,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? OpenRequested;
     public event Action<Vector2>? MinimapClicked;
     public event Action<bool>? PathingToggled;
+    public event Action<bool>? RegionsToggled;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -147,6 +148,10 @@ public partial class EditorUi : CanvasLayer
         pathingToggle = new CheckBox { Text = "显示路径" };
         pathingToggle.Toggled += on => PathingToggled?.Invoke(on);
         column.AddChild(pathingToggle);
+
+        var regionToggle = new CheckBox { Text = "显示区域", ButtonPressed = true };
+        regionToggle.Toggled += on => RegionsToggled?.Invoke(on);
+        column.AddChild(regionToggle);
 
         column.AddChild(Spacer(6));
         column.AddChild(SectionTitle("笔刷"));

@@ -35,6 +35,18 @@ public struct HiveDoodad
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct HiveRegion
+{
+    public float Left;
+    public float Right;
+    public float Bottom;
+    public float Top;
+    public byte Red;
+    public byte Green;
+    public byte Blue;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct HiveUnit
 {
     public float X;
@@ -138,6 +150,12 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_water_heights(IntPtr hive, float[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_regions(IntPtr hive, [Out] HiveRegion[] output, int capacity);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_region_name(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_pathing_info(IntPtr hive, out int width, out int height);
@@ -320,6 +338,24 @@ public static class HiveCore
     }
 
     public static float WaterOffset() => hive_water_offset(handle);
+
+    public static HiveRegion[] Regions()
+    {
+        HiveMapInfo info = MapInfo;
+        if (info.RegionCount <= 0)
+        {
+            return Array.Empty<HiveRegion>();
+        }
+        HiveRegion[] data = new HiveRegion[info.RegionCount];
+        hive_copy_regions(handle, data, data.Length);
+        return data;
+    }
+
+    public static string? RegionName(int index)
+    {
+        IntPtr pointer = hive_region_name(handle, index);
+        return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
 
     public static byte[]? Pathing(out int width, out int height)
     {

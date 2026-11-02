@@ -75,6 +75,7 @@ public partial class Main : Node3D
         view.Build();
         view.BuildDoodads();
         view.BuildUnits();
+        view.BuildRegions();
 
         camera = new Camera3D { Fov = 60 };
         root.AddChild(camera);
@@ -108,6 +109,7 @@ public partial class Main : Node3D
         ui.SaveRequested += SaveMap;
         ui.OpenRequested += ShowOpenDialog;
         ui.PathingToggled += view.SetPathingVisible;
+        ui.RegionsToggled += view.SetRegionsVisible;
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
