@@ -9,9 +9,9 @@
 
 | 阶段 | 状态 |
 |---|---|
-| 依赖 | 部分装好：glm / tbb / abseil / jpeg-turbo / nlohmann-json。待装：cmake / stormlib / bullet / vulkan-volk |
+| 依赖 | 已齐：cmake / glm / tbb / abseil / jpeg-turbo / nlohmann-json / stormlib / bullet / vulkan-volk + 本机 Vulkan SDK |
 | 去模块化 | 完成，94 个模块 + 67 个 cpp，产物在 `native/src` |
-| 去 Qt | 进行中：`utilities/rects` 与 `base/camera` 已编译通过（靠 `native/include` 的 Qt 兼容层） |
+| 去 Qt | 进行中：`utilities/rects`、`base/camera` 通过；`resources/ground_texture` 编到 `hierarchy.hpp` 的 `QSettings` 卡住 |
 | 去 Vulkan | 未开始，且比预估复杂（见步骤 3） |
 | 编核心库 | 未开始 |
 | C ABI | 未开始 |
@@ -49,13 +49,13 @@ git clone --depth 1 https://github.com/ladislav-zezula/StormLib.git
 git clone --depth 1 https://github.com/bulletphysics/bullet3.git
 ```
 
-还要放一个 header-only 的：
+第三方头用脚本一次拉齐（删掉 `unordered_dense` 那段单独 curl）：
 
 ```bash
-mkdir -p third_party/ankerl
-curl -L -o third_party/ankerl/unordered_dense.h \
-  https://raw.githubusercontent.com/martinus/unordered_dense/main/include/ankerl/unordered_dense.h
+bash tools/fetch_third_party.sh http://127.0.0.1:7897
 ```
+
+代理参数可省，直连能通就不用。拉的是 `ankerl/unordered_dense.h`、`ankerl/stl.h`、`vma/vk_mem_alloc.h`、`vkbootstrap/*`，全部落在 `third_party/`，已在 `.gitignore` 里。
 
 Vulkan 用本机已装的 LunarG SDK，不另外装 molten-vk：
 
@@ -73,13 +73,7 @@ brew install vulkan-volk
 
 三个第三方头都要有，缺一个 `resources/` 层就编不动：`resources/ground_texture.hpp`、`skinned_mesh.hpp` 都 `#include "VkContext.hpp"`，而 `vk_context.hpp` 用 vk-bootstrap 建实例、用 VMA 分配内存。
 
-| 头 | 来源 |
-|---|---|
-| `volk.h` | `brew install vulkan-volk` |
-| `vk_mem_alloc.h` | https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/master/include/vk_mem_alloc.h |
-| `VkBootstrap.h` + `VkBootstrap.cpp` | https://github.com/charles-lunarg/vk-bootstrap |
-
-放 `third_party/` 下，`-I` 指过去。
+**这些只服务于编译，运行期不碰。** 核心的 `VkContext` 是全局对象但默认构造不建实例，`init()` 才连设备；只要不调 `render_manager.init()` 和各个 `render_*`，编出来的库跑起来不会加载 MoltenVK。等核心跑通后把 `resources/` 换成 CPU 侧数据，这几个依赖可以整个摘掉。
 
 ## 步骤 2：拉源码并去模块化
 
