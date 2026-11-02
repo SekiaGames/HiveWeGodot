@@ -15,6 +15,7 @@
 | headless 化 | 完成，`HIVE_HEADLESS` 在 8 处短路 Vulkan 副作用 |
 | 读地图 | 完成：解包 w3m 后 60 ms 加载完，193×97、7 种纹理、2011 装饰物、61 单位、18721 高度点 |
 | C ABI | 完成：`libhivewe.dylib` 2.9 MB，9 个函数，纯 C 测试程序跑通 |
+| Godot 接入 | 完成：Godot 4.7 + .NET 8，DllImport 调到核心，地形数据在界面里显示 |
 | Godot 界面 | 未开始 |
 
 ## 文档
@@ -58,6 +59,13 @@ cmake --build native/build --target hivewe -j8
 ```
 
 产物 `native/build/libhivewe.dylib`。
+
+跑 Godot：
+
+```bash
+bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/lib
+/Applications/Godot_mono.app/Contents/MacOS/Godot --path godot
+```
 
 验证读图。仓库自带 `testdata/`（三张地图 + 25 MB 资源子集），直接跑就行：
 

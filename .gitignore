@@ -8,6 +8,7 @@ native/build/
 native/build-asan/
 native/lib/
 godot/.godot/
+godot/lib/*.dylib
 godot/bin/
 godot/obj/
 

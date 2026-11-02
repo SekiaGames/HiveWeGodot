@@ -116,7 +116,5 @@ target_link_libraries(hivewe PRIVATE hivewe_core
 	"/opt/homebrew/opt/tbb/lib/libtbb.dylib"
 	"/opt/homebrew/opt/jpeg-turbo/lib/libjpeg.dylib"
 	"/opt/homebrew/opt/jpeg-turbo/lib/libturbojpeg.dylib"
-	"${VULKAN_SDK}/lib/libMoltenVK.dylib"
 	absl::strings absl::str_format absl::flat_hash_map absl::flat_hash_set
 )
-target_link_options(hivewe PRIVATE "-Wl,-rpath,${VULKAN_SDK}/lib")

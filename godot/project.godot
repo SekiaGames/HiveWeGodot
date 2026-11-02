@@ -1,0 +1,16 @@
+config_version=5
+
+[application]
+
+config/name="HiveWeGodot"
+config/description="Warcraft III 地图编辑器，核心用 HiveWE，界面用 Godot"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="HiveWeGodot"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
