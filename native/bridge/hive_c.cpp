@@ -2579,6 +2579,33 @@ const char* hive_trigger_eca_parameter_value(void* handle, const int32_t index, 
 	return eca->parameters[static_cast<std::size_t>(parameter)].value.c_str();
 }
 
+int32_t hive_create_trigger(void* handle, const char* name, const int32_t parent_id) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& list = hive->map->triggers.triggers;
+
+	Trigger trigger;
+	trigger.classifier = Classifier::gui;
+	trigger.name = name != nullptr && name[0] != '\0' ? name : "New Trigger";
+	trigger.id = ++Trigger::next_id;
+	trigger.parent_id = parent_id;
+	list.push_back(std::move(trigger));
+
+	return static_cast<int32_t>(list.size() - 1);
+}
+
+int32_t hive_delete_trigger(void* handle, const int32_t index) {
+	Trigger* trigger = trigger_at(handle, index);
+	if (trigger == nullptr) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->triggers.triggers;
+	list.erase(list.begin() + index);
+	return 0;
+}
+
 int32_t hive_set_trigger_name(void* handle, const int32_t index, const char* value) {
 	Trigger* trigger = trigger_at(handle, index);
 	if (trigger == nullptr || value == nullptr) {

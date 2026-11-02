@@ -479,6 +479,12 @@ public static class HiveCore
     private static extern IntPtr hive_trigger_eca_parameter_value(IntPtr hive, int index, int type, int eca, int parameter);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_create_trigger(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int parentId);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_delete_trigger(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_set_trigger_name(IntPtr hive, int index, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -984,6 +990,10 @@ public static class HiveCore
 
     public static string? TriggerEcaParameterValue(int index, int type, int eca, int parameter)
         => ReadString(hive_trigger_eca_parameter_value(handle, index, type, eca, parameter));
+
+    public static int CreateTrigger(string name, int parentId) => hive_create_trigger(handle, name, parentId);
+
+    public static bool DeleteTrigger(int index) => hive_delete_trigger(handle, index) == 0;
 
     public static bool SetTriggerName(int index, string value) => hive_set_trigger_name(handle, index, value) == 0;
 

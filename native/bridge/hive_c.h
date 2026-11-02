@@ -330,6 +330,9 @@ int32_t hive_trigger_eca_parameter_count(void* handle, int32_t index, int32_t ty
 int32_t hive_trigger_eca_parameter_type(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
 const char* hive_trigger_eca_parameter_value(void* handle, int32_t index, int32_t type, int32_t eca, int32_t parameter);
 
+/* 新建触发器，挂在 parent_id 这个分类下，返回新索引。 */
+int32_t hive_create_trigger(void* handle, const char* name, int32_t parent_id);
+int32_t hive_delete_trigger(void* handle, int32_t index);
 int32_t hive_set_trigger_name(void* handle, int32_t index, const char* value);
 int32_t hive_set_trigger_description(void* handle, int32_t index, const char* value);
 int32_t hive_set_trigger_enabled(void* handle, int32_t index, int32_t enabled);

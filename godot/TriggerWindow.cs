@@ -46,6 +46,32 @@ public partial class TriggerWindow : AcceptDialog
         right.AddThemeConstantOverride("separation", 6);
         split.AddChild(right);
 
+        var buttons = new HBoxContainer();
+        buttons.AddThemeConstantOverride("separation", 6);
+        right.AddChild(buttons);
+
+        var create = new Button { Text = "新建触发器" };
+        create.Pressed += () =>
+        {
+            int parent = SelectedCategory();
+            int index = HiveCore.CreateTrigger("New Trigger", parent);
+            if (index >= 0)
+            {
+                Reload();
+            }
+        };
+        buttons.AddChild(create);
+
+        var remove = new Button { Text = "删除触发器" };
+        remove.Pressed += () =>
+        {
+            if (current >= 0 && HiveCore.DeleteTrigger(current))
+            {
+                Reload();
+            }
+        };
+        buttons.AddChild(remove);
+
         titleLabel = new Label { Text = "未选择" };
         right.AddChild(titleLabel);
 
@@ -120,6 +146,7 @@ public partial class TriggerWindow : AcceptDialog
             TreeItem item = tree.CreateItem(root);
             item.SetText(0, name);
             item.SetMetadata(0, -1);
+            item.SetMetadata(1, id);
             categoryItems[id] = item;
             categoryParents[item] = parent;
         }
@@ -173,6 +200,22 @@ public partial class TriggerWindow : AcceptDialog
         {
             ShowTrigger(-1);
         }
+    }
+
+    private int SelectedCategory()
+    {
+        TreeItem? item = tree.GetSelected();
+        if (item == null)
+        {
+            return 0;
+        }
+        int index = (int)item.GetMetadata(0);
+        if (index >= 0)
+        {
+            return HiveCore.Trigger(index).Parent;
+        }
+        Variant id = item.GetMetadata(1);
+        return id.VariantType == Variant.Type.Nil ? 0 : (int)id;
     }
 
     private void OnTreeSelected()

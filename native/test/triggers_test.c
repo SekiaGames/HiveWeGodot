@@ -38,6 +38,13 @@ int main(int argc, char** argv) {
 	const char* script = hive_map_global_script(hive);
 	printf("全局脚本 %zu 字节\n", script != NULL ? strlen(script) : 0);
 
+	const int created = hive_create_trigger(hive, "新建测试触发器", -2);
+	printf("新建触发器索引 %d，总数 %d\n", created, hive_trigger_count(hive));
+	if (created >= 0) {
+		printf("新触发器 [%s] 父 %d\n", hive_trigger_name(hive, created), hive_trigger_parent(hive, created));
+		printf("删除新触发器 %d，总数 %d\n", hive_delete_trigger(hive, created), hive_trigger_count(hive));
+	}
+
 	if (triggers > 0) {
 		char original[128] = {0};
 		strncpy(original, hive_trigger_name(hive, 0), sizeof(original) - 1);
