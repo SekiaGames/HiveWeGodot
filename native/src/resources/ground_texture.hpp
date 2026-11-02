@@ -104,6 +104,8 @@ namespace fs = std::filesystem;
 class GroundTexture : public Resource {
   public:
 	Image image;
+	std::vector<uint8_t> stored_tiles;
+	int layer_count = 16;
 	/// Bindless slot of the array texture
 	uint32_t slot = 0;
 	int tile_size;
@@ -182,6 +184,8 @@ class GroundTexture : public Resource {
 		}
 		minimap_color = glm::vec4(sum / static_cast<double>(tile_bytes / 4));
 
+		stored_tiles = tiles;
+		layer_count = layers;
 		image = create_rgba8_array_image(
 			{static_cast<uint32_t>(tile_size), static_cast<uint32_t>(tile_size)},
 			static_cast<uint32_t>(layers),

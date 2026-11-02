@@ -16,6 +16,7 @@
 | 读地图 | 完成：解包 w3m 后 60 ms 加载完，193×97、7 种纹理、2011 装饰物、61 单位、18721 高度点 |
 | C ABI | 完成：`libhivewe.dylib` 2.9 MB，9 个函数，纯 C 测试程序跑通 |
 | Godot 接入 | 完成：Godot 4.7 + .NET 8，DllImport 调到核心，地形数据在界面里显示 |
+| 地形渲染 | 完成：MultiMesh + 高度图 + 四层纹理混合，BootyBay 出画面 |
 | Godot 界面 | 未开始 |
 
 ## 文档

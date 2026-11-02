@@ -211,6 +211,48 @@ int32_t hive_copy_water_exists(void* handle, uint8_t* out, const int32_t capacit
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_texture_info(void* handle, const int32_t index, int32_t* width, int32_t* height, int32_t* channels) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	const auto& textures = HiveBridge::ground_textures(static_cast<HiveHandle*>(handle)->map->terrain);
+	if (static_cast<std::size_t>(index) >= textures.size()) {
+		return -1;
+	}
+	const auto& texture = *textures[static_cast<std::size_t>(index)];
+	if (width != nullptr) {
+		*width = texture.tile_size;
+	}
+	if (height != nullptr) {
+		*height = texture.layer_count;
+	}
+	if (channels != nullptr) {
+		*channels = 4;
+	}
+	return 0;
+}
+
+int32_t hive_copy_texture(void* handle, const int32_t index, uint8_t* out, const int32_t capacity) {
+	if (handle == nullptr || out == nullptr || index < 0) {
+		return -1;
+	}
+	const auto& textures = HiveBridge::ground_textures(static_cast<HiveHandle*>(handle)->map->terrain);
+	if (static_cast<std::size_t>(index) >= textures.size()) {
+		return -1;
+	}
+	const auto& data = textures[static_cast<std::size_t>(index)]->stored_tiles;
+	const auto count = std::min<std::size_t>(data.size(), static_cast<std::size_t>(capacity));
+	std::memcpy(out, data.data(), count);
+	return static_cast<int32_t>(count);
+}
+
+const char* hive_map_directory(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	return static_cast<HiveHandle*>(handle)->unpack_dir.string().c_str();
+}
+
 const char* hive_texture_id(void* handle, const int32_t index) {
 	if (handle == nullptr) {
 		return nullptr;

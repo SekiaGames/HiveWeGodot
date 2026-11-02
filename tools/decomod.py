@@ -333,6 +333,14 @@ PATCHES = [
         '\tinline fs::path map_info_extras_file(const fs::path& map_directory) {',
     ),
     (
+        '\tImage image;\n\t/// Bindless slot of the array texture',
+        '\tImage image;\n\tstd::vector<uint8_t> stored_tiles;\n\tint layer_count = 16;\n\t/// Bindless slot of the array texture',
+    ),
+    (
+        '\t\timage = create_rgba8_array_image(',
+        '\t\tstored_tiles = tiles;\n\t\tlayer_count = layers;\n\t\timage = create_rgba8_array_image(',
+    ),
+    (
         'class Terrain: public QObject {',
         'class Terrain: public QObject {\n\tfriend struct HiveBridge;',
     ),

@@ -44,8 +44,16 @@ int32_t hive_copy_tiles(void* handle, HiveTile* out, int32_t capacity);
 int32_t hive_copy_ground_exists(void* handle, uint8_t* out, int32_t capacity);
 int32_t hive_copy_water_exists(void* handle, uint8_t* out, int32_t capacity);
 
-/* 第 index 个地面纹理的 id（四字符，如 Adrt），越界返回 NULL。 */
+/* 第 index 个地面纹理的 id（四字符，如 Adrt），越界返回 NULL。index 等于纹理数时返回 "blight"。 */
 const char* hive_texture_id(void* handle, int32_t index);
+
+/* 地面纹理已经被切成 tile 网格：width = height = 单块边长，channels = 层数（16 或 32），
+   每层是 width×width 的 RGBA8。变体号就是层号。成功返回 0。 */
+int32_t hive_texture_info(void* handle, int32_t index, int32_t* width, int32_t* height, int32_t* channels);
+int32_t hive_copy_texture(void* handle, int32_t index, uint8_t* out, int32_t capacity);
+
+/* 地图文件所在目录，即解包后的临时目录。 */
+const char* hive_map_directory(void* handle);
 
 #ifdef __cplusplus
 }

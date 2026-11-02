@@ -85,6 +85,12 @@ public static class HiveCore
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_texture_id(IntPtr hive, int index);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_texture_info(IntPtr hive, int index, out int width, out int layers, out int channels);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_copy_texture(IntPtr hive, int index, byte[] output, int capacity);
+
     public static bool IsOpen => handle != IntPtr.Zero;
 
     public static bool Open(string mapPath, string dataDir, out string error)
@@ -146,6 +152,19 @@ public static class HiveCore
         HiveMapInfo info = MapInfo;
         byte[] data = new byte[info.Width * info.Height];
         hive_copy_water_exists(handle, data, data.Length);
+        return data;
+    }
+
+    public static bool TextureInfo(int index, out int tileSize, out int layers)
+    {
+        int result = hive_texture_info(handle, index, out tileSize, out layers, out _);
+        return result == 0;
+    }
+
+    public static byte[] TexturePixels(int index, int tileSize, int layers)
+    {
+        byte[] data = new byte[tileSize * tileSize * 4 * layers];
+        hive_copy_texture(handle, index, data, data.Length);
         return data;
     }
 
