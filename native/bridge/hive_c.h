@@ -365,6 +365,14 @@ const char* hive_map_suggested_players(void* handle);
 int32_t hive_set_map_suggested_players(void* handle, const char* value);
 /* 6 个 int：地图版本、编辑器版本、游戏主/次/补丁/构建版本。 */
 void hive_map_versions(void* handle, int32_t* out);
+/* 游戏常量（war3mapMisc.txt），一列一个常量。 */
+int32_t hive_gameplay_constant_count(void* handle);
+const char* hive_gameplay_constant_key(void* handle, int32_t index);
+const char* hive_gameplay_constant_label(void* handle, int32_t index);
+const char* hive_gameplay_constant_value(void* handle, int32_t index);
+int32_t hive_set_gameplay_constant(void* handle, int32_t index, const char* value);
+int32_t hive_gameplay_constant_modified(void* handle, int32_t index);
+
 /* 载入画面：阵营列表来自 WorldEditData 的 [LoadingScreens]，number 为 -1 表示不用。 */
 int32_t hive_loading_screen_count(void* handle);
 const char* hive_loading_screen_name(void* handle, int32_t index);

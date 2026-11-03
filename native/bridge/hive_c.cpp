@@ -3299,6 +3299,126 @@ int32_t hive_set_map_loading_screen_text(void* handle, const char* value) {
 	return 0;
 }
 
+/// 游戏常量的列名，按字符排序，界面顺序才稳定。
+std::vector<std::string> gameplay_constant_keys(HiveHandle* hive) {
+	std::vector<std::string> keys;
+	for (const auto& [key, index] : hive->map->gameplay_constants.data.column_headers) {
+		if (key == "id") {
+			continue;
+		}
+		keys.push_back(key);
+	}
+	std::ranges::sort(keys);
+	return keys;
+}
+
+const std::string* find_gameplay_constant_value(HiveHandle* hive, const std::string& key) {
+	const auto& data = hive->map->gameplay_constants.data;
+	const auto& row_key = constants_row_key;
+	if (data.shadow_data.contains(row_key)) {
+		const auto& shadow = data.shadow_data.at(row_key);
+		if (const auto found = shadow.find(key); found != shadow.end()) {
+			return &found->second;
+		}
+	}
+	if (const auto row = data.base_data.find(row_key); row != data.base_data.end()) {
+		if (const auto found = row->second.find(key); found != row->second.end()) {
+			return &found->second;
+		}
+	}
+	return nullptr;
+}
+
+int32_t hive_gameplay_constant_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(gameplay_constant_keys(static_cast<HiveHandle*>(handle)).size());
+}
+
+const char* hive_gameplay_constant_key(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto keys = gameplay_constant_keys(hive);
+	if (static_cast<std::size_t>(index) >= keys.size()) {
+		return nullptr;
+	}
+	hive->transient_string = keys[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
+}
+
+const char* hive_gameplay_constant_label(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto keys = gameplay_constant_keys(hive);
+	if (static_cast<std::size_t>(index) >= keys.size()) {
+		return nullptr;
+	}
+	const std::string& key = keys[static_cast<std::size_t>(index)];
+	const auto& metadata = hive->map->gameplay_constants.metadata;
+	// 元数据表的行键是短 id（gexp 这种），数据列名是 field 的小写形式，得反查
+	std::string label;
+	for (const auto& [row_key, row_index] : metadata.row_headers) {
+		if (to_lowercase_copy(metadata.data<std::string_view>("field", row_key)) != key) {
+			continue;
+		}
+		label = metadata.data<std::string_view>("displayname", row_key);
+		break;
+	}
+	if (label.empty()) {
+		label = key;
+	}
+	hive->transient_string = std::move(label);
+	return hive->transient_string.c_str();
+}
+
+const char* hive_gameplay_constant_value(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto keys = gameplay_constant_keys(hive);
+	if (static_cast<std::size_t>(index) >= keys.size()) {
+		return nullptr;
+	}
+	const std::string* value = find_gameplay_constant_value(hive, keys[static_cast<std::size_t>(index)]);
+	hive->transient_string = value == nullptr ? std::string() : *value;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_gameplay_constant(void* handle, const int32_t index, const char* value) {
+	if (handle == nullptr || index < 0 || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto keys = gameplay_constant_keys(hive);
+	if (static_cast<std::size_t>(index) >= keys.size()) {
+		return -1;
+	}
+	hive->map->gameplay_constants.data.set_shadow_data(keys[static_cast<std::size_t>(index)], constants_row_key, value);
+	return 0;
+}
+
+int32_t hive_gameplay_constant_modified(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto keys = gameplay_constant_keys(hive);
+	if (static_cast<std::size_t>(index) >= keys.size()) {
+		return 0;
+	}
+	const auto& data = hive->map->gameplay_constants.data;
+	if (!data.shadow_data.contains(constants_row_key)) {
+		return 0;
+	}
+	return data.shadow_data.at(constants_row_key).contains(keys[static_cast<std::size_t>(index)]) ? 1 : 0;
+}
+
 int32_t hive_map_option_flags(void* handle) {
 	if (handle == nullptr) {
 		return 0;

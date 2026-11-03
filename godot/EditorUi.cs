@@ -44,6 +44,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? DeleteObjectRequested;
     public event Action? MapInfoRequested;
     public event Action? PlayersRequested;
+    public event Action? ConstantsRequested;
     public event Action? TriggerRequested;
     public event Action? RegionRequested;
     public event Action? ModelRequested;
@@ -542,6 +543,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(new VSeparator());
         row.AddChild(ActionButton("地图信息", () => MapInfoRequested?.Invoke()));
         row.AddChild(ActionButton("玩家", () => PlayersRequested?.Invoke()));
+        row.AddChild(ActionButton("常量", () => ConstantsRequested?.Invoke()));
         row.AddChild(ActionButton("触发器", () => TriggerRequested?.Invoke()));
         row.AddChild(ActionButton("区域", () => RegionRequested?.Invoke()));
         row.AddChild(ActionButton("模型", () => ModelRequested?.Invoke()));

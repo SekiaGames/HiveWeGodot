@@ -507,6 +507,25 @@ public static class HiveCore
     private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_gameplay_constant_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_gameplay_constant_key(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_gameplay_constant_label(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_gameplay_constant_value(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_gameplay_constant(IntPtr hive, int index,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_gameplay_constant_modified(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_loading_screen_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1282,6 +1301,19 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int GameplayConstantCount() => hive_gameplay_constant_count(handle);
+
+    public static string? GameplayConstantKey(int index) => ReadString(hive_gameplay_constant_key(handle, index));
+
+    public static string? GameplayConstantLabel(int index) => ReadString(hive_gameplay_constant_label(handle, index));
+
+    public static string? GameplayConstantValue(int index) => ReadString(hive_gameplay_constant_value(handle, index));
+
+    public static bool SetGameplayConstant(int index, string value)
+        => hive_set_gameplay_constant(handle, index, value) == 0;
+
+    public static int GameplayConstantModified(int index) => hive_gameplay_constant_modified(handle, index);
 
     public static int LoadingScreenCount() => hive_loading_screen_count(handle);
 

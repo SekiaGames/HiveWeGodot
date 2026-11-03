@@ -30,6 +30,7 @@
 | 开始点 | 完成：按玩家放置/移动/移除，w3i 的出生点同步，圆盘 + 玩家号标出 |
 | 玩家 | 完成：24 个槽位的控制器、名字、种族、固定出生点，颜色按槽位展示 |
 | 地图属性 | 完成：描述、选项（七个开关、雾、天气、环境音、光照、水色、数据版本）、载入画面 |
+| 游戏常量 | 完成：196 条，可筛选可改，改过的标出来 |
 | 界面 | 地形调色板、小地图、工具条、状态栏、属性面板，区域 / 玩家 / 模型 / 触发器窗口可用 |
 
 ## 文档
@@ -131,6 +132,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_CONSTANT_TEST=1 HIVE_SCREENSHOT=/tmp/constants.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开游戏常量窗口，筛「敏捷」
 HIVE_PLAYER_TEST=1 HIVE_SCREENSHOT=/tmp/players.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开玩家窗口，改一个槽位再恢复默认
 HIVE_PATHING_PAINT_TEST=1 HIVE_SCREENSHOT=/tmp/pathing.png \

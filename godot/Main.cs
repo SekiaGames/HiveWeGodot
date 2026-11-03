@@ -54,6 +54,7 @@ public partial class Main : Node3D
     private readonly string objectPickTest = OS.GetEnvironment("HIVE_OBJECT_PICK_TEST");
     private readonly string pathingPaintTest = OS.GetEnvironment("HIVE_PATHING_PAINT_TEST");
     private readonly string playerTest = OS.GetEnvironment("HIVE_PLAYER_TEST");
+    private readonly string constantTest = OS.GetEnvironment("HIVE_CONSTANT_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -178,6 +179,7 @@ public partial class Main : Node3D
         ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MapInfoRequested += ShowMapInfoDialog;
         ui.PlayersRequested += ShowPlayerWindow;
+        ui.ConstantsRequested += ShowConstantWindow;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.TriggerRequested += () => ShowTriggerWindow();
         ui.RegionRequested += ShowRegionWindow;
@@ -1297,6 +1299,14 @@ public partial class Main : Node3D
         window.PopupCentered(new Vector2I(520, 520));
     }
 
+    private void ShowConstantWindow()
+    {
+        var window = new GameplayConstantWindow();
+        root.AddChild(window);
+        window.Build();
+        window.PopupCentered(new Vector2I(800, 660));
+    }
+
     private void ShowPlayerWindow()
     {
         var window = new PlayerWindow();
@@ -1840,6 +1850,23 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (constantTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new GameplayConstantWindow();
+                root.AddChild(window);
+                window.Build();
+                GD.Print($"游戏常量窗口 {window.RowCount} 条");
+                window.SetFilter("敏捷");
+                GD.Print($"筛「敏捷」剩 {window.VisibleRows()} 条");
+                window.SetFilter(string.Empty);
+                GD.Print($"清空筛选剩 {window.VisibleRows()} 条");
                 GetTree().Quit();
             }
             return;
