@@ -201,6 +201,7 @@ public partial class Main : Node3D
         ui.RedoRequested += Redo;
         ui.SaveRequested += SaveMap;
         ui.ExportRequested += ShowExportDialog;
+        ui.SaveAsRequested += ShowSaveAsDialog;
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
@@ -300,6 +301,36 @@ public partial class Main : Node3D
         }
         ApplyTool();
         UpdateStatus();
+    }
+
+    private void ShowSaveAsDialog()
+    {
+        string suggested = currentMapPath.Length > 0
+            ? System.IO.Path.GetFileName(currentMapPath)
+            : "edited.w3m";
+
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.SaveFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Filters = new[] { "*.w3m, *.w3x ; 地图" },
+            CurrentFile = suggested,
+            UseNativeDialog = true,
+        };
+        dialog.FileSelected += path =>
+        {
+            dialog.QueueFree();
+            if (HiveCore.SaveMap(path, out string error))
+            {
+                GD.Print($"已保存：{path}");
+                ui.SetStatus($"已保存到 {path}");
+                return;
+            }
+            GD.PrintErr($"保存失败：{error}");
+            ui.SetStatus($"保存失败：{error}");
+        };
+        root.AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(900, 600));
     }
 
     private void ShowExportDialog()

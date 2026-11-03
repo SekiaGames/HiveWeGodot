@@ -44,6 +44,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? RedoRequested;
     public event Action? SaveRequested;
     public event Action? ExportRequested;
+    public event Action? SaveAsRequested;
     public event Action? OpenRequested;
     public event Action? NewMapRequested;
     public event Action<Vector2>? MinimapClicked;
@@ -638,6 +639,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(ActionButton("重做", () => RedoRequested?.Invoke()));
         row.AddChild(new VSeparator());
         row.AddChild(ActionButton("保存 w3m", () => SaveRequested?.Invoke()));
+        row.AddChild(ActionButton("另存为", () => SaveAsRequested?.Invoke()));
         row.AddChild(ActionButton("导出", () => ExportRequested?.Invoke()));
         row.AddChild(new VSeparator());
         row.AddChild(ActionButton("地图信息", () => MapInfoRequested?.Invoke()));
