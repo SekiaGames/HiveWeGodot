@@ -112,10 +112,99 @@ struct HiveHandle {
 	slk::SLK weather_slk;
 	slk::SLK ambient_slk;
 	std::vector<HiveTriggerNode> trigger_nodes;
+	std::vector<std::string> jass_api;
+	bool jass_api_loaded = false;
 	ObjectFields object_fields;
 	int32_t doodad_random = 0;
 	std::mt19937 random_engine {std::random_device {}()};
 };
+
+void trim_left(std::string_view& text) {
+	while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) {
+		text.remove_prefix(1);
+	}
+}
+
+std::string jass_declaration(std::string_view rest) {
+	trim_left(rest);
+	const std::size_t name_end = rest.find_first_of(" \t");
+	const std::string_view name = rest.substr(0, name_end);
+	const std::size_t takes = rest.find("takes ");
+	if (takes == std::string_view::npos) {
+		return std::string(name) + "()";
+	}
+	const std::size_t returns = rest.find(" returns", takes);
+	std::string_view parameters = rest.substr(
+		takes + 6, returns == std::string_view::npos ? std::string_view::npos : returns - takes - 6);
+	if (parameters == "nothing") {
+		return std::string(name) + "()";
+	}
+	return std::string(name) + "(" + std::string(parameters) + ")";
+}
+
+void parse_jass_api(const std::string_view text, std::vector<std::string>& out) {
+	std::size_t position = 0;
+	while (position < text.size()) {
+		std::size_t end = text.find('\n', position);
+		if (end == std::string_view::npos) {
+			end = text.size();
+		}
+		std::string_view line = text.substr(position, end - position);
+		position = end + 1;
+
+		while (!line.empty() && (line.front() == ' ' || line.front() == '\t' || line.front() == '\r')) {
+			line.remove_prefix(1);
+		}
+		while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
+			line.remove_suffix(1);
+		}
+		if (line.empty() || line.starts_with("//")) {
+			continue;
+		}
+
+		if (line.starts_with("function ")) {
+			out.push_back(jass_declaration(line.substr(9)));
+		} else if (line.starts_with("native ")) {
+			out.push_back(jass_declaration(line.substr(7)));
+		} else if (line.starts_with("type ") || line.starts_with("struct ")) {
+			std::string_view rest = line.substr(line.starts_with("type ") ? 5 : 7);
+			trim_left(rest);
+			out.emplace_back(rest.substr(0, rest.find_first_of(" \t")));
+		} else if (line.starts_with("constant ")) {
+			std::string_view rest = line.substr(9);
+			trim_left(rest);
+			if (rest.starts_with("native ") || rest.starts_with("function ")) {
+				out.push_back(jass_declaration(rest.substr(rest.starts_with("native ") ? 7 : 9)));
+				continue;
+			}
+			const std::size_t type_end = rest.find_first_of(" \t");
+			if (type_end == std::string_view::npos) {
+				continue;
+			}
+			rest.remove_prefix(type_end);
+			trim_left(rest);
+			const std::string_view name = rest.substr(0, rest.find_first_of(" \t="));
+			if (!name.empty()) {
+				out.emplace_back(name);
+			}
+		}
+	}
+}
+
+void load_jass_api(HiveHandle& hive) {
+	if (hive.jass_api_loaded) {
+		return;
+	}
+	hive.jass_api_loaded = true;
+	for (const char* name : {"Scripts/common.j", "Scripts/blizzard.j", "Scripts/cheats.j"}) {
+		auto opened = hierarchy.open_file(name);
+		if (!opened) {
+			continue;
+		}
+		const std::string text(reinterpret_cast<const char*>(opened->buffer.data()), opened->buffer.size());
+		parse_jass_api(text, hive.jass_api);
+	}
+}
 
 struct TrackWindow {
 	int start = -1;
@@ -4758,6 +4847,27 @@ const char* hive_trigger_variable_initial(void* handle, const int32_t index) {
 		return nullptr;
 	}
 	return list[static_cast<std::size_t>(index)].initial_value.c_str();
+}
+
+int32_t hive_jass_api_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	load_jass_api(*hive);
+	return static_cast<int32_t>(hive->jass_api.size());
+}
+
+const char* hive_jass_api(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	load_jass_api(*hive);
+	if (static_cast<std::size_t>(index) >= hive->jass_api.size()) {
+		return nullptr;
+	}
+	return hive->jass_api[static_cast<std::size_t>(index)].c_str();
 }
 
 const char* hive_map_global_script(void* handle) {

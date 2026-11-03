@@ -1964,6 +1964,10 @@ public partial class Main : Node3D
                     + $"MAX {highlighter.HasKeywordColor("MAX")}");
                 GD.Print($"CreateUnit 颜色 {highlighter.GetKeywordColor("CreateUnit")}，"
                     + $"MAX 颜色 {highlighter.GetKeywordColor("MAX")}");
+                string[] api = JassHighlighter.ApiDeclarations();
+                GD.Print($"JASS 补全 {api.Length} 条，CreateUnit 在列 {Array.Exists(api, e => e.StartsWith("CreateUnit("))}，"
+                    + $"GetTriggeringTrigger 在列 {Array.Exists(api, e => e.StartsWith("GetTriggeringTrigger("))}，"
+                    + $"bj_MAX_PLAYERS 在列 {Array.Exists(api, e => e == "bj_MAX_PLAYERS")}");
                 GetTree().Quit();
             }
             return;

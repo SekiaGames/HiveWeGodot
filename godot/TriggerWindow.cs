@@ -187,6 +187,7 @@ public partial class TriggerWindow : AcceptDialog
             GuttersDrawLineNumbers = true,
         };
         globalScript.TextChanged += () => globalScript.SyntaxHighlighter = JassHighlighter.Build(globalScript.Text);
+        JassHighlighter.EnableCompletion(globalScript);
         scriptPage.AddChild(globalScript);
 
         var scriptButtons = new HBoxContainer();
@@ -379,6 +380,7 @@ public partial class TriggerWindow : AcceptDialog
             };
             edit.SyntaxHighlighter = JassHighlighter.Build(edit.Text);
             edit.TextChanged += () => edit.SyntaxHighlighter = JassHighlighter.Build(edit.Text);
+            JassHighlighter.EnableCompletion(edit);
             edit.FocusExited += () => HiveCore.SetTriggerCustomText(index, edit.Text);
             scriptBox.AddChild(edit);
         }

@@ -94,4 +94,42 @@ public static class JassHighlighter
     }
 
     private static HashSet<string> BaseTypesAsSet() => new(BaseTypes);
+
+    private static string[]? apiDeclarations;
+
+    public static string[] ApiDeclarations()
+    {
+        if (apiDeclarations != null)
+        {
+            return apiDeclarations;
+        }
+
+        int count = HiveCore.JassApiCount();
+        var list = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            list[i] = HiveCore.JassApi(i) ?? string.Empty;
+        }
+        apiDeclarations = list;
+        return list;
+    }
+
+    public static void EnableCompletion(CodeEdit edit)
+    {
+        if (!edit.CodeCompletionEnabled)
+        {
+            edit.CodeCompletionEnabled = true;
+        }
+        foreach (string entry in ApiDeclarations())
+        {
+            if (entry.Length == 0)
+            {
+                continue;
+            }
+            CodeEdit.CodeCompletionKind kind = entry.Contains('(')
+                ? CodeEdit.CodeCompletionKind.Function
+                : CodeEdit.CodeCompletionKind.PlainText;
+            edit.AddCodeCompletionOption(kind, entry, entry);
+        }
+    }
 }

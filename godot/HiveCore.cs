@@ -919,6 +919,12 @@ public static class HiveCore
     private static extern IntPtr hive_map_global_script(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_jass_api_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_jass_api(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_set_map_global_script(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
 
 
@@ -1719,6 +1725,10 @@ public static class HiveCore
     public static string? MapGlobalScript => ReadString(hive_map_global_script(handle));
 
     public static bool SetMapGlobalScript(string value) => hive_set_map_global_script(handle, value) == 0;
+
+    public static int JassApiCount() => hive_jass_api_count(handle);
+
+    public static string? JassApi(int index) => ReadString(hive_jass_api(handle, index));
 
     private static string? ReadString(IntPtr pointer)
         => pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);

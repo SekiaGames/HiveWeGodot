@@ -595,6 +595,11 @@ const char* hive_trigger_variable_initial(void* handle, int32_t index);
 
 /* 全局脚本，war3map.j 里用户自己写的那段。 */
 const char* hive_map_global_script(void* handle);
+
+/* common.j、blizzard.j、cheats.j 里的函数、类型和常量，脚本编辑器做补全用。
+   函数写成 Name(类型 参数名, ...)。 */
+int32_t hive_jass_api_count(void* handle);
+const char* hive_jass_api(void* handle, int32_t index);
 int32_t hive_set_map_global_script(void* handle, const char* value);
 
 #ifdef __cplusplus

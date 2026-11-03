@@ -35,7 +35,7 @@ for map in "${MAPS[@]}"; do
 done
 
 # UI 才会用到的表，地图加载时不会被访问，单独补上
-printf 'TerrainArt\\Weather.slk\nUI\\SoundInfo\\EnvironmentSounds.slk\n' >> "$LIST"
+printf 'TerrainArt\\Weather.slk\nUI\\SoundInfo\\EnvironmentSounds.slk\nScripts\\common.j\nScripts\\blizzard.j\nScripts\\cheats.j\n' >> "$LIST"
 
 sort -u "$LIST" -o "$LIST"
 echo "共 $(wc -l < "$LIST" | tr -d ' ') 个文件"
