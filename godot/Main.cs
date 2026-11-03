@@ -38,6 +38,7 @@ public partial class Main : Node3D
     private bool panning;
     private Vector3 lastHit;
     private bool hasHit;
+    private bool brushVisible = true;
 
     private readonly string screenshotPath = OS.GetEnvironment("HIVE_SCREENSHOT");
     private readonly string autoTest = OS.GetEnvironment("HIVE_AUTOTEST");
@@ -61,6 +62,7 @@ public partial class Main : Node3D
     private readonly string objectEditorTest = OS.GetEnvironment("HIVE_OBJECT_EDITOR_TEST");
     private readonly string jassTest = OS.GetEnvironment("HIVE_JASS_TEST");
     private readonly string protectTest = OS.GetEnvironment("HIVE_PROTECT_TEST");
+    private readonly string visibleTest = OS.GetEnvironment("HIVE_VISIBLE_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -202,6 +204,29 @@ public partial class Main : Node3D
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
+        ui.VisibilityToggled += (layer, on) =>
+        {
+            switch (layer)
+            {
+                case EditorUi.ViewLayer.Units:
+                    view.SetUnitsVisible(on);
+                    break;
+                case EditorUi.ViewLayer.Doodads:
+                    view.SetDoodadsVisible(on);
+                    break;
+                case EditorUi.ViewLayer.Water:
+                    view.SetWaterVisible(on);
+                    break;
+                case EditorUi.ViewLayer.Brush:
+                    brushVisible = on;
+                    brushPreview.Visible = on && hasHit && brushShape != 1;
+                    break;
+                case EditorUi.ViewLayer.Lighting:
+                    view.SetLightingVisible(on);
+                    break;
+            }
+        };
+        ui.CameraResetRequested += ResetCamera;
         ui.RegionsToggled += view.SetRegionsVisible;
         ui.ObjectValueChanged += (category, id, index, value) =>
         {
@@ -335,6 +360,14 @@ public partial class Main : Node3D
         };
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(900, 600));
+    }
+
+    private void ResetCamera()
+    {
+        focus = new Vector3(view.Info.TilesX * 0.5f, 0f, view.Info.TilesY * 0.5f);
+        distance = 190f;
+        UpdateCamera();
+        UpdateStatus();
     }
 
     private void UpdateCamera()
@@ -676,7 +709,7 @@ public partial class Main : Node3D
 
     private void ShowBrush(Vector3 hit)
     {
-        if (brushShape == 1)
+        if (brushShape == 1 || !brushVisible)
         {
             brushPreview.Visible = false;
             return;
@@ -2111,6 +2144,29 @@ public partial class Main : Node3D
                 HiveCore.RemoveStartLocation(2);
                 view.BuildStartLocations();
                 DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (visibleTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                GD.Print($"显示开关初值：水面 {view.GetNodeOrNull<Node3D>("Water")?.Visible} "
+                    + $"单位 {view.GetNodeOrNull<Node3D>("Units")?.Visible} "
+                    + $"装饰物 {view.GetNodeOrNull<Node3D>("Doodads")?.Visible}");
+                view.SetWaterVisible(false);
+                view.SetUnitsVisible(false);
+                view.SetDoodadsVisible(false);
+                GD.Print($"关掉后：水面 {view.GetNodeOrNull<Node3D>("Water")?.Visible} "
+                    + $"单位 {view.GetNodeOrNull<Node3D>("Units")?.Visible} "
+                    + $"装饰物 {view.GetNodeOrNull<Node3D>("Doodads")?.Visible}");
+                view.SetWaterVisible(true);
+                view.SetUnitsVisible(true);
+                view.SetDoodadsVisible(true);
+                ResetCamera();
+                GD.Print($"重置镜头 focus {focus} distance {distance}");
                 GetTree().Quit();
             }
             return;

@@ -15,6 +15,12 @@ public partial class TerrainView : Node3D
 
     private MultiMesh terrainMesh = null!;
     private MultiMesh waterMesh = null!;
+    private MultiMeshInstance3D? waterNode;
+    private DirectionalLight3D? lightNode;
+    private bool unitsVisible = true;
+    private bool doodadsVisible = true;
+    private bool waterVisible = true;
+    private bool lightingVisible = true;
     private ImageTexture heightTexture = null!;
     private int[] layerOffset = Array.Empty<int>();
     private int totalLayers;
@@ -178,24 +184,28 @@ public partial class TerrainView : Node3D
 
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/water.gdshader") };
 
-        AddChild(new MultiMeshInstance3D
+        waterNode = new MultiMeshInstance3D
         {
             Multimesh = waterMesh,
             MaterialOverride = material,
             Name = "Water",
+            Visible = waterVisible,
             CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-        });
+        };
+        AddChild(waterNode);
 
         RefreshWater();
     }
 
     private void BuildLighting()
     {
-        AddChild(new DirectionalLight3D
+        lightNode = new DirectionalLight3D
         {
             RotationDegrees = new Vector3(-55, -35, 0),
             LightEnergy = 1.6f,
-        });
+            Visible = lightingVisible,
+        };
+        AddChild(lightNode);
 
         AddChild(new WorldEnvironment
         {
@@ -342,7 +352,7 @@ public partial class TerrainView : Node3D
             RemoveChild(doodadRoot);
             doodadRoot.QueueFree();
         }
-        doodadRoot = new Node3D { Name = "Doodads" };
+        doodadRoot = new Node3D { Name = "Doodads", Visible = doodadsVisible };
         AddChild(doodadRoot);
 
         HiveDoodad[] doodads = HiveCore.Doodads();
@@ -945,6 +955,42 @@ public partial class TerrainView : Node3D
         }
     }
 
+    public void SetUnitsVisible(bool on)
+    {
+        unitsVisible = on;
+        if (unitRoot != null)
+        {
+            unitRoot.Visible = on;
+        }
+    }
+
+    public void SetDoodadsVisible(bool on)
+    {
+        doodadsVisible = on;
+        if (doodadRoot != null)
+        {
+            doodadRoot.Visible = on;
+        }
+    }
+
+    public void SetWaterVisible(bool on)
+    {
+        waterVisible = on;
+        if (waterNode != null)
+        {
+            waterNode.Visible = on;
+        }
+    }
+
+    public void SetLightingVisible(bool on)
+    {
+        lightingVisible = on;
+        if (lightNode != null)
+        {
+            lightNode.Visible = on;
+        }
+    }
+
     public void BuildUnits()
     {
         if (unitRoot != null)
@@ -952,7 +998,7 @@ public partial class TerrainView : Node3D
             RemoveChild(unitRoot);
             unitRoot.QueueFree();
         }
-        unitRoot = new Node3D { Name = "Units" };
+        unitRoot = new Node3D { Name = "Units", Visible = unitsVisible };
         AddChild(unitRoot);
         unitGroups.Clear();
 

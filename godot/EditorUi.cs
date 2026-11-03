@@ -26,6 +26,16 @@ public partial class EditorUi : CanvasLayer
         PathingPaint,
     }
 
+    public enum ViewLayer
+    {
+        Units,
+        Doodads,
+        Water,
+        Brush,
+        Lighting,
+        Minimap,
+    }
+
     public event Action<int>? TextureSelected;
     public event Action<ToolMode>? ToolSelected;
     public event Action<int>? BrushSizeChanged;
@@ -39,6 +49,8 @@ public partial class EditorUi : CanvasLayer
     public event Action<Vector2>? MinimapClicked;
     public event Action<bool>? PathingToggled;
     public event Action<bool>? RegionsToggled;
+    public event Action<ViewLayer, bool>? VisibilityToggled;
+    public event Action? CameraResetRequested;
     public event Action? DoodadPickerRequested;
     public event Action? UnitPickerRequested;
     public event Action<int, string, int, string>? ObjectValueChanged;
@@ -61,6 +73,7 @@ public partial class EditorUi : CanvasLayer
     private Label toolLabel = null!;
     private HBoxContainer textureRow = null!;
     private TextureRect minimap = null!;
+    private VBoxContainer minimapPanel = null!;
     private readonly ButtonGroup toolGroup = new();
     private readonly ButtonGroup shapeGroup = new();
     private SpinBox brushSize = null!;
@@ -455,6 +468,41 @@ public partial class EditorUi : CanvasLayer
         column.AddChild(regionToggle);
 
         column.AddChild(Spacer(6));
+        column.AddChild(SectionTitle("显示"));
+
+        var visibilityRow = new GridContainer { Columns = 2 };
+        visibilityRow.AddThemeConstantOverride("h_separation", 8);
+        column.AddChild(visibilityRow);
+
+        foreach ((string label, ViewLayer layer, bool on) in new[]
+                 {
+                     ("单位", ViewLayer.Units, true),
+                     ("装饰物", ViewLayer.Doodads, true),
+                     ("水面", ViewLayer.Water, true),
+                     ("笔刷", ViewLayer.Brush, true),
+                     ("光照", ViewLayer.Lighting, true),
+                     ("小地图", ViewLayer.Minimap, true),
+                 })
+        {
+            var box = new CheckBox { Text = label, ButtonPressed = on };
+            ViewLayer target = layer;
+            box.Toggled += value =>
+            {
+                if (target == ViewLayer.Minimap)
+                {
+                    minimapPanel.Visible = value;
+                    return;
+                }
+                VisibilityToggled?.Invoke(target, value);
+            };
+            visibilityRow.AddChild(box);
+        }
+
+        var resetCamera = new Button { Text = "重置镜头" };
+        resetCamera.Pressed += () => CameraResetRequested?.Invoke();
+        column.AddChild(resetCamera);
+
+        column.AddChild(Spacer(6));
         column.AddChild(SectionTitle("笔刷联动"));
 
         var brushFlagBoxes = new System.Collections.Generic.List<(CheckBox Box, int Bit)>();
@@ -551,8 +599,11 @@ public partial class EditorUi : CanvasLayer
                     Mathf.Clamp(local.Y, 0f, 1f) * (view.Info.Height - 1)));
             }
         };
-        outer.AddChild(SectionTitle("小地图"));
-        outer.AddChild(minimap);
+        minimapPanel = new VBoxContainer();
+        minimapPanel.AddThemeConstantOverride("separation", 4);
+        minimapPanel.AddChild(SectionTitle("小地图"));
+        minimapPanel.AddChild(minimap);
+        outer.AddChild(minimapPanel);
 
         textureRow = new HBoxContainer();
         column.AddChild(textureRow);
