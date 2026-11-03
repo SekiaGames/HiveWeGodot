@@ -34,6 +34,7 @@ public partial class EditorUi : CanvasLayer
         Brush,
         Lighting,
         ClickHelpers,
+        Wireframe,
         Minimap,
     }
 
@@ -488,6 +489,7 @@ public partial class EditorUi : CanvasLayer
                      ("笔刷", ViewLayer.Brush, true),
                      ("光照", ViewLayer.Lighting, true),
                      ("点击盒", ViewLayer.ClickHelpers, true),
+                     ("线框", ViewLayer.Wireframe, false),
                      ("小地图", ViewLayer.Minimap, true),
                  })
         {

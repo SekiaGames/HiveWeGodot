@@ -234,6 +234,9 @@ public partial class Main : Node3D
                 case EditorUi.ViewLayer.ClickHelpers:
                     view.SetClickHelpersVisible(on);
                     break;
+                case EditorUi.ViewLayer.Wireframe:
+                    GetViewport().DebugDraw = on ? Viewport.DebugDrawEnum.Wireframe : Viewport.DebugDrawEnum.Disabled;
+                    break;
             }
         };
         ui.CameraResetRequested += ResetCamera;
@@ -2337,6 +2340,9 @@ public partial class Main : Node3D
                 Node3D? helpers = view.GetNodeOrNull<Node3D>("ClickHelpers");
                 var helperMesh = helpers?.GetChildOrNull<MultiMeshInstance3D>(0);
                 GD.Print($"点击盒：节点 {helpers != null}，实例 {helperMesh?.Multimesh?.InstanceCount ?? 0}");
+                GetViewport().DebugDraw = Viewport.DebugDrawEnum.Wireframe;
+                GD.Print($"线框模式设为 {GetViewport().DebugDraw}");
+                GetViewport().DebugDraw = Viewport.DebugDrawEnum.Disabled;
                 ResetCamera();
                 GD.Print($"重置镜头 focus {focus} distance {distance}");
                 GetTree().Quit();
