@@ -24,7 +24,10 @@ fail() {
 }
 
 [ -d "$APP/Contents" ] || fail "找不到 $APP/Contents"
-[ -f "$SOURCE" ] || fail "找不到 $SOURCE，先跑 tools/build_godot_lib.sh"
+if [ ! -f "$SOURCE" ]; then
+	echo "没有 ${SOURCE}，先编一份"
+	bash tools/build_godot_lib.sh || fail "编译原生库失败"
+fi
 
 DEST="$APP/Contents/Resources/lib"
 rm -rf "$DEST"

@@ -27,7 +27,7 @@ fail() {
 	exit 1
 }
 
-[ -x "$GODOT" ] || fail "找不到 Godot：$GODOT"
+[ -x "$GODOT" ] || fail "找不到 Godot：${GODOT}"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
