@@ -35,9 +35,11 @@ constexpr glm::vec3 player_colors[] = {
 };
 
 struct CachedModel {
+	std::shared_ptr<mdx::MDX> source;
 	HiveModelInfo info {};
 	std::vector<HiveGeosetInfo> geosets;
 	std::vector<std::string> texture_paths;
+	std::vector<float> layer_alphas;
 	std::vector<float> positions;
 	std::vector<float> normals;
 	std::vector<float> uvs;
@@ -301,6 +303,7 @@ std::vector<glm::vec3> posed_vertices(const mdx::Geoset& geoset, const std::unor
 
 std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 	auto model = std::make_shared<CachedModel>();
+	model->source = mdx;
 
 	float min_x = 1e30f;
 	float min_y = 1e30f;
@@ -377,12 +380,14 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 		}
 
 		std::string texture_path;
+		float layer_alpha = 1.f;
 		if (geoset.material_id < mdx->materials.size()) {
 			const mdx::Material& material = mdx->materials[geoset.material_id];
 			info.two_sided = (material.flags & mdx::Material::two_sided) ? 1 : 0;
 
 			if (!material.layers.empty()) {
 				const mdx::Layer& layer = material.layers[0];
+				layer_alpha = layer.alpha;
 				info.alpha *= layer.alpha;
 				info.unshaded = (layer.shading_flags & mdx::Layer::unshaded) ? 1 : 0;
 				if ((layer.shading_flags & mdx::Layer::two_sided) != 0) {
@@ -418,6 +423,7 @@ std::shared_ptr<CachedModel> build_model(const std::shared_ptr<mdx::MDX>& mdx) {
 		}
 
 		model->texture_paths.push_back(texture_path);
+		model->layer_alphas.push_back(layer_alpha);
 		model->geosets.push_back(info);
 		geoset_index++;
 	}
@@ -610,6 +616,54 @@ bool unpack_map(const fs::path& map_path, fs::path& unpack_dir, std::string& err
 	}
 	return true;
 }
+
+/// 按序列和帧重算蒙皮顶点与几何体 alpha，供动画播放使用。
+void update_pose(CachedModel& model, const int sequence_index, const int frame) {
+	if (!model.source || model.source->sequences.empty()) {
+		return;
+	}
+
+	const auto& sequences = model.source->sequences;
+	const std::size_t index = static_cast<std::size_t>(
+		std::max(0, std::min(sequence_index, static_cast<int>(sequences.size()) - 1)));
+	const int sequence_start = static_cast<int>(sequences[index].start_frame);
+	const int sequence_end = static_cast<int>(sequences[index].end_frame);
+	const auto pose = build_node_matrices(*model.source, frame, sequence_start, sequence_end);
+
+	int geoset_index = 0;
+	for (const auto& geoset : model.source->geosets) {
+		if (static_cast<std::size_t>(geoset_index) >= model.geosets.size()) {
+			break;
+		}
+
+		HiveGeosetInfo& info = model.geosets[static_cast<std::size_t>(geoset_index)];
+		float alpha = 1.f;
+		for (const auto& animation : model.source->animations) {
+			if (static_cast<int32_t>(animation.geoset_id) == geoset_index) {
+				alpha = sample_track(animation.KGAO, animation.alpha, frame, sequence_start, sequence_end);
+				break;
+			}
+		}
+		if (static_cast<std::size_t>(geoset_index) < model.layer_alphas.size()) {
+			alpha *= model.layer_alphas[static_cast<std::size_t>(geoset_index)];
+		}
+		info.alpha = alpha;
+
+		const std::vector<glm::vec3> posed = posed_vertices(geoset, pose);
+		for (std::size_t i = 0; i < posed.size(); ++i) {
+			const std::size_t offset = (static_cast<std::size_t>(info.vertex_offset) + i) * 3;
+			if (offset + 2 >= model.positions.size()) {
+				break;
+			}
+			model.positions[offset] = posed[i].x;
+			model.positions[offset + 1] = posed[i].y;
+			model.positions[offset + 2] = posed[i].z;
+		}
+
+		geoset_index++;
+	}
+}
+
 
 }
 
@@ -3458,6 +3512,72 @@ const char* hive_map_global_script(void* handle) {
 	auto* hive = static_cast<HiveHandle*>(handle);
 	hive->transient_string = hive->map->triggers.global_jass;
 	return hive->transient_string.c_str();
+}
+
+int32_t hive_model_sequence_count(void* handle, const int32_t model) {
+	if (handle == nullptr || model < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return 0;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	return source ? static_cast<int32_t>(source->sequences.size()) : 0;
+}
+
+const char* hive_model_sequence_name(void* handle, const int32_t model, const int32_t index) {
+	if (handle == nullptr || model < 0 || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return nullptr;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(index) >= source->sequences.size()) {
+		return nullptr;
+	}
+	return source->sequences[static_cast<std::size_t>(index)].name.c_str();
+}
+
+int32_t hive_model_sequence_range(void* handle, const int32_t model, const int32_t index, int32_t* start,
+								  int32_t* end) {
+	if (handle == nullptr || model < 0 || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(index) >= source->sequences.size()) {
+		return -1;
+	}
+	const auto& sequence = source->sequences[static_cast<std::size_t>(index)];
+	if (start != nullptr) {
+		*start = static_cast<int32_t>(sequence.start_frame);
+	}
+	if (end != nullptr) {
+		*end = static_cast<int32_t>(sequence.end_frame);
+	}
+	return 0;
+}
+
+int32_t hive_model_apply_pose(void* handle, const int32_t model, const int32_t sequence, const int32_t frame) {
+	if (handle == nullptr || model < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	auto& cached = *hive->models[static_cast<std::size_t>(model)];
+	if (!cached.source || cached.source->sequences.empty()) {
+		return -1;
+	}
+	update_pose(cached, sequence, frame);
+	return 0;
 }
 
 int32_t hive_set_map_global_script(void* handle, const char* value) {

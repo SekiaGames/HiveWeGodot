@@ -804,6 +804,69 @@ public partial class TerrainView : Node3D
 
     private Node3D? unitRoot;
 
+    private sealed class UnitGroup
+    {
+        public int Model;
+        public int Player;
+        public MultiMesh Multi = null!;
+        public int Sequence;
+        public int Start;
+        public int End;
+        public double Phase;
+        public int Count;
+    }
+
+    private readonly System.Collections.Generic.List<UnitGroup> unitGroups = new();
+    private double animationClock;
+    private double lastPoseTime;
+    private const double PoseIntervalMs = 1000.0 / 12.0;
+    private static readonly bool animationEnabled = OS.GetEnvironment("HIVE_NO_ANIM").Length == 0;
+
+    private static int StandSequence(int model)
+    {
+        int count = HiveCore.ModelSequenceCount(model);
+        for (int i = 0; i < count; i++)
+        {
+            if ((HiveCore.ModelSequenceName(model, i) ?? string.Empty).StartsWith("Stand", StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    public override void _Process(double delta)
+    {
+        animationClock += delta * 1000.0;
+        if (!animationEnabled || unitGroups.Count == 0 || animationClock - lastPoseTime < PoseIntervalMs)
+        {
+            return;
+        }
+        lastPoseTime = animationClock;
+
+        foreach (UnitGroup group in unitGroups)
+        {
+            int length = group.End - group.Start;
+            if (length <= 0)
+            {
+                continue;
+            }
+
+            int frame = group.Start + (int)((animationClock + group.Phase) % length);
+            if (!HiveCore.ModelPose(group.Model, group.Sequence, frame))
+            {
+                continue;
+            }
+
+            ArrayMesh? mesh = BuildMesh(group.Model, group.Player);
+            if (mesh != null)
+            {
+                group.Multi.Mesh = mesh;
+                group.Multi.InstanceCount = group.Count;
+            }
+        }
+    }
+
     public void BuildUnits()
     {
         if (unitRoot != null)
@@ -813,6 +876,7 @@ public partial class TerrainView : Node3D
         }
         unitRoot = new Node3D { Name = "Units" };
         AddChild(unitRoot);
+        unitGroups.Clear();
 
         HiveUnit[] units = HiveCore.Units();
         var byModel = new System.Collections.Generic.Dictionary<(int Model, int Player), System.Collections.Generic.List<int>>();
@@ -859,9 +923,26 @@ public partial class TerrainView : Node3D
 
             unitRoot.AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "Units" });
             placed += pair.Value.Count;
+
+            int sequence = StandSequence(pair.Key.Model);
+            (int start, int end) = HiveCore.ModelSequenceRange(pair.Key.Model, sequence);
+            if (end - start > 1)
+            {
+                unitGroups.Add(new UnitGroup
+                {
+                    Model = pair.Key.Model,
+                    Player = pair.Key.Player,
+                    Multi = multi,
+                    Sequence = sequence,
+                    Start = start,
+                    End = end,
+                    Phase = unitGroups.Count * 137.0,
+                    Count = pair.Value.Count,
+                });
+            }
         }
 
-        GD.Print($"单位 {placed} / {units.Length}，{byModel.Count} 组模型");
+        GD.Print($"单位 {placed} / {units.Length}，{byModel.Count} 组模型，{unitGroups.Count} 组带序列");
     }
 
     private ArrayMesh? ModelMesh(int model) => ModelMesh(model, 0);
@@ -874,10 +955,16 @@ public partial class TerrainView : Node3D
             return cached;
         }
 
+        ArrayMesh? mesh = BuildMesh(model, player);
+        modelMeshes[key] = mesh;
+        return mesh;
+    }
+
+    private ArrayMesh? BuildMesh(int model, int player)
+    {
         HiveModelInfo info = HiveCore.ModelInfo(model);
         if (info.VertexCount == 0 || info.GeosetCount == 0)
         {
-            modelMeshes[key] = null;
             return null;
         }
 
@@ -923,17 +1010,27 @@ public partial class TerrainView : Node3D
 
             int surface = mesh.GetSurfaceCount();
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            mesh.SurfaceSetMaterial(surface, BuildMaterial(model, g, geoset, player));
+            mesh.SurfaceSetMaterial(surface, CachedMaterial(model, g, player));
         }
 
         if (mesh.GetSurfaceCount() == 0)
         {
-            modelMeshes[key] = null;
             return null;
         }
-
-        modelMeshes[key] = mesh;
         return mesh;
+    }
+
+    private readonly System.Collections.Generic.Dictionary<(int, int, int), Material> materialCache = new();
+
+    private Material CachedMaterial(int model, int geoset, int player)
+    {
+        var key = (model, geoset, player);
+        if (!materialCache.TryGetValue(key, out Material? cached))
+        {
+            cached = BuildMaterial(model, geoset, HiveCore.ModelGeoset(model, geoset), player);
+            materialCache[key] = cached;
+        }
+        return cached;
     }
 
     private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info, int player)

@@ -312,6 +312,18 @@ public static class HiveCore
     private static extern int hive_player_color(int player, float[] rgb);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_sequence_count(IntPtr hive, int model);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_model_sequence_name(IntPtr hive, int model, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_sequence_range(IntPtr hive, int model, int index, out int start, out int end);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_apply_pose(IntPtr hive, int model, int sequence, int frame);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_unit_type_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -917,6 +929,20 @@ public static class HiveCore
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 
     public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
+
+    public static int ModelSequenceCount(int model) => hive_model_sequence_count(handle, model);
+
+    public static string? ModelSequenceName(int model, int index)
+        => ReadString(hive_model_sequence_name(handle, model, index));
+
+    public static (int Start, int End) ModelSequenceRange(int model, int index)
+    {
+        hive_model_sequence_range(handle, model, index, out int start, out int end);
+        return (start, end);
+    }
+
+    public static bool ModelPose(int model, int sequence, int frame)
+        => hive_model_apply_pose(handle, model, sequence, frame) == 0;
 
     public static Vector3 PlayerColor(int player)
     {

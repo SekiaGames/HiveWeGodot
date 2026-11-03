@@ -45,6 +45,7 @@ public partial class Main : Node3D
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string teamTest = OS.GetEnvironment("HIVE_TEAM_TEST");
+    private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
@@ -1353,6 +1354,30 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (animTest.Length > 0)
+        {
+            if (frames == 6)
+            {
+                int placed = HiveCore.AddUnit("nmoo", 30f, 22f, 0f, 0);
+                GD.Print($"动画测试：放置 nmoo 返回 {placed}");
+                view.BuildUnits();
+                focus = new Vector3(30f, 0f, 22f);
+                distance = 14f;
+                UpdateCamera();
+            }
+            else if (frames == 12)
+            {
+                Capture(screenshotPath + "_a.png");
+            }
+            else if (frames == 70)
+            {
+                Capture(screenshotPath + "_b.png");
+                GD.Print($"动画测试：两组截图 {screenshotPath}_a.png / _b.png");
                 GetTree().Quit();
             }
             return;

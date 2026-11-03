@@ -208,6 +208,13 @@ const char* hive_unit_id(void* handle, int32_t index);
 /* 玩家队伍色（RGB 0..1），player 是 0..23，超出返回 -1。 */
 int32_t hive_player_color(int32_t player, float* rgb);
 
+/* 模型的动画序列：数量、名字、起止帧。 */
+int32_t hive_model_sequence_count(void* handle, int32_t model);
+const char* hive_model_sequence_name(void* handle, int32_t model, int32_t index);
+int32_t hive_model_sequence_range(void* handle, int32_t model, int32_t index, int32_t* start, int32_t* end);
+/* 按序列和帧重算蒙皮顶点与几何体 alpha，之后用 hive_copy_model_positions 取新位置。 */
+int32_t hive_model_apply_pose(void* handle, int32_t model, int32_t sequence, int32_t frame);
+
 /* 可放置的单位类型（四字符 id），来自 Units.slk。 */
 int32_t hive_unit_type_count(void* handle);
 const char* hive_unit_type_id(void* handle, int32_t index);
