@@ -14,6 +14,7 @@
 
 #include "binary_reader.hpp"
 #include "no_init_allocator.hpp"
+#include "protection.hpp"
 
 #include <StormLib.h>
 
@@ -238,14 +239,28 @@ class MPQ {
 	}
 };
 
-[[nodiscard]] inline bool pack_directory(const fs::path& directory, const fs::path& archive_path, std::string& error) {
+/// 导出 MPQ 时可选的处理，对应上游 MapProtectionDialog 的六个勾选项（不含「每次导出都问」）。
+struct PackOptions {
+	bool delete_editor_files = false;
+	bool remove_metadata = false;
+	bool obfuscate_script = false;
+	bool junk_header_offset = false;
+	bool encrypt_imports = false;
+};
+
+[[nodiscard]] inline bool pack_directory(const fs::path& directory, const fs::path& archive_path,
+										 std::string& error, const PackOptions& options) {
 	std::vector<fs::path> files;
 	for (const auto& entry : fs::recursive_directory_iterator(directory)) {
 		if (!entry.is_regular_file()) {
 			continue;
 		}
-		const std::string name = fs::relative(entry.path(), directory).string();
+		const fs::path relative = fs::relative(entry.path(), directory);
+		const std::string name = relative.string();
 		if (!name.empty() && name.front() == '(') {
+			continue;
+		}
+		if (options.delete_editor_files && protection::is_editor_file(relative)) {
 			continue;
 		}
 		files.push_back(entry.path());
@@ -264,24 +279,72 @@ class MPQ {
 		table_size *= 2;
 	}
 
+	DWORD create_flags = MPQ_CREATE_ARCHIVE_V1;
+	if (!options.remove_metadata) {
+		create_flags |= MPQ_CREATE_LISTFILE;
+	}
+
 	HANDLE archive = nullptr;
-	if (!SFileCreateArchive(archive_path.string().c_str(), MPQ_CREATE_ARCHIVE_V1 | MPQ_CREATE_LISTFILE, table_size, &archive)) {
+	if (!SFileCreateArchive(archive_path.string().c_str(), create_flags, table_size, &archive)) {
 		error = "创建归档失败：" + archive_path.string();
 		return false;
 	}
 
+	const auto close_with = [&](const std::string& message) {
+		SFileCloseArchive(archive);
+		error = message;
+		return false;
+	};
+
 	for (const auto& file : files) {
-		const std::string name = to_archive_path(fs::relative(file, directory).string());
-		if (!SFileAddFileEx(archive, file.string().c_str(), name.c_str(), MPQ_FILE_COMPRESS | MPQ_FILE_REPLACEEXISTING,
-							MPQ_COMPRESSION_ZLIB, MPQ_COMPRESSION_NEXT_SAME)) {
-			error = "写入失败：" + name;
-			SFileCloseArchive(archive);
-			return false;
+		const fs::path relative = fs::relative(file, directory);
+		const std::string name = to_archive_path(relative.string());
+		const std::string plain = relative.generic_string();
+		const bool script = plain == "war3map.j" || plain == "war3map.lua";
+		const bool minify = options.obfuscate_script && script;
+		const bool encrypt = options.encrypt_imports && !protection::is_standard_game_file(relative);
+
+		if (!minify && !encrypt) {
+			if (!SFileAddFileEx(archive, file.string().c_str(), name.c_str(), MPQ_FILE_COMPRESS | MPQ_FILE_REPLACEEXISTING,
+								MPQ_COMPRESSION_ZLIB, MPQ_COMPRESSION_NEXT_SAME)) {
+				return close_with("写入失败：" + name);
+			}
+			continue;
+		}
+
+		std::string data;
+		if (minify) {
+			std::ifstream in(file, std::ios::binary);
+			data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+			data = protection::obfuscate_script(data, plain == "war3map.lua");
+		} else {
+			std::ifstream in(file, std::ios::binary);
+			data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+		}
+
+		HANDLE handle = nullptr;
+		DWORD flags = MPQ_FILE_COMPRESS | MPQ_FILE_REPLACEEXISTING;
+		if (encrypt) {
+			flags |= MPQ_FILE_ENCRYPTED;
+		}
+		if (!SFileCreateFile(archive, name.c_str(), 0, static_cast<DWORD>(data.size()), 0, flags, &handle)
+			|| !SFileWriteFile(handle, data.data(), static_cast<DWORD>(data.size()), MPQ_COMPRESSION_ZLIB)
+			|| !SFileFinishFile(handle)) {
+			return close_with("写入失败：" + name);
 		}
 	}
 
 	SFileCloseArchive(archive);
+
+	if (options.junk_header_offset && !protection::prepend_junk_header(archive_path)) {
+		error = "写入文件头偏移失败";
+		return false;
+	}
 	return true;
+}
+
+[[nodiscard]] inline bool pack_directory(const fs::path& directory, const fs::path& archive_path, std::string& error) {
+	return pack_directory(directory, archive_path, error, PackOptions {});
 }
 
 }

@@ -798,11 +798,25 @@ int32_t hive_save(void* handle, const char* target_dir, char* error, const int32
 }
 
 int32_t hive_save_map(void* handle, const char* map_path, char* error, const int32_t error_size) {
+	return hive_export_map(handle, map_path, nullptr, error, error_size);
+}
+
+int32_t hive_export_map(void* handle, const char* map_path, const HiveProtection* protection, char* error,
+						const int32_t error_size) {
 	if (handle == nullptr || map_path == nullptr) {
 		set_error(error, error_size, "参数为空");
 		return -1;
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
+
+	mpq::PackOptions options;
+	if (protection != nullptr) {
+		options.delete_editor_files = protection->delete_editor_files != 0;
+		options.remove_metadata = protection->remove_metadata != 0;
+		options.obfuscate_script = protection->obfuscate_script != 0;
+		options.junk_header_offset = protection->junk_header_offset != 0;
+		options.encrypt_imports = protection->encrypt_imports != 0;
+	}
 
 	const fs::path staging = fs::temp_directory_path() / ("hivewe_stage_" + std::to_string(reinterpret_cast<std::uintptr_t>(handle)));
 	std::error_code ec;
@@ -822,7 +836,7 @@ int32_t hive_save_map(void* handle, const char* map_path, char* error, const int
 		}
 
 		std::string message;
-		if (!mpq::pack_directory(staging, map_path, message)) {
+		if (!mpq::pack_directory(staging, map_path, message, options)) {
 			set_error(error, error_size, message);
 			return -1;
 		}

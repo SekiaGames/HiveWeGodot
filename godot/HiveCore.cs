@@ -76,6 +76,16 @@ public struct HiveModelInfo
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct HiveProtection
+{
+    public int DeleteEditorFiles;
+    public int RemoveMetadata;
+    public int ObfuscateScript;
+    public int JunkHeaderOffset;
+    public int EncryptImports;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct HiveMaterialInfo
 {
     public int PriorityPlane;
@@ -333,6 +343,10 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_save_map(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string mapPath, byte[] error, int errorSize);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_export_map(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string mapPath,
+        ref HiveProtection protection, byte[] error, int errorSize);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_doodads(IntPtr hive, [Out] HiveDoodad[] output, int capacity);
@@ -1117,6 +1131,19 @@ public static class HiveCore
     {
         byte[] buffer = new byte[512];
         if (hive_save_map(handle, mapPath, buffer, buffer.Length) == 0)
+        {
+            error = string.Empty;
+            return true;
+        }
+        int end = Array.IndexOf(buffer, (byte)0);
+        error = System.Text.Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);
+        return false;
+    }
+
+    public static bool ExportMap(string mapPath, HiveProtection protection, out string error)
+    {
+        byte[] buffer = new byte[512];
+        if (hive_export_map(handle, mapPath, ref protection, buffer, buffer.Length) == 0)
         {
             error = string.Empty;
             return true;

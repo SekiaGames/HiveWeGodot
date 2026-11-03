@@ -42,6 +42,19 @@ int32_t hive_save(void* handle, const char* target_dir, char* error, int32_t err
 /* 把当前地图打成 w3m / w3x 写到 map_path。成功返回 0。 */
 int32_t hive_save_map(void* handle, const char* map_path, char* error, int32_t error_size);
 
+/* 导出发布用的 MPQ 时的保护选项，对应上游地图保护对话框的五个勾选项。 */
+typedef struct HiveProtection {
+	int32_t delete_editor_files;
+	int32_t remove_metadata;
+	int32_t obfuscate_script;
+	int32_t junk_header_offset;
+	int32_t encrypt_imports;
+} HiveProtection;
+
+/* 同 hive_save_map，但按 protection 处理内容。protection 传 NULL 等同全关。 */
+int32_t hive_export_map(void* handle, const char* map_path, const HiveProtection* protection, char* error,
+						int32_t error_size);
+
 int32_t hive_map_info(void* handle, HiveMapInfo* out);
 
 /* 拷贝地形数据，返回实际元素数。capacity 不够时只写 capacity 个。 */

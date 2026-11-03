@@ -119,7 +119,7 @@ namespace protection {
 	};
 
 	/// Whether only the editor needs this file, matched against the path relative to the map root
-	bool is_editor_file(const fs::path& relative_path) {
+	inline bool is_editor_file(const fs::path& relative_path) {
 		const std::string name = relative_path.generic_string();
 		return std::ranges::any_of(world_editor_files, [&](const std::string& editor_file) {
 			return name == editor_file;
@@ -139,7 +139,7 @@ namespace protection {
 
 	/// Whether the game opens this file by its fixed name (so it must stay unencrypted and listed).
 	/// The complement is treated as an imported asset, eligible for encryption.
-	bool is_standard_game_file(const fs::path& relative_path) {
+	inline bool is_standard_game_file(const fs::path& relative_path) {
 		const std::string name = relative_path.filename().string();
 		return std::ranges::any_of(standard_game_files, [&](const char* game_file) {
 			return name == game_file;
@@ -150,7 +150,7 @@ namespace protection {
 	/// offset 0. Warcraft III and StormLib locate the header by scanning 512-byte boundaries, so
 	/// the archive still opens; tools that assume offset 0 fail. Block table offsets are relative
 	/// to the header, so the contents stay valid. Returns false on any IO error.
-	bool prepend_junk_header(const fs::path& archive_path, const size_t blocks = 1) {
+	inline bool prepend_junk_header(const fs::path& archive_path, const size_t blocks = 1) {
 		std::error_code ec;
 		const auto size = fs::file_size(archive_path, ec);
 		if (ec) {
@@ -185,7 +185,7 @@ namespace protection {
 	}
 
 	/// Basic minification of JASS or Lua
-	std::string obfuscate_script(const std::string_view text, const bool lua) {
+	inline std::string obfuscate_script(const std::string_view text, const bool lua) {
 		std::string out;
 		out.reserve(text.size());
 

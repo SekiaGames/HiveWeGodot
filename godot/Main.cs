@@ -9,6 +9,7 @@ public partial class Main : Node3D
 
     private Node3D root = null!;
     private string dataDir = string.Empty;
+    private string currentMapPath = string.Empty;
 
     private TerrainView view = null!;
     private EditorUi ui = null!;
@@ -59,6 +60,7 @@ public partial class Main : Node3D
     private readonly string newMapTest = OS.GetEnvironment("HIVE_NEWMAP_TEST");
     private readonly string objectEditorTest = OS.GetEnvironment("HIVE_OBJECT_EDITOR_TEST");
     private readonly string jassTest = OS.GetEnvironment("HIVE_JASS_TEST");
+    private readonly string protectTest = OS.GetEnvironment("HIVE_PROTECT_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -123,6 +125,7 @@ public partial class Main : Node3D
         }
 
         loaded = true;
+        currentMapPath = mapPath;
         ResetEditorState();
         BuildEditor();
         GD.Print($"已打开 {mapPath}：{view.Info.Width}×{view.Info.Height}");
@@ -195,6 +198,7 @@ public partial class Main : Node3D
         ui.UndoRequested += Undo;
         ui.RedoRequested += Redo;
         ui.SaveRequested += SaveMap;
+        ui.ExportRequested += ShowExportDialog;
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
@@ -271,6 +275,48 @@ public partial class Main : Node3D
         }
         ApplyTool();
         UpdateStatus();
+    }
+
+    private void ShowExportDialog()
+    {
+        var window = new MapProtectionWindow();
+        root.AddChild(window);
+        window.Build();
+        window.Confirmed += () =>
+        {
+            HiveProtection protection = window.Options();
+            window.QueueFree();
+            ShowExportPathDialog(protection);
+        };
+        window.PopupCentered(new Vector2I(560, 400));
+    }
+
+    private void ShowExportPathDialog(HiveProtection protection)
+    {
+        string suggested = currentMapPath.Length > 0
+            ? System.IO.Path.GetFileNameWithoutExtension(currentMapPath) + ".w3x"
+            : "exported.w3x";
+
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.SaveFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Filters = new[] { "*.w3x, *.w3m ; 地图" },
+            CurrentFile = suggested,
+            UseNativeDialog = true,
+        };
+        dialog.FileSelected += path =>
+        {
+            dialog.QueueFree();
+            if (!HiveCore.ExportMap(path, protection, out string error))
+            {
+                ui.SetStatus($"导出失败：{error}");
+                return;
+            }
+            ui.SetStatus($"已导出 {path}");
+        };
+        root.AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(900, 600));
     }
 
     private void ShowOpenDialog()
@@ -2061,6 +2107,24 @@ public partial class Main : Node3D
                 HiveCore.RemoveStartLocation(2);
                 view.BuildStartLocations();
                 DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (protectTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new MapProtectionWindow();
+                root.AddChild(window);
+                window.Build();
+                HiveProtection options = window.Options();
+                GD.Print($"保护窗口默认：删编辑器文件 {options.DeleteEditorFiles} 不写目录 {options.RemoveMetadata} "
+                    + $"压脚本 {options.ObfuscateScript} 头偏移 {options.JunkHeaderOffset} 加密 {options.EncryptImports}");
+                options.JunkHeaderOffset = 1;
+                bool ok = HiveCore.ExportMap("/tmp/hivewe_ui_export.w3m", options, out string error);
+                GD.Print(ok ? "保护导出成功" : $"保护导出失败：{error}");
                 GetTree().Quit();
             }
             return;
