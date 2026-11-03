@@ -1212,6 +1212,32 @@ int32_t hive_set_tile_pathing(void* handle, const int32_t index, const int32_t m
 	return 0;
 }
 
+int32_t hive_import_heightmap(void* handle, const uint8_t* pixels, const int32_t width, const int32_t height,
+							  const int32_t channels, char* error, const int32_t error_size) {
+	if (handle == nullptr || pixels == nullptr || width <= 0 || height <= 0 || channels < 1 || channels > 4) {
+		set_error(error, error_size, "参数为空");
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& terrain = hive->map->terrain;
+
+	if (width != terrain.width || height != terrain.height) {
+		set_error(error, error_size,
+				   std::format("图片 {}×{} 和地形 {}×{} 不一致", width, height, terrain.width, terrain.height));
+		return -1;
+	}
+
+	for (int j = 0; j < height; ++j) {
+		for (int i = 0; i < width; ++i) {
+			const std::size_t index = static_cast<std::size_t>((height - 1 - j) * width + i) * channels;
+			terrain.corner_height[terrain.ci(i, j)] = (pixels[index] - 128.f) / 8.f;
+		}
+	}
+
+	terrain.update_ground_heights({0, 0, width, height});
+	return 0;
+}
+
 int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, const int32_t count,
 							const int32_t* from_to, char* error, const int32_t error_size) {
 	if (handle == nullptr || tileset == nullptr || tileset[0] == 0 || ids == nullptr || count <= 0

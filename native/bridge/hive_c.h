@@ -87,6 +87,10 @@ int32_t hive_tile_base_pathing(void* handle, int32_t index);
 /* 设置覆盖位，和默认值相同时清掉覆盖。受影响的格子会重算路径。 */
 int32_t hive_set_tile_pathing(void* handle, int32_t index, int32_t mask);
 
+/* 用 RGBA8 像素的红通道当地形高度，映射到 -16..16。宽高必须等于地形宽高。 */
+int32_t hive_import_heightmap(void* handle, const uint8_t* pixels, int32_t width, int32_t height, int32_t channels,
+							  char* error, int32_t error_size);
+
 /* 换地形集。ids 是新列表，count 是条数；from_to[i] 是旧第 i 块纹理在新列表里的下标，
    from_to 的条数必须等于当前地图的纹理数。成功后地形上的贴图按它重映射。 */
 int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, int32_t count,

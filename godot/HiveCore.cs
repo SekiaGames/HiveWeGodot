@@ -306,6 +306,10 @@ public static class HiveCore
         [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_import_heightmap(IntPtr hive, byte[] pixels, int width, int height, int channels,
+        byte[] error, int errorSize);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_tile_pathing(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1598,6 +1602,25 @@ public static class HiveCore
 
     public static bool TilesetTextureCliff(string tileset, int index)
         => hive_tileset_texture_cliff(handle, tileset, index) != 0;
+
+    public static bool ImportHeightmap(Image image, out string error)
+    {
+        using Image rgba = (Image)image.Duplicate();
+        if (rgba.GetFormat() != Image.Format.Rgba8)
+        {
+            rgba.Convert(Image.Format.Rgba8);
+        }
+        byte[] data = rgba.GetData();
+        byte[] buffer = new byte[512];
+        if (hive_import_heightmap(handle, data, rgba.GetWidth(), rgba.GetHeight(), 4, buffer, buffer.Length) == 0)
+        {
+            error = string.Empty;
+            return true;
+        }
+        int end = Array.IndexOf(buffer, (byte)0);
+        error = System.Text.Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);
+        return false;
+    }
 
     public static int TilePathing(int index) => hive_tile_pathing(handle, index);
 

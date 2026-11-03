@@ -65,6 +65,7 @@ public partial class Main : Node3D
     private readonly string visibleTest = OS.GetEnvironment("HIVE_VISIBLE_TEST");
     private readonly string tilesetTest = OS.GetEnvironment("HIVE_TILESET_TEST");
     private readonly string tilePathTest = OS.GetEnvironment("HIVE_TILEPATH_TEST");
+    private readonly string heightmapTest = OS.GetEnvironment("HIVE_HEIGHTMAP_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -206,6 +207,7 @@ public partial class Main : Node3D
         ui.SaveAsRequested += ShowSaveAsDialog;
         ui.TileSetRequested += ShowTileSetterWindow;
         ui.TilePatherRequested += ShowTilePatherWindow;
+        ui.ImportHeightmapRequested += ShowHeightmapDialog;
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
@@ -332,6 +334,36 @@ public partial class Main : Node3D
             }
             GD.PrintErr($"保存失败：{error}");
             ui.SetStatus($"保存失败：{error}");
+        };
+        root.AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(900, 600));
+    }
+
+    private void ShowHeightmapDialog()
+    {
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.OpenFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Filters = new[] { "*.png, *.jpg, *.jpeg, *.tga, *.bmp ; 高度图" },
+            UseNativeDialog = true,
+        };
+        dialog.FileSelected += path =>
+        {
+            dialog.QueueFree();
+            Image? image = Image.LoadFromFile(path);
+            if (image == null)
+            {
+                ui.SetStatus($"读不出 {path}");
+                return;
+            }
+            if (!HiveCore.ImportHeightmap(image, out string error))
+            {
+                ui.SetStatus($"导入失败：{error}");
+                return;
+            }
+            ReloadView();
+            ui.SetStatus($"已按 {System.IO.Path.GetFileName(path)} 导入高度");
         };
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(900, 600));
@@ -2207,6 +2239,47 @@ public partial class Main : Node3D
                 HiveCore.RemoveStartLocation(2);
                 view.BuildStartLocations();
                 DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (heightmapTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                HiveMapInfo info = HiveCore.MapInfo;
+                float[] before = HiveCore.Heights();
+                float minBefore = before[0];
+                float maxBefore = before[0];
+                foreach (float value in before)
+                {
+                    minBefore = MathF.Min(minBefore, value);
+                    maxBefore = MathF.Max(maxBefore, value);
+                }
+
+                byte[] pixels = new byte[info.Width * info.Height * 4];
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    pixels[i] = 128;
+                    pixels[i + 1] = 128;
+                    pixels[i + 2] = 128;
+                    pixels[i + 3] = 255;
+                }
+                using Image image = Image.CreateFromData(info.Width, info.Height, false, Image.Format.Rgba8, pixels);
+                bool ok = HiveCore.ImportHeightmap(image, out string error);
+                GD.Print($"高度图导入 {info.Width}×{info.Height}：{ok}（{error}）");
+
+                float[] after = HiveCore.Heights();
+                int changed = 0;
+                for (int i = 0; i < before.Length && i < after.Length; i++)
+                {
+                    if (MathF.Abs(before[i] - after[i]) > 0.001f)
+                    {
+                        changed++;
+                    }
+                }
+                GD.Print($"导入前高度 {minBefore:F2}..{maxBefore:F2}，导入后变了 {changed} / {after.Length} 个顶点");
                 GetTree().Quit();
             }
             return;
