@@ -1461,6 +1461,38 @@ int32_t hive_set_cell_tool(void* handle, const int32_t operation) {
 	return 0;
 }
 
+int32_t hive_terrain_brush_flags(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	const TerrainBrush& brush = *static_cast<HiveHandle*>(handle)->brush;
+	int32_t mask = 0;
+	mask |= brush.enforce_water_height_limits ? 0x01 : 0;
+	mask |= brush.change_doodad_heights ? 0x02 : 0;
+	mask |= brush.relative_cliff_heights ? 0x04 : 0;
+	mask |= brush.apply_cliff_pathing ? 0x08 : 0;
+	mask |= brush.apply_tile_pathing ? 0x10 : 0;
+	mask |= brush.apply_water_pathing ? 0x20 : 0;
+	mask |= brush.deform_ground ? 0x40 : 0;
+	mask |= brush.deform_water ? 0x80 : 0;
+	return mask;
+}
+
+void hive_set_terrain_brush_flags(void* handle, const int32_t mask) {
+	if (handle == nullptr) {
+		return;
+	}
+	TerrainBrush& brush = *static_cast<HiveHandle*>(handle)->brush;
+	brush.enforce_water_height_limits = (mask & 0x01) != 0;
+	brush.change_doodad_heights = (mask & 0x02) != 0;
+	brush.relative_cliff_heights = (mask & 0x04) != 0;
+	brush.apply_cliff_pathing = (mask & 0x08) != 0;
+	brush.apply_tile_pathing = (mask & 0x10) != 0;
+	brush.apply_water_pathing = (mask & 0x20) != 0;
+	brush.deform_ground = (mask & 0x40) != 0;
+	brush.deform_water = (mask & 0x80) != 0;
+}
+
 int32_t hive_set_pathing_tool(void* handle, const int32_t mask, const int32_t operation) {
 	if (handle == nullptr || operation < 0 || operation > 2) {
 		return -1;

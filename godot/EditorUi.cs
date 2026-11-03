@@ -442,6 +442,38 @@ public partial class EditorUi : CanvasLayer
         column.AddChild(regionToggle);
 
         column.AddChild(Spacer(6));
+        column.AddChild(SectionTitle("笔刷联动"));
+
+        var brushFlagBoxes = new System.Collections.Generic.List<(CheckBox Box, int Bit)>();
+        var brushFlagGrid = new GridContainer { Columns = 2 };
+        brushFlagGrid.AddThemeConstantOverride("h_separation", 8);
+        column.AddChild(brushFlagGrid);
+        int brushFlags = HiveCore.TerrainBrushFlags();
+        foreach ((string label, int bit) in new[]
+                 {
+                     ("限水面高度", 0x01), ("更新装饰物高度", 0x02), ("相对悬崖高度", 0x04),
+                     ("悬崖路径", 0x08), ("地面路径", 0x10), ("水面路径", 0x20),
+                     ("改地面", 0x40), ("改水面", 0x80),
+                 })
+        {
+            var box = new CheckBox { Text = label, ButtonPressed = (brushFlags & bit) != 0 };
+            box.Toggled += _ =>
+            {
+                int mask = 0;
+                foreach ((CheckBox other, int otherBit) in brushFlagBoxes)
+                {
+                    if (other.ButtonPressed)
+                    {
+                        mask |= otherBit;
+                    }
+                }
+                HiveCore.SetTerrainBrushFlags(mask);
+            };
+            brushFlagGrid.AddChild(box);
+            brushFlagBoxes.Add((box, bit));
+        }
+
+        column.AddChild(Spacer(6));
         column.AddChild(SectionTitle("笔刷"));
 
         var sizeRow = new HBoxContainer();
