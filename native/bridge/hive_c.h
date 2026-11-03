@@ -71,6 +71,17 @@ typedef struct HiveRegion {
 	uint8_t blue;
 } HiveRegion;
 
+/* w3i 里的玩家槽位数，以及该槽位的出生点（原始坐标）。 */
+int32_t hive_player_count(void* handle);
+int32_t hive_player_start(void* handle, int32_t slot, float* x, float* y);
+
+/* 开始点就是 war3mapUnits.doo 里的 sloc 单位，一个玩家一个。 */
+int32_t hive_start_location_count(void* handle);
+int32_t hive_start_location(void* handle, int32_t index, int32_t* player, float* x, float* y);
+/* 已有就挪位置，没有就新建一个；同时改 w3i 里该玩家的出生点。 */
+int32_t hive_set_start_location(void* handle, int32_t player, float x, float y);
+int32_t hive_remove_start_location(void* handle, int32_t player);
+
 int32_t hive_copy_regions(void* handle, HiveRegion* out, int32_t capacity);
 const char* hive_region_name(void* handle, int32_t index);
 /* 新建区域，坐标是 tile，内部归一化。名字和颜色按 HiveWE 的规则自动取。 */

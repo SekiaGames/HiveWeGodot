@@ -26,8 +26,9 @@
 | 拖动 | 完成：选中后拖动改位置，高度自动贴地形 |
 | 旋转 | 完成：Ctrl + 拖动绕中心转，按 slk 的 fixedrot 吸附 |
 | 路径图 | 完成：只读叠加显示（不可走/不可飞/不可建），随装饰物增删刷新；不能画 |
-| 区域 | 完成：矩形线框贴合地形，颜色取自 w3r；不能新建或编辑 |
-| 界面 | 地形调色板、小地图、工具条、状态栏可用；区域 / 对象编辑器未做 |
+| 区域 | 完成：矩形线框贴合地形，颜色取自 w3r，可新建改名删除 |
+| 开始点 | 完成：按玩家放置/移动/移除，w3i 的出生点同步，圆盘 + 玩家号标出 |
+| 界面 | 地形调色板、小地图、工具条、状态栏、属性面板，区域 / 模型 / 触发器窗口可用 |
 
 ## 文档
 
@@ -128,6 +129,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_START_TEST=1 HIVE_SCREENSHOT=/tmp/start.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 加一个玩家 3 的开始点再删掉
 HIVE_TEAM_TEST=1 HIVE_SCREENSHOT=/tmp/team.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 四个玩家各放一个单位看队伍色
 HIVE_SELECT_TEST=/tmp/select_after.png HIVE_SCREENSHOT=/tmp/select.png \

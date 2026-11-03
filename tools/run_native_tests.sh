@@ -10,7 +10,7 @@ fi
 
 mkdir -p /tmp/hivewe_tests
 
-for name in hive_abi_test brush_test save_test pack_test model_test doodad_edit_test pick_test clipboard_test unit_edit_test select_test object_field_test object_custom_test map_info_test map_resize_test doodad_random_test triggers_test trigger_eca_test team_color_test pose_test anim_test pathing_test region_edit_test; do
+for name in hive_abi_test brush_test save_test pack_test model_test doodad_edit_test pick_test clipboard_test unit_edit_test select_test object_field_test object_custom_test map_info_test map_resize_test doodad_random_test triggers_test trigger_eca_test team_color_test pose_test anim_test pathing_test start_location_test region_edit_test; do
 	if ! clang -std=c17 -I native/bridge "native/test/${name}.c" -L native/build -lhivewe -o "/tmp/hivewe_tests/${name}"; then
 		echo "编译失败：${name}" >&2
 		exit 1

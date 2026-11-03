@@ -45,8 +45,10 @@ public partial class Main : Node3D
     private readonly string clipTest = OS.GetEnvironment("HIVE_CLIP_TEST");
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string teamTest = OS.GetEnvironment("HIVE_TEAM_TEST");
+    private int startPlayer;
     private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
     private readonly string modelTest = OS.GetEnvironment("HIVE_MODEL_TEST");
+    private readonly string startTest = OS.GetEnvironment("HIVE_START_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
@@ -125,6 +127,7 @@ public partial class Main : Node3D
         view.BuildDoodads();
         view.BuildUnits();
         view.BuildRegions();
+        view.BuildStartLocations();
 
         camera = new Camera3D { Fov = 60 };
         root.AddChild(camera);
@@ -184,6 +187,24 @@ public partial class Main : Node3D
             tool = EditorUi.ToolMode.DoodadPlace;
             ApplyTool();
             UpdateStatus();
+        };
+        ui.StartLocationRequested += player =>
+        {
+            startPlayer = player;
+            tool = EditorUi.ToolMode.StartLocation;
+            ApplyTool();
+            UpdateStatus();
+        };
+        ui.StartLocationRemoveRequested += player =>
+        {
+            int removed = HiveCore.RemoveStartLocation(player) ? 1 : 0;
+            // sloc 从单位表里删掉后，后面的下标整体前移
+            selection = Array.Empty<int>();
+            view.ClearSelection();
+            ui.ClearObjectProperties();
+            view.BuildStartLocations();
+            UpdateStatus();
+            ui.SetStatus(removed > 0 ? $"已移除玩家 {player + 1} 的开始点" : $"玩家 {player + 1} 没有开始点");
         };
         ui.SetUnitTypes(HiveCore.UnitTypes());
         ui.UnitTypeSelected += id =>
@@ -325,6 +346,9 @@ public partial class Main : Node3D
             case EditorUi.ToolMode.UnitPlace:
                 name = $"放置单位 {unitType}";
                 break;
+            case EditorUi.ToolMode.StartLocation:
+                name = $"放置开始点（玩家 {startPlayer + 1}）";
+                break;
             default:
                 name = "?";
                 break;
@@ -422,7 +446,8 @@ public partial class Main : Node3D
                     break;
                 }
 
-                if (button.Pressed && (tool == EditorUi.ToolMode.DoodadPlace || tool == EditorUi.ToolMode.UnitPlace))
+                if (button.Pressed && (tool == EditorUi.ToolMode.DoodadPlace || tool == EditorUi.ToolMode.UnitPlace
+                        || tool == EditorUi.ToolMode.StartLocation))
                 {
                     if (view.Pick(camera, button.Position, out Vector3 spot))
                     {
@@ -430,9 +455,13 @@ public partial class Main : Node3D
                         {
                             PlaceDoodad(spot);
                         }
-                        else
+                        else if (tool == EditorUi.ToolMode.UnitPlace)
                         {
                             PlaceUnit(spot);
+                        }
+                        else
+                        {
+                            PlaceStartLocation(spot);
                         }
                     }
                     break;
@@ -1058,6 +1087,18 @@ public partial class Main : Node3D
         ui.SetStatus($"已放置 {doodadType} 于 {spot.X:F1}, {spot.Z:F1}");
     }
 
+    private void PlaceStartLocation(Vector3 spot)
+    {
+        if (!HiveCore.SetStartLocation(startPlayer, spot.X, spot.Z))
+        {
+            ui.SetStatus($"放置玩家 {startPlayer + 1} 的开始点失败");
+            return;
+        }
+
+        view.BuildStartLocations();
+        ui.SetStatus($"玩家 {startPlayer + 1} 的开始点放在 {spot.X:F1}, {spot.Z:F1}");
+    }
+
     private void PlaceUnit(Vector3 spot)
     {
         if (unitType.Length == 0)
@@ -1079,6 +1120,7 @@ public partial class Main : Node3D
     private void ReloadView()
     {
         view.Reload();
+        view.BuildStartLocations();
         ui.RefreshMinimap(view);
         UpdateStatus();
     }
@@ -1412,6 +1454,25 @@ public partial class Main : Node3D
             return;
         }
 
+        if (startTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                DumpStartLocations("放置前");
+                HiveCore.SetStartLocation(2, 40f, 30f);
+                view.BuildStartLocations();
+                DumpStartLocations("放置玩家 3 后");
+            }
+            else if (frames == 14)
+            {
+                HiveCore.RemoveStartLocation(2);
+                view.BuildStartLocations();
+                DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
         if (modelTest.Length > 0)
         {
             if (frames == 8)
@@ -1655,6 +1716,19 @@ public partial class Main : Node3D
             {
                 Capture(autoTest + "_after.png");
                 GetTree().Quit();
+            }
+        }
+    }
+
+    private void DumpStartLocations(string label)
+    {
+        int count = HiveCore.StartLocationCount();
+        GD.Print($"{label}：{count} 个开始点");
+        for (int i = 0; i < count; i++)
+        {
+            if (HiveCore.StartLocation(i, out int player, out float x, out float y))
+            {
+                GD.Print($"  玩家 {player + 1} 在 {x:F1}, {y:F1}");
             }
         }
     }

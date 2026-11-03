@@ -456,6 +456,18 @@ public static class HiveCore
     private static extern void hive_map_playable_insets(IntPtr hive, out int left, out int right, out int top, out int bottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_start_location_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_start_location(IntPtr hive, int index, out int player, out float x, out float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_start_location(IntPtr hive, int player, float x, float y);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_remove_start_location(IntPtr hive, int player);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_resize_map(IntPtr hive, int deltaLeft, int deltaRight, int deltaTop, int deltaBottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1069,6 +1081,16 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int StartLocationCount() => hive_start_location_count(handle);
+
+    public static bool StartLocation(int index, out int player, out float x, out float y)
+        => hive_start_location(handle, index, out player, out x, out y) == 0;
+
+    public static bool SetStartLocation(int player, float x, float y)
+        => hive_set_start_location(handle, player, x, y) == 0;
+
+    public static bool RemoveStartLocation(int player) => hive_remove_start_location(handle, player) > 0;
 
     public static (int Left, int Right, int Top, int Bottom) MapPlayableInsets()
     {

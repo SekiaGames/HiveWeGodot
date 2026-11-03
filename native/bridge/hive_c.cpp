@@ -2815,6 +2815,117 @@ void hive_map_playable_insets(void* handle, int32_t* left, int32_t* right, int32
 	}
 }
 
+/// w3i 里该玩家的出生点，和 sloc 单位保持一致。w3i 存原始坐标，单位这里存的是格子数。
+void sync_player_start(HiveHandle* hive, const int32_t player, const float x, const float y) {
+	auto& players = hive->map->info.players;
+	if (player < 0 || static_cast<std::size_t>(player) >= players.size()) {
+		return;
+	}
+	const glm::vec2 offset = hive->map->terrain.offset;
+	players[static_cast<std::size_t>(player)].starting_position = glm::vec2(x * 128.f + offset.x, y * 128.f + offset.y);
+}
+
+int32_t hive_player_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->info.players.size());
+}
+
+int32_t hive_player_start(void* handle, const int32_t slot, float* x, float* y) {
+	if (handle == nullptr || slot < 0) {
+		return -1;
+	}
+	const auto& players = static_cast<HiveHandle*>(handle)->map->info.players;
+	if (static_cast<std::size_t>(slot) >= players.size()) {
+		return -1;
+	}
+	const glm::vec2& start = players[static_cast<std::size_t>(slot)].starting_position;
+	if (x != nullptr) {
+		*x = start.x;
+	}
+	if (y != nullptr) {
+		*y = start.y;
+	}
+	return 0;
+}
+
+int32_t hive_start_location_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	const auto& units = static_cast<HiveHandle*>(handle)->map->units.units;
+	return static_cast<int32_t>(std::ranges::count_if(units, [](const Unit& unit) { return unit.id == "sloc"; }));
+}
+
+int32_t hive_start_location(void* handle, const int32_t index, int32_t* player, float* x, float* y) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	const auto& units = static_cast<HiveHandle*>(handle)->map->units.units;
+	int32_t seen = 0;
+	for (const Unit& unit : units) {
+		if (unit.id != "sloc") {
+			continue;
+		}
+		if (seen++ != index) {
+			continue;
+		}
+		if (player != nullptr) {
+			*player = unit.player;
+		}
+		if (x != nullptr) {
+			*x = unit.position.x;
+		}
+		if (y != nullptr) {
+			*y = unit.position.y;
+		}
+		return 0;
+	}
+	return -1;
+}
+
+int32_t hive_set_start_location(void* handle, const int32_t player, const float x, const float y) {
+	if (handle == nullptr || player < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& units = hive->map->units.units;
+	const float z = hive->map->terrain.interpolated_height(x, y, true);
+	sync_player_start(hive, player, x, y);
+
+	for (Unit& unit : units) {
+		if (unit.id == "sloc" && unit.player == player) {
+			unit.position = glm::vec3(x, y, z);
+			return 0;
+		}
+	}
+
+	Unit unit;
+	unit.id = "sloc";
+	unit.skin_id = "sloc";
+	unit.position = glm::vec3(x, y, z);
+	unit.scale = glm::vec3(1.f);
+	unit.angle = 0.f;
+	unit.player = player;
+	unit.group_id = 0;
+	unit.random = {1, 0, 0, 0};
+	unit.creation_number = ++Unit::auto_increment;
+	units.push_back(std::move(unit));
+	return 0;
+}
+
+int32_t hive_remove_start_location(void* handle, const int32_t player) {
+	if (handle == nullptr || player < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& units = hive->map->units.units;
+	const auto removed = std::erase_if(units, [&](const Unit& unit) { return unit.id == "sloc" && unit.player == player; });
+	sync_player_start(hive, player, 0.f, 0.f);
+	return static_cast<int32_t>(removed);
+}
+
 void hive_map_playable_size(void* handle, int32_t* width, int32_t* height) {
 	if (handle == nullptr || width == nullptr || height == nullptr) {
 		return;

@@ -22,6 +22,7 @@ public partial class EditorUi : CanvasLayer
         CliffRamp,
         DoodadPlace,
         UnitPlace,
+        StartLocation,
     }
 
     public event Action<int>? TextureSelected;
@@ -45,6 +46,8 @@ public partial class EditorUi : CanvasLayer
     public event Action? RegionRequested;
     public event Action? ModelRequested;
     public event Action<int>? DoodadRandomChanged;
+    public event Action<int>? StartLocationRequested;
+    public event Action<int>? StartLocationRemoveRequested;
 
     private Label status = null!;
     private Label toolLabel = null!;
@@ -56,6 +59,7 @@ public partial class EditorUi : CanvasLayer
     private CheckBox pathingToggle = null!;
     private OptionButton doodadPicker = null!;
     private OptionButton unitPicker = null!;
+    private SpinBox startPlayer = null!;
 
     private PanelContainer objectPanel = null!;
     private Label objectTitle = null!;
@@ -373,6 +377,29 @@ public partial class EditorUi : CanvasLayer
             randomRow.AddChild(box);
             randomBoxes.Add((box, bit));
         }
+
+        var startRow = new HBoxContainer();
+        startRow.AddThemeConstantOverride("separation", 4);
+        column.AddChild(startRow);
+
+        startRow.AddChild(new Label { Text = "开始点" });
+        startPlayer = new SpinBox
+        {
+            MinValue = 1,
+            MaxValue = 24,
+            Step = 1,
+            Value = 1,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        startRow.AddChild(startPlayer);
+
+        var startPlace = new Button { Text = "放置" };
+        startPlace.Pressed += () => StartLocationRequested?.Invoke((int)startPlayer.Value - 1);
+        startRow.AddChild(startPlace);
+
+        var startRemove = new Button { Text = "移除" };
+        startRemove.Pressed += () => StartLocationRemoveRequested?.Invoke((int)startPlayer.Value - 1);
+        startRow.AddChild(startRemove);
 
         column.AddChild(Spacer(8));
 

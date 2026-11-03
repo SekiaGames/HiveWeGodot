@@ -439,6 +439,77 @@ public partial class TerrainView : Node3D
         GD.Print($"区域 {regions.Length} 个");
     }
 
+    private Node3D? startRoot;
+
+    public void BuildStartLocations()
+    {
+        if (startRoot != null)
+        {
+            RemoveChild(startRoot);
+            startRoot.QueueFree();
+            startRoot = null;
+        }
+
+        int count = HiveCore.StartLocationCount();
+        startRoot = new Node3D { Name = "StartLocations" };
+
+        for (int i = 0; i < count; i++)
+        {
+            if (!HiveCore.StartLocation(i, out int player, out float x, out float y))
+            {
+                continue;
+            }
+
+            Vector3 rgb = HiveCore.PlayerColor(player);
+            var color = new Color(rgb.X, rgb.Y, rgb.Z);
+            float ground = HeightAt(x, y);
+
+            startRoot.AddChild(new MeshInstance3D
+            {
+                Mesh = new CylinderMesh
+                {
+                    TopRadius = 1.1f,
+                    BottomRadius = 1.1f,
+                    Height = 0.06f,
+                    RadialSegments = 24,
+                    Rings = 1,
+                },
+                MaterialOverride = new StandardMaterial3D
+                {
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                    AlbedoColor = new Color(color.R, color.G, color.B, 0.55f),
+                },
+                Position = new Vector3(x, ground + 0.12f, y),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            });
+
+            startRoot.AddChild(new Label3D
+            {
+                Text = (player + 1).ToString(),
+                Position = new Vector3(x, ground + 1.4f, y),
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                FontSize = 64,
+                OutlineSize = 14,
+                PixelSize = 0.01f,
+                Modulate = color,
+                OutlineModulate = Colors.Black,
+                NoDepthTest = true,
+            });
+        }
+
+        AddChild(startRoot);
+        GD.Print($"开始点 {count} 个");
+    }
+
+    public void SetStartLocationsVisible(bool visible)
+    {
+        if (startRoot != null)
+        {
+            startRoot.Visible = visible;
+        }
+    }
+
     private void AddRegionEdge(ImmediateMesh mesh, float x0, float z0, float x1, float z1)
     {
         int steps = Math.Max(1, (int)(MathF.Max(MathF.Abs(x1 - x0), MathF.Abs(z1 - z0)) * 2f));
