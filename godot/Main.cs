@@ -55,6 +55,7 @@ public partial class Main : Node3D
     private readonly string pathingPaintTest = OS.GetEnvironment("HIVE_PATHING_PAINT_TEST");
     private readonly string playerTest = OS.GetEnvironment("HIVE_PLAYER_TEST");
     private readonly string constantTest = OS.GetEnvironment("HIVE_CONSTANT_TEST");
+    private readonly string newMapTest = OS.GetEnvironment("HIVE_NEWMAP_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -77,6 +78,29 @@ public partial class Main : Node3D
         string projectRoot = ProjectSettings.GlobalizePath("res://");
         dataDir = projectRoot + "../testdata/warcraft";
         LoadMap(projectRoot + "../testdata/maps/(2)BootyBay.w3m");
+    }
+
+    private void NewMap()
+    {
+        if (loaded)
+        {
+            HiveCore.Close();
+            CloseEditor();
+            loaded = false;
+        }
+
+        if (!HiveCore.NewMap(dataDir, out string error))
+        {
+            GD.PrintErr(error);
+            ui?.SetStatus($"新建失败：{error}");
+            return;
+        }
+
+        loaded = true;
+        ResetEditorState();
+        BuildEditor();
+        ui.SetStatus("空白地图 64×64，Ctrl+S 另存为 w3m");
+        GD.Print($"新建地图：{view.Info.Width}×{view.Info.Height}");
     }
 
     private void LoadMap(string mapPath)
@@ -168,6 +192,7 @@ public partial class Main : Node3D
         ui.RedoRequested += Redo;
         ui.SaveRequested += SaveMap;
         ui.OpenRequested += ShowOpenDialog;
+        ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
         ui.RegionsToggled += view.SetRegionsVisible;
         ui.ObjectValueChanged += (category, id, index, value) =>
@@ -1850,6 +1875,25 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (newMapTest.Length > 0)
+        {
+            if (frames == 6)
+            {
+                NewMap();
+            }
+            else if (frames == 12)
+            {
+                GD.Print($"新建后：{view.Info.Width}×{view.Info.Height}，装饰物 {HiveCore.MapInfo.DoodadCount}，"
+                    + $"单位 {HiveCore.MapInfo.UnitCount}，区域 {HiveCore.MapInfo.RegionCount}");
+                int placed = HiveCore.AddDoodad("LTlt", 32f, 32f, 0f, 0f);
+                GD.Print($"在新图上放树返回 {placed}");
+                view.BuildDoodads();
+                GD.Print($"放完装饰物 {HiveCore.MapInfo.DoodadCount}");
                 GetTree().Quit();
             }
             return;

@@ -34,6 +34,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? RedoRequested;
     public event Action? SaveRequested;
     public event Action? OpenRequested;
+    public event Action? NewMapRequested;
     public event Action<Vector2>? MinimapClicked;
     public event Action<bool>? PathingToggled;
     public event Action<bool>? RegionsToggled;
@@ -535,6 +536,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(toolLabel);
 
         row.AddChild(new VSeparator());
+        row.AddChild(ActionButton("新建", () => NewMapRequested?.Invoke()));
         row.AddChild(ActionButton("打开", () => OpenRequested?.Invoke()));
         row.AddChild(ActionButton("撤销", () => UndoRequested?.Invoke()));
         row.AddChild(ActionButton("重做", () => RedoRequested?.Invoke()));

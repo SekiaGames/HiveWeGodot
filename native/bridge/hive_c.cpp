@@ -679,6 +679,49 @@ void update_pose(CachedModel& model, const int sequence_index, const int frame) 
 
 extern "C" {
 
+void* hive_new_map(const char* data_dir, char* error, const int32_t error_size) {
+	if (data_dir == nullptr) {
+		set_error(error, error_size, "参数为空");
+		return nullptr;
+	}
+
+	std::string message;
+	if (!prepare_data_source(data_dir, message)) {
+		set_error(error, error_size, message);
+		return nullptr;
+	}
+
+	// 上游固定 64×64、Lordaeron 夏天地形集
+	constexpr int size_in_tiles = 64;
+	constexpr float terrain_offset = -size_in_tiles * 128.f / 2.f;
+
+	fs::path directory;
+	do {
+		directory = fs::temp_directory_path() / "HiveWE"
+			/ std::format("{:08x}", std::random_device {}()) / "New Map";
+	} while (fs::exists(directory));
+
+	std::error_code ec;
+	fs::create_directories(directory, ec);
+	if (ec) {
+		set_error(error, error_size, "建临时目录失败：" + ec.message());
+		return nullptr;
+	}
+
+	hierarchy.map_directory = directory;
+
+	TriggerStrings trigger_strings;
+	MapInfo info;
+	info.load_defaults(trigger_strings);
+	info.update_map_bounds_info(0, 0, 0, 0, size_in_tiles + 1, size_in_tiles + 1, terrain_offset, terrain_offset);
+	info.save('L');
+	trigger_strings.save();
+	Terrain::save_blank(size_in_tiles, size_in_tiles);
+	Doodads::save_empty();
+
+	return hive_open(directory.string().c_str(), data_dir, error, error_size);
+}
+
 void* hive_open(const char* map_path, const char* data_dir, char* error, const int32_t error_size) {
 	if (map_path == nullptr || data_dir == nullptr) {
 		set_error(error, error_size, "参数为空");

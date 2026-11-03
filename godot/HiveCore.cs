@@ -129,6 +129,10 @@ public static class HiveCore
     }
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_new_map([MarshalAs(UnmanagedType.LPUTF8Str)] string dataDir, byte[] error,
+        int errorSize);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_open(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string mapPath,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string dataDir,
@@ -829,6 +833,26 @@ public static class HiveCore
 
         byte[] buffer = new byte[512];
         handle = hive_open(mapPath, dataDir, buffer, buffer.Length);
+        if (handle == IntPtr.Zero)
+        {
+            int end = Array.IndexOf(buffer, (byte)0);
+            error = System.Text.Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool NewMap(string dataDir, out string error)
+    {
+        if (handle != IntPtr.Zero)
+        {
+            Close();
+        }
+
+        byte[] buffer = new byte[512];
+        handle = hive_new_map(dataDir, buffer, buffer.Length);
         if (handle == IntPtr.Zero)
         {
             int end = Array.IndexOf(buffer, (byte)0);

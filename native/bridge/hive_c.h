@@ -29,6 +29,9 @@ typedef struct HiveTile {
 
 /* 打开地图。data_dir 指向装了客户端的目录（含 WAR3.MPQ），或从 MPQ 里解包出来的资源目录。
    失败返回 NULL 并把原因写进 error。 */
+/* 新建空白地图：64×64 tile、Lordaeron 夏天草地，写到临时目录后当作普通地图打开。 */
+void* hive_new_map(const char* data_dir, char* error, int32_t error_size);
+
 void* hive_open(const char* map_path, const char* data_dir, char* error, int32_t error_size);
 
 void hive_close(void* handle);

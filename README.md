@@ -18,6 +18,7 @@
 | Godot 接入 | 完成：Godot 4.7 + .NET 8，DllImport 调到核心 |
 | 地形渲染 | 完成：MultiMesh + 高度图 + 四层纹理混合 + 水面，BootyBay 出画面 |
 | 笔刷 | 完成：纹理 / 高度 / 水 / 悬崖，带撤销重做 |
+| 新建 | 完成：64×64 空白草地，能直接编辑并存成 `.w3m` |
 | 保存 | 完成：改完能存回 `.w3m`，重开数据一致 |
 | 装饰物 | 完成：MDX 静态渲染（按 Stand 帧烘姿态）+ 放置。716 种可选（含可破坏物），按分类树挑；2011 个里摆上 1991 个 |
 | 单位 | 完成：61 个里摆上 59 个，按玩家队伍色上色，Stand 序列循环播放 |
@@ -132,6 +133,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_NEWMAP_TEST=1 HIVE_SCREENSHOT=/tmp/newmap.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 新建空白图再放一棵树
 HIVE_CONSTANT_TEST=1 HIVE_SCREENSHOT=/tmp/constants.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开游戏常量窗口，筛「敏捷」
 HIVE_PLAYER_TEST=1 HIVE_SCREENSHOT=/tmp/players.png \
