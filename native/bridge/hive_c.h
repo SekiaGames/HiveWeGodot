@@ -333,6 +333,10 @@ int32_t hive_copy_image_path(void* handle, const char* path, uint8_t* out, int32
 /* 对象属性。category：0 单位、1 物品、2 装饰物、3 可破坏物、4 技能、5 升级、6 buff。
    字段列表按 HiveWE 的规则从 meta slk 生成：跳过 useSpecific 对不上的，
    带 repeat 的按 levels / numvar / maxlevel 展开成多条。 */
+/* 按分类列所有对象类型（0 单位、1 物品、2 装饰物、3 可破坏物、4 技能、5 升级、6 buff）。 */
+int32_t hive_object_type_count(void* handle, int32_t category);
+const char* hive_object_type_id(void* handle, int32_t category, int32_t index);
+
 /* 对象的显示名（单位取 slk 的 Name，装饰物解 WESTRING），没有就用 id。 */
 const char* hive_object_type_name(void* handle, int32_t category, const char* id);
 /* 编辑器树里所属的分类，按层取：单位是「种族、单位/建筑/英雄/特殊」两层，

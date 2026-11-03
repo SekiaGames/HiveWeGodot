@@ -32,6 +32,7 @@
 | 玩家 | 完成：24 个槽位的控制器、名字、种族、固定出生点，颜色按槽位展示 |
 | 地图属性 | 完成：描述、选项（七个开关、雾、天气、环境音、光照、水色、数据版本）、载入画面 |
 | 游戏常量 | 完成：196 条，可筛选可改，改过的标出来 |
+| 对象编辑器 | 完成：七类共 2950 个对象，名字筛选 + 字段编辑 |
 | 界面 | 地形调色板、小地图、工具条、状态栏、属性面板，区域 / 玩家 / 模型 / 触发器窗口可用 |
 
 ## 文档
@@ -133,6 +134,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_OBJECT_EDITOR_TEST=1 HIVE_SCREENSHOT=/tmp/object_editor.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开对象编辑器，打印七类对象数
 HIVE_NEWMAP_TEST=1 HIVE_SCREENSHOT=/tmp/newmap.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 新建空白图再放一棵树
 HIVE_CONSTANT_TEST=1 HIVE_SCREENSHOT=/tmp/constants.png \

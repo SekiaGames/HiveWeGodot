@@ -57,6 +57,7 @@ public partial class Main : Node3D
     private readonly string playerTest = OS.GetEnvironment("HIVE_PLAYER_TEST");
     private readonly string constantTest = OS.GetEnvironment("HIVE_CONSTANT_TEST");
     private readonly string newMapTest = OS.GetEnvironment("HIVE_NEWMAP_TEST");
+    private readonly string objectEditorTest = OS.GetEnvironment("HIVE_OBJECT_EDITOR_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -206,6 +207,7 @@ public partial class Main : Node3D
         ui.MapInfoRequested += ShowMapInfoDialog;
         ui.PlayersRequested += ShowPlayerWindow;
         ui.ConstantsRequested += ShowConstantWindow;
+        ui.ObjectEditorRequested += ShowObjectEditorWindow;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.TriggerRequested += () => ShowTriggerWindow();
         ui.RegionRequested += ShowRegionWindow;
@@ -1334,6 +1336,14 @@ public partial class Main : Node3D
         window.PopupCentered(new Vector2I(520, 520));
     }
 
+    private void ShowObjectEditorWindow()
+    {
+        var window = new ObjectEditorWindow();
+        root.AddChild(window);
+        window.Build();
+        window.PopupCentered(new Vector2I(1020, 690));
+    }
+
     private void ShowConstantWindow()
     {
         var window = new GameplayConstantWindow();
@@ -1885,6 +1895,19 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (objectEditorTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new ObjectEditorWindow();
+                root.AddChild(window);
+                window.Build();
+                GD.Print($"对象编辑器 {window.CategoryCount} 类，共 {window.TotalObjects()} 个对象");
                 GetTree().Quit();
             }
             return;

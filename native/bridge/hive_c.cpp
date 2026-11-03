@@ -105,6 +105,7 @@ struct HiveHandle {
 		std::string id;
 		std::vector<ObjectField> fields;
 	};
+	std::array<std::vector<std::string>, 7> object_type_cache;
 	std::vector<std::string> weather_ids;
 	std::vector<std::string> ambient_ids;
 	bool extra_tables_loaded = false;
@@ -2416,6 +2417,50 @@ const std::vector<std::string>& unit_type_ids(HiveHandle* hive) {
 		std::sort(hive->unit_types.begin(), hive->unit_types.end());
 	}
 	return hive->unit_types;
+}
+
+slk::SLK* category_slk(int32_t category);
+
+/// 按分类列出所有四字符 id，排序后缓存。
+const std::vector<std::string>& object_type_ids(HiveHandle* hive, const int32_t category) {
+	static const std::vector<std::string> empty;
+	if (category < 0 || category > 6) {
+		return empty;
+	}
+	std::vector<std::string>& cache = hive->object_type_cache[static_cast<std::size_t>(category)];
+	if (cache.empty()) {
+		slk::SLK* slk = category_slk(category);
+		if (slk == nullptr) {
+			return empty;
+		}
+		for (const auto& [id, row] : slk->row_headers) {
+			if (id.size() == 4) {
+				cache.push_back(id);
+			}
+		}
+		std::ranges::sort(cache);
+	}
+	return cache;
+}
+
+int32_t hive_object_type_count(void* handle, const int32_t category) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(object_type_ids(static_cast<HiveHandle*>(handle), category).size());
+}
+
+const char* hive_object_type_id(void* handle, const int32_t category, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& ids = object_type_ids(hive, category);
+	if (static_cast<std::size_t>(index) >= ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = ids[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
 }
 
 int32_t hive_unit_type_count(void* handle) {

@@ -454,6 +454,12 @@ public static class HiveCore
     private static extern int hive_object_field_count(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_object_type_count(IntPtr hive, int category);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_type_id(IntPtr hive, int category, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_object_type_name(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1266,6 +1272,10 @@ public static class HiveCore
     public static int ModelFromUnitClipboard(int index) => hive_model_from_unit_clipboard(handle, index);
 
     public static int DoodadCategory(string id) => hive_doodad_category(handle, id);
+
+    public static int ObjectTypeCount(int category) => hive_object_type_count(handle, category);
+
+    public static string? ObjectTypeId(int category, int index) => ReadString(hive_object_type_id(handle, category, index));
 
     public static string? ObjectTypeName(int category, string id)
         => ReadString(hive_object_type_name(handle, category, id));
