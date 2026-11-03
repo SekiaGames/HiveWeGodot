@@ -32,6 +32,7 @@ public struct HiveDoodad
     public float ScaleZ;
     public int Variation;
     public int Solid;
+    public int UseClickHelper;
 }
 
 [StructLayout(LayoutKind.Sequential)]

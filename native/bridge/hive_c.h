@@ -225,6 +225,8 @@ typedef struct HiveDoodad {
 	float scale_z;
 	int32_t variation;
 	int32_t solid;
+	/* Doodads.slk / DestructableData.slk 的 useclickhelper，画点击辅助盒用。 */
+	int32_t use_click_helper;
 } HiveDoodad;
 
 int32_t hive_copy_doodads(void* handle, HiveDoodad* out, int32_t capacity);

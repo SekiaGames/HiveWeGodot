@@ -21,6 +21,7 @@ public partial class TerrainView : Node3D
     private bool doodadsVisible = true;
     private bool waterVisible = true;
     private bool lightingVisible = true;
+    private bool clickHelpersVisible = true;
     private ImageTexture heightTexture = null!;
     private int[] layerOffset = Array.Empty<int>();
     private int totalLayers;
@@ -344,6 +345,7 @@ public partial class TerrainView : Node3D
     private readonly System.Collections.Generic.Dictionary<string, Texture2D?> textureCache = new();
 
     private Node3D? doodadRoot;
+    private Node3D? clickHelperRoot;
 
     public void BuildDoodads()
     {
@@ -377,6 +379,8 @@ public partial class TerrainView : Node3D
             list.Add(i);
         }
 
+        BuildClickHelpers(doodads);
+
         int placed = 0;
         foreach (var pair in byModel)
         {
@@ -409,6 +413,58 @@ public partial class TerrainView : Node3D
     }
 
     private MeshInstance3D? regionRoot;
+
+    private void BuildClickHelpers(HiveDoodad[] doodads)
+    {
+        if (clickHelperRoot != null)
+        {
+            RemoveChild(clickHelperRoot);
+            clickHelperRoot.QueueFree();
+            clickHelperRoot = null;
+        }
+
+        int model = HiveCore.ModelFromPath("Objects/InvalidObject/InvalidObject.mdx");
+        if (model < 0)
+        {
+            return;
+        }
+        ArrayMesh? mesh = ModelMesh(model);
+        if (mesh == null)
+        {
+            return;
+        }
+
+        var targets = new System.Collections.Generic.List<HiveDoodad>();
+        foreach (HiveDoodad doodad in doodads)
+        {
+            if (doodad.Solid != 0 && doodad.UseClickHelper != 0)
+            {
+                targets.Add(doodad);
+            }
+        }
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        var multi = new MultiMesh
+        {
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+            Mesh = mesh,
+            InstanceCount = targets.Count,
+        };
+        for (int i = 0; i < targets.Count; i++)
+        {
+            HiveDoodad doodad = targets[i];
+            Basis basis = Basis.Identity.Rotated(Vector3.Up, -doodad.Angle)
+                .Scaled(new Vector3(doodad.ScaleX, doodad.ScaleY, doodad.ScaleZ));
+            multi.SetInstanceTransform(i, new Transform3D(basis, new Vector3(doodad.X, doodad.Z, doodad.Y)));
+        }
+
+        clickHelperRoot = new Node3D { Name = "ClickHelpers", Visible = clickHelpersVisible };
+        clickHelperRoot.AddChild(new MultiMeshInstance3D { Multimesh = multi, Name = "ClickHelpers" });
+        AddChild(clickHelperRoot);
+    }
 
     public void BuildRegions()
     {
@@ -988,6 +1044,15 @@ public partial class TerrainView : Node3D
         if (lightNode != null)
         {
             lightNode.Visible = on;
+        }
+    }
+
+    public void SetClickHelpersVisible(bool on)
+    {
+        clickHelpersVisible = on;
+        if (clickHelperRoot != null)
+        {
+            clickHelperRoot.Visible = on;
         }
     }
 

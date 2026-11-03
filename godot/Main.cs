@@ -231,6 +231,9 @@ public partial class Main : Node3D
                 case EditorUi.ViewLayer.Lighting:
                     view.SetLightingVisible(on);
                     break;
+                case EditorUi.ViewLayer.ClickHelpers:
+                    view.SetClickHelpersVisible(on);
+                    break;
             }
         };
         ui.CameraResetRequested += ResetCamera;
@@ -2331,6 +2334,9 @@ public partial class Main : Node3D
                 view.SetWaterVisible(true);
                 view.SetUnitsVisible(true);
                 view.SetDoodadsVisible(true);
+                Node3D? helpers = view.GetNodeOrNull<Node3D>("ClickHelpers");
+                var helperMesh = helpers?.GetChildOrNull<MultiMeshInstance3D>(0);
+                GD.Print($"点击盒：节点 {helpers != null}，实例 {helperMesh?.Multimesh?.InstanceCount ?? 0}");
                 ResetCamera();
                 GD.Print($"重置镜头 focus {focus} distance {distance}");
                 GetTree().Quit();

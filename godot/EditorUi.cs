@@ -33,6 +33,7 @@ public partial class EditorUi : CanvasLayer
         Water,
         Brush,
         Lighting,
+        ClickHelpers,
         Minimap,
     }
 
@@ -486,6 +487,7 @@ public partial class EditorUi : CanvasLayer
                      ("水面", ViewLayer.Water, true),
                      ("笔刷", ViewLayer.Brush, true),
                      ("光照", ViewLayer.Lighting, true),
+                     ("点击盒", ViewLayer.ClickHelpers, true),
                      ("小地图", ViewLayer.Minimap, true),
                  })
         {

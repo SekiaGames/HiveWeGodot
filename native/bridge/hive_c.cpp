@@ -1891,6 +1891,7 @@ int32_t hive_copy_doodads(void* handle, HiveDoodad* out, const int32_t capacity)
 		out[i].scale_z = source[i].scale.z;
 		out[i].variation = source[i].variation;
 		out[i].solid = source[i].state == Doodad::State::visible_solid ? 1 : 0;
+		out[i].use_click_helper = source[i].use_click_helper ? 1 : 0;
 	}
 	return static_cast<int32_t>(count);
 }
@@ -2585,6 +2586,7 @@ int32_t hive_copy_clipboard(void* handle, HiveDoodad* out, const int32_t capacit
 		out[i].scale_z = source[i].scale.z;
 		out[i].variation = source[i].variation;
 		out[i].solid = source[i].state == Doodad::State::visible_solid ? 1 : 0;
+		out[i].use_click_helper = source[i].use_click_helper ? 1 : 0;
 	}
 	return static_cast<int32_t>(count);
 }
