@@ -975,6 +975,7 @@ public partial class Main : Node3D
         tabs.AddChild(descriptionPage);
 
         Action applyOptions = BuildMapOptionsTab(tabs);
+        Action applyLoadingScreen = BuildLoadingScreenTab(tabs);
         dialog.AddChild(tabs);
 
         dialog.Confirmed += () =>
@@ -984,6 +985,7 @@ public partial class Main : Node3D
             HiveCore.SetMapSuggestedPlayers(suggestedEdit.Text);
             HiveCore.SetMapDescription(descriptionEdit.Text);
             applyOptions();
+            applyLoadingScreen();
             ui.SetStatus("地图信息已改，Ctrl+S 存进地图");
             dialog.QueueFree();
         };
@@ -991,6 +993,124 @@ public partial class Main : Node3D
 
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(700, 600));
+    }
+
+    private Action BuildLoadingScreenTab(TabContainer tabs)
+    {
+        var page = new ScrollContainer
+        {
+            Name = "载入画面",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        column.AddThemeConstantOverride("separation", 8);
+        page.AddChild(column);
+        tabs.AddChild(page);
+
+        var modeGroup = new ButtonGroup();
+        var modeRow = new HBoxContainer();
+        modeRow.AddThemeConstantOverride("separation", 6);
+        column.AddChild(modeRow);
+
+        int screenNumber = HiveCore.MapLoadingScreen();
+        string screenModel = HiveCore.MapLoadingScreenModel() ?? string.Empty;
+        int mode = screenNumber >= 0 ? 2 : (screenModel.Length > 0 ? 1 : 0);
+
+        Button ModeButton(string text, int value)
+        {
+            var button = new Button
+            {
+                Text = text,
+                ToggleMode = true,
+                ButtonGroup = modeGroup,
+                ButtonPressed = mode == value,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            modeRow.AddChild(button);
+            return button;
+        }
+
+        Button defaultButton = ModeButton("默认", 0);
+        Button importedButton = ModeButton("导入的模型", 1);
+        Button campaignButton = ModeButton("阵营画面", 2);
+
+        column.AddChild(new Label { Text = "导入的模型" });
+        var importedBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        int importedCount = HiveCore.ImportedModelCount();
+        for (int i = 0; i < importedCount; i++)
+        {
+            importedBox.AddItem(HiveCore.ImportedModel(i) ?? "?");
+        }
+        if (importedCount == 0)
+        {
+            importedBox.AddItem("地图里没有 .mdx");
+        }
+        for (int i = 0; i < importedCount; i++)
+        {
+            if ((HiveCore.ImportedModel(i) ?? string.Empty) == screenModel)
+            {
+                importedBox.Select(i);
+            }
+        }
+        column.AddChild(importedBox);
+
+        column.AddChild(new Label { Text = "阵营画面" });
+        var campaignBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        for (int i = 0; i < HiveCore.LoadingScreenCount(); i++)
+        {
+            campaignBox.AddItem(HiveCore.LoadingScreenName(i) ?? "?");
+        }
+        campaignBox.Select(Math.Clamp(screenNumber, 0, Math.Max(0, campaignBox.ItemCount - 1)));
+        column.AddChild(campaignBox);
+
+        void SyncEnabled()
+        {
+            importedBox.Disabled = !importedButton.ButtonPressed;
+            campaignBox.Disabled = !campaignButton.ButtonPressed;
+        }
+        defaultButton.Toggled += _ => SyncEnabled();
+        importedButton.Toggled += _ => SyncEnabled();
+        campaignButton.Toggled += _ => SyncEnabled();
+        SyncEnabled();
+
+        column.AddChild(new Label { Text = "标题" });
+        var titleEdit = new LineEdit { Text = HiveCore.MapLoadingScreenTitle() ?? string.Empty };
+        column.AddChild(titleEdit);
+
+        column.AddChild(new Label { Text = "副标题" });
+        var subtitleEdit = new LineEdit { Text = HiveCore.MapLoadingScreenSubtitle() ?? string.Empty };
+        column.AddChild(subtitleEdit);
+
+        column.AddChild(new Label { Text = "提示文本" });
+        var textEdit = new TextEdit
+        {
+            Text = HiveCore.MapLoadingScreenText() ?? string.Empty,
+            CustomMinimumSize = new Vector2(0, 140),
+        };
+        column.AddChild(textEdit);
+
+        return () =>
+        {
+            if (importedButton.ButtonPressed)
+            {
+                HiveCore.SetMapLoadingScreen(-1);
+                HiveCore.SetMapLoadingScreenModel(importedCount > 0 ? HiveCore.ImportedModel(importedBox.Selected) ?? string.Empty : string.Empty);
+            }
+            else if (campaignButton.ButtonPressed)
+            {
+                HiveCore.SetMapLoadingScreenModel(string.Empty);
+                HiveCore.SetMapLoadingScreen(Math.Max(0, campaignBox.Selected));
+            }
+            else
+            {
+                HiveCore.SetMapLoadingScreenModel(string.Empty);
+                HiveCore.SetMapLoadingScreen(-1);
+            }
+
+            HiveCore.SetMapLoadingScreenTitle(titleEdit.Text);
+            HiveCore.SetMapLoadingScreenSubtitle(subtitleEdit.Text);
+            HiveCore.SetMapLoadingScreenText(textEdit.Text);
+        };
     }
 
     private Action BuildMapOptionsTab(TabContainer tabs)

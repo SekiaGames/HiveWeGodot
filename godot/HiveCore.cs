@@ -507,6 +507,52 @@ public static class HiveCore
     private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_loading_screen_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_loading_screen_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_map_loading_screen(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_loading_screen_model(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_loading_screen_title(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_loading_screen_subtitle(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_loading_screen_text(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_loading_screen(IntPtr hive, int number);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_loading_screen_model(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_loading_screen_title(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_loading_screen_subtitle(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_loading_screen_text(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_imported_model_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_imported_model(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_map_option_flags(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1236,6 +1282,35 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int LoadingScreenCount() => hive_loading_screen_count(handle);
+
+    public static string? LoadingScreenName(int index) => ReadString(hive_loading_screen_name(handle, index));
+
+    public static int MapLoadingScreen() => hive_map_loading_screen(handle);
+
+    public static string? MapLoadingScreenModel() => ReadString(hive_map_loading_screen_model(handle));
+
+    public static string? MapLoadingScreenTitle() => ReadString(hive_map_loading_screen_title(handle));
+
+    public static string? MapLoadingScreenSubtitle() => ReadString(hive_map_loading_screen_subtitle(handle));
+
+    public static string? MapLoadingScreenText() => ReadString(hive_map_loading_screen_text(handle));
+
+    public static bool SetMapLoadingScreen(int number) => hive_set_map_loading_screen(handle, number) == 0;
+
+    public static bool SetMapLoadingScreenModel(string value) => hive_set_map_loading_screen_model(handle, value) == 0;
+
+    public static bool SetMapLoadingScreenTitle(string value) => hive_set_map_loading_screen_title(handle, value) == 0;
+
+    public static bool SetMapLoadingScreenSubtitle(string value)
+        => hive_set_map_loading_screen_subtitle(handle, value) == 0;
+
+    public static bool SetMapLoadingScreenText(string value) => hive_set_map_loading_screen_text(handle, value) == 0;
+
+    public static int ImportedModelCount() => hive_imported_model_count(handle);
+
+    public static string? ImportedModel(int index) => ReadString(hive_imported_model(handle, index));
 
     public static int MapOptionFlags() => hive_map_option_flags(handle);
 
