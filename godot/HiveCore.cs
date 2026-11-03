@@ -312,6 +312,9 @@ public static class HiveCore
     private static extern int hive_player_color(int player, float[] rgb);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_from_path(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_sequence_count(IntPtr hive, int model);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -929,6 +932,8 @@ public static class HiveCore
     public static int ModelFromDoodad(int doodadIndex) => hive_model_from_doodad(handle, doodadIndex);
 
     public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
+
+    public static int ModelFromPath(string path) => hive_model_from_path(handle, path);
 
     public static int ModelSequenceCount(int model) => hive_model_sequence_count(handle, model);
 

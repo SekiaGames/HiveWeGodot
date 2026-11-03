@@ -46,6 +46,7 @@ public partial class Main : Node3D
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string teamTest = OS.GetEnvironment("HIVE_TEAM_TEST");
     private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
+    private readonly string modelTest = OS.GetEnvironment("HIVE_MODEL_TEST");
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
@@ -169,6 +170,7 @@ public partial class Main : Node3D
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.TriggerRequested += () => ShowTriggerWindow();
         ui.RegionRequested += ShowRegionWindow;
+        ui.ModelRequested += () => ShowModelWindow(string.Empty);
         ui.MinimapClicked += world =>
         {
             focus = new Vector3(world.X, 0, world.Y);
@@ -880,6 +882,15 @@ public partial class Main : Node3D
         window.PopupCentered(new Vector2I(520, 520));
     }
 
+    private ModelWindow ShowModelWindow(string path)
+    {
+        var window = new ModelWindow();
+        root.AddChild(window);
+        window.Build(view, path);
+        window.PopupCentered(new Vector2I(760, 680));
+        return window;
+    }
+
     private void RebuildAfterResize()
     {
         CloseEditor();
@@ -1354,6 +1365,21 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (modelTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                ShowModelWindow(modelTest);
+            }
+            else if (frames == 24)
+            {
+                Capture(screenshotPath);
+                GD.Print("模型预览：已截图");
                 GetTree().Quit();
             }
             return;

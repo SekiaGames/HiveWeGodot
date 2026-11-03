@@ -1020,6 +1020,15 @@ public partial class TerrainView : Node3D
         return mesh;
     }
 
+    public ArrayMesh? PreviewMesh(int model) => BuildMesh(model, 0);
+
+    public static float ModelExtent(int model)
+    {
+        HiveModelInfo info = HiveCore.ModelInfo(model);
+        float size = MathF.Max(info.MaxX - info.MinX, MathF.Max(info.MaxY - info.MinY, info.MaxZ - info.MinZ));
+        return size * ModelScale;
+    }
+
     private readonly System.Collections.Generic.Dictionary<(int, int, int), Material> materialCache = new();
 
     private Material CachedMaterial(int model, int geoset, int player)
