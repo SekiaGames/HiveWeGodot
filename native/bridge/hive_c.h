@@ -317,6 +317,8 @@ int32_t hive_set_map_suggested_players(void* handle, const char* value);
 void hive_map_versions(void* handle, int32_t* out);
 /* 可玩区域尺寸。 */
 void hive_map_playable_size(void* handle, int32_t* width, int32_t* height);
+/* 可玩区域四边各留多少不可玩，单位是 tile。 */
+void hive_map_playable_insets(void* handle, int32_t* left, int32_t* right, int32_t* top, int32_t* bottom);
 
 /* 从四边调整地图尺寸，delta 是 tile 增量。新的边长要落在 32..480。
    地形、路径图、阴影图、所有预设对象一起重排，撤销栈清空。成功返回 0。 */

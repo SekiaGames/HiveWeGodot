@@ -1005,9 +1005,12 @@ int32_t hive_copy_pathing(void* handle, uint8_t* out, const int32_t capacity) {
 	if (handle == nullptr || out == nullptr || capacity <= 0) {
 		return 0;
 	}
-	const auto& source = static_cast<HiveHandle*>(handle)->map->pathing_map.pathing_cells_static;
-	const auto count = std::min<std::size_t>(source.size(), static_cast<std::size_t>(capacity));
-	std::memcpy(out, source.data(), count);
+	const auto& map = static_cast<HiveHandle*>(handle)->map->pathing_map;
+	const auto count = std::min<std::size_t>(map.pathing_cells_static.size(), static_cast<std::size_t>(capacity));
+	for (std::size_t i = 0; i < count; ++i) {
+		const uint8_t dynamic = i < map.pathing_cells_dynamic.size() ? map.pathing_cells_dynamic[i] : 0;
+		out[i] = map.pathing_cells_static[i] | dynamic;
+	}
 	return static_cast<int32_t>(count);
 }
 
@@ -1438,9 +1441,13 @@ int32_t hive_remove_selection(void* handle, const int32_t is_unit, const int32_t
 	}
 	const auto removed = static_cast<int32_t>(action->doodads.size());
 
+	const std::vector<Doodad> removed_doodads = action->doodads;
+
 	hive->map->world_undo.new_undo_group();
 	hive->map->world_undo.add_undo_action(std::move(action));
 	std::erase_if(list, [&](const Doodad& doodad) { return numbers.contains(doodad.creation_number); });
+
+	ctx.doodads.update_doodad_pathing(removed_doodads, ctx.pathing_map);
 	return removed;
 }
 
@@ -1629,6 +1636,10 @@ int32_t hive_end_group(void* handle, const int32_t is_unit) {
 			return 0;
 		}
 
+		WorldEditContext ctx = hive->map->edit_context();
+		ctx.doodads.update_doodad_pathing(action->old_doodads, ctx.pathing_map);
+		ctx.doodads.update_doodad_pathing(action->new_doodads, ctx.pathing_map);
+
 		hive->map->world_undo.new_undo_group();
 		hive->map->world_undo.add_undo_action(std::move(action));
 	}
@@ -1794,8 +1805,12 @@ int32_t hive_add_doodad(void* handle, const char* id, const float x, const float
 
 	doodad.update(hive->map->terrain);
 
-	hive->map->doodads.doodads.push_back(std::move(doodad));
-	return static_cast<int32_t>(hive->map->doodads.doodads.size() - 1);
+	auto& list = hive->map->doodads.doodads;
+	list.push_back(std::move(doodad));
+
+	WorldEditContext ctx = hive->map->edit_context();
+	ctx.doodads.update_doodad_pathing(std::vector<Doodad> {list.back()}, ctx.pathing_map);
+	return static_cast<int32_t>(list.size() - 1);
 }
 
 void hive_set_doodad_random(void* handle, const int32_t flags) {
@@ -1932,6 +1947,8 @@ int32_t hive_place_clipboard(void* handle, const float x, const float y) {
 
 		action->doodads.push_back(doodad);
 	}
+
+	ctx.doodads.update_doodad_pathing(action->doodads, ctx.pathing_map);
 
 	hive->map->world_undo.new_undo_group();
 	hive->map->world_undo.add_undo_action(std::move(action));
@@ -2777,6 +2794,25 @@ void hive_map_versions(void* handle, int32_t* out) {
 	out[3] = info.game_version_minor;
 	out[4] = info.game_version_patch;
 	out[5] = info.game_version_build;
+}
+
+void hive_map_playable_insets(void* handle, int32_t* left, int32_t* right, int32_t* top, int32_t* bottom) {
+	if (handle == nullptr) {
+		return;
+	}
+	const MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	if (left != nullptr) {
+		*left = info.camera_complements[0];
+	}
+	if (right != nullptr) {
+		*right = info.camera_complements[1];
+	}
+	if (bottom != nullptr) {
+		*bottom = info.camera_complements[2];
+	}
+	if (top != nullptr) {
+		*top = info.camera_complements[3];
+	}
 }
 
 void hive_map_playable_size(void* handle, int32_t* width, int32_t* height) {

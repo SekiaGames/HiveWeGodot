@@ -121,6 +121,8 @@ public partial class TerrainView : Node3D
         });
     }
 
+    public void RefreshPathing() => BuildPathingOverlay();
+
     private void BuildPathingOverlay()
     {
         byte[]? cells = HiveCore.Pathing(out int width, out int height);
@@ -133,17 +135,22 @@ public partial class TerrainView : Node3D
         int blocked = 0;
         for (int i = 0; i < cells.Length; i++)
         {
-            const int unwalkable = 0x02;
-            const int water = 0x40;
+            // 和 terrain.frag 一致：bit 1 红（不可走）、bit 2 绿（不可飞）、bit 3 蓝（不可建）
+            const int walkable = 0x02;
+            const int flyable = 0x04;
+            const int buildable = 0x08;
 
-            if ((cells[i] & unwalkable) != 0 && (cells[i] & water) == 0)
+            int cell = cells[i];
+            if ((cell & (walkable | flyable | buildable)) == 0)
             {
-                rgba[i * 4] = 220;
-                rgba[i * 4 + 1] = 45;
-                rgba[i * 4 + 2] = 45;
-                rgba[i * 4 + 3] = 95;
-                blocked++;
+                continue;
             }
+
+            rgba[i * 4] = (byte)(((cell & walkable) != 0) ? 255 : 0);
+            rgba[i * 4 + 1] = (byte)(((cell & flyable) != 0) ? 255 : 0);
+            rgba[i * 4 + 2] = (byte)(((cell & buildable) != 0) ? 255 : 0);
+            rgba[i * 4 + 3] = 128;
+            blocked++;
         }
 
         Image image = Image.CreateFromData(width, height, false, Image.Format.Rgba8, rgba);

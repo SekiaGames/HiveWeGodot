@@ -844,6 +844,44 @@ public partial class Main : Node3D
         grid.AddChild(new Label { Text = "调整尺寸" });
         grid.AddChild(sizeRow);
 
+        (int insetLeft, int insetRight, int insetTop, int insetBottom) = HiveCore.MapPlayableInsets();
+        SpinBox Inset(string prefix, int value) => new()
+        {
+            Prefix = prefix,
+            MinValue = 0,
+            MaxValue = 64,
+            Step = 1,
+            Value = value,
+            CustomMinimumSize = new Vector2(88, 0),
+        };
+        SpinBox leftInset = Inset("左 ", insetLeft);
+        SpinBox rightInset = Inset("右 ", insetRight);
+        SpinBox topInset = Inset("上 ", insetTop);
+        SpinBox bottomInset = Inset("下 ", insetBottom);
+
+        var insetRow = new HBoxContainer();
+        insetRow.AddThemeConstantOverride("separation", 6);
+        insetRow.AddChild(leftInset);
+        insetRow.AddChild(rightInset);
+        insetRow.AddChild(topInset);
+        insetRow.AddChild(bottomInset);
+
+        var applyInsets = new Button { Text = "应用" };
+        applyInsets.Pressed += () =>
+        {
+            if (HiveCore.SetPlayableArea((int)leftInset.Value, (int)rightInset.Value, (int)topInset.Value,
+                    (int)bottomInset.Value) != 0)
+            {
+                ui.SetStatus("可玩区域超出地图范围");
+                return;
+            }
+            ui.SetStatus("可玩区域已改，Ctrl+S 存进地图");
+        };
+        insetRow.AddChild(applyInsets);
+
+        grid.AddChild(new Label { Text = "可玩区域" });
+        grid.AddChild(insetRow);
+
         dialog.AddChild(grid);
         dialog.Confirmed += () =>
         {
@@ -1139,6 +1177,7 @@ public partial class Main : Node3D
     {
         view.BuildDoodads();
         view.BuildUnits();
+        view.RefreshPathing();
         UpdateStatus();
     }
 
@@ -1255,8 +1294,11 @@ public partial class Main : Node3D
             }
             else if (frames == 14)
             {
+                var (left, right, top, bottom) = HiveCore.MapPlayableInsets();
+                GD.Print($"地图信息：{HiveCore.MapName}，可玩 {HiveCore.MapPlayableSize()}，四边 {left}/{right}/{top}/{bottom}");
+                HiveCore.SetPlayableArea(left + 2, right + 2, top + 2, bottom + 2);
+                GD.Print($"加 2 格后可玩 {HiveCore.MapPlayableSize()}");
                 Capture(screenshotPath);
-                GD.Print($"地图信息：{HiveCore.MapName}，可玩 {HiveCore.MapPlayableSize()}");
                 GetTree().Quit();
             }
             return;

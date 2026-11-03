@@ -453,6 +453,9 @@ public static class HiveCore
     private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_map_playable_insets(IntPtr hive, out int left, out int right, out int top, out int bottom);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_resize_map(IntPtr hive, int deltaLeft, int deltaRight, int deltaTop, int deltaBottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1065,6 +1068,12 @@ public static class HiveCore
     {
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
+    }
+
+    public static (int Left, int Right, int Top, int Bottom) MapPlayableInsets()
+    {
+        hive_map_playable_insets(handle, out int left, out int right, out int top, out int bottom);
+        return (left, right, top, bottom);
     }
 
     public static int ResizeMap(int deltaLeft, int deltaRight, int deltaTop, int deltaBottom)
