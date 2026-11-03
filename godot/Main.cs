@@ -81,14 +81,87 @@ public partial class Main : Node3D
     private int frames;
     private bool loaded;
 
+    private const string SettingsPath = "user://settings.cfg";
+
     public override void _Ready()
     {
         root = new Node3D();
         AddChild(root);
 
+        // 开发目录里有 testdata，直接开样例地图；打包后没有，让用户选客户端目录
         string projectRoot = ProjectSettings.GlobalizePath("res://");
-        dataDir = projectRoot + "../testdata/warcraft";
-        LoadMap(projectRoot + "../testdata/maps/(2)BootyBay.w3m");
+        string bundled = projectRoot + "../testdata/warcraft";
+        if (System.IO.Directory.Exists(bundled))
+        {
+            dataDir = bundled;
+            LoadMap(projectRoot + "../testdata/maps/(2)BootyBay.w3m");
+            return;
+        }
+
+        dataDir = ReadSetting("data_dir");
+        if (dataDir.Length > 0 && System.IO.Directory.Exists(dataDir))
+        {
+            OpenLastMapOrNew();
+            return;
+        }
+
+        GD.Print("没有数据目录，等用户选魔兽争霸 III 的安装目录");
+        CallDeferred(nameof(AskDataDir));
+    }
+
+    private void AskDataDir()
+    {
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.OpenDir,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Title = "选择魔兽争霸 III 目录（里面要有 WAR3.MPQ）",
+            UseNativeDialog = true,
+        };
+        dialog.DirSelected += path =>
+        {
+            dialog.QueueFree();
+            dataDir = path;
+            WriteSetting("data_dir", path);
+            GD.Print($"数据目录：{path}");
+            OpenLastMapOrNew();
+        };
+        dialog.Canceled += () =>
+        {
+            dialog.QueueFree();
+            GD.Print("没有选数据目录，可以用工具条上的「打开」选一张地图");
+        };
+        AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(900, 600));
+    }
+
+    private void OpenLastMapOrNew()
+    {
+        string lastMap = ReadSetting("last_map");
+        if (lastMap.Length > 0 && System.IO.File.Exists(lastMap))
+        {
+            LoadMap(lastMap);
+            return;
+        }
+        NewMap();
+    }
+
+    private static string ReadSetting(string key)
+    {
+        var config = new ConfigFile();
+        if (config.Load(SettingsPath) != Error.Ok)
+        {
+            return string.Empty;
+        }
+        return config.GetValue("paths", key, string.Empty).AsString();
+    }
+
+    private static void WriteSetting(string key, string value)
+    {
+        var config = new ConfigFile();
+        config.Load(SettingsPath);
+        config.SetValue("paths", key, value);
+        config.Save(SettingsPath);
     }
 
     private void NewMap()
@@ -131,6 +204,7 @@ public partial class Main : Node3D
 
         loaded = true;
         currentMapPath = mapPath;
+        WriteSetting("last_map", mapPath);
         ResetEditorState();
         BuildEditor();
         GD.Print($"已打开 {mapPath}：{view.Info.Width}×{view.Info.Height}");
