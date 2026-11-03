@@ -9,8 +9,6 @@ public partial class TileSetterWindow : AcceptDialog
     private const int MaxGround = 64;
     private const int MaxCliff = 15;
 
-    private static readonly Dictionary<string, Texture2D?> thumbnails = new();
-
     private readonly List<string> selected = new();
     private readonly List<string> available = new();
 
@@ -438,7 +436,7 @@ public partial class TileSetterWindow : AcceptDialog
             ExpandIcon = true,
             TooltipText = id,
         };
-        Texture2D? thumbnail = Thumbnail(id);
+        Texture2D? thumbnail = TileThumbnails.Get(id);
         if (thumbnail != null)
         {
             button.Icon = thumbnail;
@@ -448,18 +446,6 @@ public partial class TileSetterWindow : AcceptDialog
             button.Text = id;
         }
         return button;
-    }
-
-    private static Texture2D? Thumbnail(string id)
-    {
-        if (thumbnails.TryGetValue(id, out Texture2D? cached))
-        {
-            return cached;
-        }
-        Image? image = HiveCore.TerrainTileImage(id);
-        Texture2D? texture = image == null ? null : ImageTexture.CreateFromImage(image);
-        thumbnails[id] = texture;
-        return texture;
     }
 
     private static GridContainer MakeGrid() => new() { Columns = 8 };

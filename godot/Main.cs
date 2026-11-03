@@ -64,6 +64,7 @@ public partial class Main : Node3D
     private readonly string protectTest = OS.GetEnvironment("HIVE_PROTECT_TEST");
     private readonly string visibleTest = OS.GetEnvironment("HIVE_VISIBLE_TEST");
     private readonly string tilesetTest = OS.GetEnvironment("HIVE_TILESET_TEST");
+    private readonly string tilePathTest = OS.GetEnvironment("HIVE_TILEPATH_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -204,6 +205,7 @@ public partial class Main : Node3D
         ui.ExportRequested += ShowExportDialog;
         ui.SaveAsRequested += ShowSaveAsDialog;
         ui.TileSetRequested += ShowTileSetterWindow;
+        ui.TilePatherRequested += ShowTilePatherWindow;
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
@@ -333,6 +335,19 @@ public partial class Main : Node3D
         };
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(900, 600));
+    }
+
+    private void ShowTilePatherWindow()
+    {
+        var window = new TilePatherWindow();
+        root.AddChild(window);
+        window.Build();
+        window.Applied += () =>
+        {
+            view.RefreshPathing();
+            ui.SetStatus("瓦片路径已更新");
+        };
+        window.PopupCentered(new Vector2I(600, 520));
     }
 
     private void ShowTileSetterWindow()
@@ -2192,6 +2207,20 @@ public partial class Main : Node3D
                 HiveCore.RemoveStartLocation(2);
                 view.BuildStartLocations();
                 DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (tilePathTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new TilePatherWindow();
+                root.AddChild(window);
+                window.Build();
+                GD.Print($"瓦片路径窗口：{window.Describe()}");
+                window.QueueFree();
                 GetTree().Quit();
             }
             return;

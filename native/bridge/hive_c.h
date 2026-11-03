@@ -80,6 +80,13 @@ int32_t hive_tileset_texture_cliff(void* handle, const char* tileset, int32_t in
 /* 按瓦片 id 取左上角那一格的图，RGBA8，边长写进 size。返回写入的字节数。 */
 int32_t hive_terrain_tile_image(void* handle, const char* id, uint8_t* out, int32_t capacity, int32_t* size);
 
+/* 第 index 块地面纹理的路径位：0x02 不可走、0x04 不可飞、0x08 不可建。
+   pathing 带覆盖值，base_pathing 是游戏自带的默认值。 */
+int32_t hive_tile_pathing(void* handle, int32_t index);
+int32_t hive_tile_base_pathing(void* handle, int32_t index);
+/* 设置覆盖位，和默认值相同时清掉覆盖。受影响的格子会重算路径。 */
+int32_t hive_set_tile_pathing(void* handle, int32_t index, int32_t mask);
+
 /* 换地形集。ids 是新列表，count 是条数；from_to[i] 是旧第 i 块纹理在新列表里的下标，
    from_to 的条数必须等于当前地图的纹理数。成功后地形上的贴图按它重映射。 */
 int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, int32_t count,

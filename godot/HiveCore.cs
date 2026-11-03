@@ -306,6 +306,15 @@ public static class HiveCore
         [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_tile_pathing(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_tile_base_pathing(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_tile_pathing(IntPtr hive, int index, int mask);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_terrain_tile_image(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
         byte[] output, int capacity, ref int size);
 
@@ -1589,6 +1598,12 @@ public static class HiveCore
 
     public static bool TilesetTextureCliff(string tileset, int index)
         => hive_tileset_texture_cliff(handle, tileset, index) != 0;
+
+    public static int TilePathing(int index) => hive_tile_pathing(handle, index);
+
+    public static int TileBasePathing(int index) => hive_tile_base_pathing(handle, index);
+
+    public static int SetTilePathing(int index, int mask) => hive_set_tile_pathing(handle, index, mask);
 
     public static Image? TerrainTileImage(string id)
     {

@@ -46,6 +46,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? ExportRequested;
     public event Action? SaveAsRequested;
     public event Action? TileSetRequested;
+    public event Action? TilePatherRequested;
     public event Action? OpenRequested;
     public event Action? NewMapRequested;
     public event Action<Vector2>? MinimapClicked;
@@ -651,6 +652,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(ActionButton("触发器", () => TriggerRequested?.Invoke()));
         row.AddChild(ActionButton("区域", () => RegionRequested?.Invoke()));
         row.AddChild(ActionButton("地形集", () => TileSetRequested?.Invoke()));
+        row.AddChild(ActionButton("瓦片路径", () => TilePatherRequested?.Invoke()));
         row.AddChild(ActionButton("模型", () => ModelRequested?.Invoke()));
     }
 

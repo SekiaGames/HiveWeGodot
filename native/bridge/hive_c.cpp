@@ -1140,6 +1140,78 @@ int32_t hive_terrain_tile_image(void* handle, const char* id, uint8_t* out, cons
 	return static_cast<int32_t>(needed);
 }
 
+int32_t hive_tile_pathing(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& terrain = hive->map->terrain;
+	if (static_cast<std::size_t>(index) >= terrain.tileset_ids.size()) {
+		return -1;
+	}
+	const TerrainTexture* texture = hive->map->tilesets.terrain_texture(terrain.tileset_ids[static_cast<std::size_t>(index)]);
+	return texture == nullptr ? -1 : texture->get_tile_pathing();
+}
+
+int32_t hive_tile_base_pathing(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& terrain = hive->map->terrain;
+	if (static_cast<std::size_t>(index) >= terrain.tileset_ids.size()) {
+		return -1;
+	}
+	const TerrainTexture* texture = hive->map->tilesets.terrain_texture(terrain.tileset_ids[static_cast<std::size_t>(index)]);
+	return texture == nullptr ? -1 : texture->base_pathing;
+}
+
+int32_t hive_set_tile_pathing(void* handle, const int32_t index, const int32_t mask) {
+	if (handle == nullptr || index < 0 || mask < 0 || mask > 255) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& terrain = hive->map->terrain;
+	if (static_cast<std::size_t>(index) >= terrain.tileset_ids.size()) {
+		return -1;
+	}
+
+	const std::string tile_id = terrain.tileset_ids[static_cast<std::size_t>(index)];
+	TerrainTexture* texture = hive->map->tilesets.terrain_texture(tile_id);
+	if (texture == nullptr) {
+		return -1;
+	}
+
+	const uint8_t before = texture->get_tile_pathing();
+	const auto value = static_cast<uint8_t>(mask);
+	texture->override_pathing = value != texture->base_pathing ? std::optional<uint8_t>(value) : std::nullopt;
+	if (before == value) {
+		return 0;
+	}
+
+	const int id = terrain.ground_texture_to_id(tile_id);
+	auto& pathing = hive->map->pathing_map;
+	for (int i = 0; i < terrain.width; ++i) {
+		for (int j = 0; j < terrain.height; ++j) {
+			if (terrain.real_tile_texture(i, j) != id) {
+				continue;
+			}
+			const int x0 = std::max(i * 4 - 2, 0);
+			const int y0 = std::max(j * 4 - 2, 0);
+			const int x1 = std::min(i * 4 + 2, pathing.width);
+			const int y1 = std::min(j * 4 + 2, pathing.height);
+			for (int y = y0; y < y1; ++y) {
+				for (int x = x0; x < x1; ++x) {
+					pathing.pathing_cells_static[static_cast<std::size_t>(y) * pathing.width + x] =
+						terrain.get_terrain_pathing(x, y, true, true, true, hive->map->tilesets);
+				}
+			}
+		}
+	}
+	pathing.upload_static_pathing();
+	return 0;
+}
+
 int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, const int32_t count,
 							const int32_t* from_to, char* error, const int32_t error_size) {
 	if (handle == nullptr || tileset == nullptr || tileset[0] == 0 || ids == nullptr || count <= 0
