@@ -1088,7 +1088,7 @@ public partial class TerrainView : Node3D
 
             int surface = mesh.GetSurfaceCount();
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            mesh.SurfaceSetMaterial(surface, CachedMaterial(model, g, player));
+            mesh.SurfaceSetMaterial(surface, CachedMaterial(model, g, player, geoset.Alpha));
         }
 
         if (mesh.GetSurfaceCount() == 0)
@@ -1107,26 +1107,28 @@ public partial class TerrainView : Node3D
         return size * ModelScale;
     }
 
-    private readonly System.Collections.Generic.Dictionary<(int, int, int), Material> materialCache = new();
+    private readonly System.Collections.Generic.Dictionary<(int, int, int, int), Material> materialCache = new();
 
-    private Material CachedMaterial(int model, int geoset, int player)
+    private Material CachedMaterial(int model, int geoset, int player, float alpha)
     {
-        var key = (model, geoset, player);
+        int step = alpha >= 0.999f ? -1 : Math.Clamp((int)MathF.Round(alpha * 16f), 0, 16);
+        var key = (model, geoset, player, step);
         if (!materialCache.TryGetValue(key, out Material? cached))
         {
-            cached = BuildMaterial(model, geoset, HiveCore.ModelGeoset(model, geoset), player);
+            cached = BuildMaterial(model, geoset, HiveCore.ModelGeoset(model, geoset), player, step < 0 ? 1f : step / 16f);
             materialCache[key] = cached;
         }
         return cached;
     }
 
-    private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info, int player)
+    private Material BuildMaterial(int model, int geoset, HiveGeosetInfo info, int player, float alpha)
     {
         var material = new StandardMaterial3D
         {
             CullMode = info.TwoSided != 0 ? BaseMaterial3D.CullModeEnum.Disabled : BaseMaterial3D.CullModeEnum.Back,
-            Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+            Transparency = alpha < 0.999f ? BaseMaterial3D.TransparencyEnum.Alpha : BaseMaterial3D.TransparencyEnum.AlphaScissor,
             AlphaScissorThreshold = 0.5f,
+            AlbedoColor = new Color(1f, 1f, 1f, alpha),
             Roughness = 0.9f,
             Metallic = 0f,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.Linear,
@@ -1153,6 +1155,7 @@ public partial class TerrainView : Node3D
             Shader = teamColorShader,
         };
         teamMaterial.SetShaderParameter("team_color", TeamColor(player));
+        teamMaterial.SetShaderParameter("layer_alpha", alpha);
         if (material.AlbedoTexture != null)
         {
             teamMaterial.SetShaderParameter("mask_texture", material.AlbedoTexture);
