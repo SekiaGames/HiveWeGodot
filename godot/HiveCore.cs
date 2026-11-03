@@ -390,6 +390,12 @@ public static class HiveCore
     private static extern int hive_object_field_count(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_type_name(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_object_type_folder(IntPtr hive, int category, [MarshalAs(UnmanagedType.LPUTF8Str)] string id, int level);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_object_field_key(IntPtr hive, int category, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1023,6 +1029,27 @@ public static class HiveCore
     public static int ModelFromUnitClipboard(int index) => hive_model_from_unit_clipboard(handle, index);
 
     public static int DoodadCategory(string id) => hive_doodad_category(handle, id);
+
+    public static string? ObjectTypeName(int category, string id)
+        => ReadString(hive_object_type_name(handle, category, id));
+
+    public static string? ObjectTypeFolder(int category, string id, int level)
+        => ReadString(hive_object_type_folder(handle, category, id, level));
+
+    public static string[] ObjectTypeFolders(int category, string id)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        for (int level = 0; level < 4; level++)
+        {
+            string? part = ObjectTypeFolder(category, id, level);
+            if (string.IsNullOrEmpty(part))
+            {
+                break;
+            }
+            parts.Add(part);
+        }
+        return parts.Count == 0 ? new[] { "其它" } : parts.ToArray();
+    }
 
     public static int ObjectFieldCount(int category, string id) => hive_object_field_count(handle, category, id);
 

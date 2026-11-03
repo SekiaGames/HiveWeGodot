@@ -49,6 +49,9 @@ public partial class Main : Node3D
     private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
     private readonly string modelTest = OS.GetEnvironment("HIVE_MODEL_TEST");
     private readonly string startTest = OS.GetEnvironment("HIVE_START_TEST");
+    private readonly string objectPickTest = OS.GetEnvironment("HIVE_OBJECT_PICK_TEST");
+    private string[] doodadTypes = Array.Empty<string>();
+    private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
     private readonly string objectTest = OS.GetEnvironment("HIVE_OBJECT_TEST");
     private readonly string customTest = OS.GetEnvironment("HIVE_CUSTOM_TEST");
@@ -180,14 +183,9 @@ public partial class Main : Node3D
             UpdateCamera();
         };
 
-        ui.SetDoodadTypes(HiveCore.DoodadTypes());
-        ui.DoodadTypeSelected += id =>
-        {
-            doodadType = id;
-            tool = EditorUi.ToolMode.DoodadPlace;
-            ApplyTool();
-            UpdateStatus();
-        };
+        doodadTypes = HiveCore.DoodadTypes();
+        ui.SetDoodadTypes(doodadTypes.Length);
+        ui.DoodadPickerRequested += () => ShowObjectPicker(false);
         ui.StartLocationRequested += player =>
         {
             startPlayer = player;
@@ -206,14 +204,9 @@ public partial class Main : Node3D
             UpdateStatus();
             ui.SetStatus(removed > 0 ? $"已移除玩家 {player + 1} 的开始点" : $"玩家 {player + 1} 没有开始点");
         };
-        ui.SetUnitTypes(HiveCore.UnitTypes());
-        ui.UnitTypeSelected += id =>
-        {
-            unitType = id;
-            tool = EditorUi.ToolMode.UnitPlace;
-            ApplyTool();
-            UpdateStatus();
-        };
+        unitTypes = HiveCore.UnitTypes();
+        ui.SetUnitTypes(unitTypes.Length);
+        ui.UnitPickerRequested += () => ShowObjectPicker(true);
         ui.SetBrushSize(brushSize);
         if (OS.GetEnvironment("HIVE_SHOW_PATHING").Length > 0)
         {
@@ -1040,8 +1033,10 @@ public partial class Main : Node3D
 
     private void RefreshPickers()
     {
-        ui.SetDoodadTypes(HiveCore.DoodadTypes());
-        ui.SetUnitTypes(HiveCore.UnitTypes());
+        doodadTypes = HiveCore.DoodadTypes();
+        unitTypes = HiveCore.UnitTypes();
+        ui.SetDoodadTypes(doodadTypes.Length);
+        ui.SetUnitTypes(unitTypes.Length);
     }
 
     private void ShowObjectPanel(bool isUnit, int[] indices)
@@ -1085,6 +1080,38 @@ public partial class Main : Node3D
 
         view.BuildDoodads();
         ui.SetStatus($"已放置 {doodadType} 于 {spot.X:F1}, {spot.Z:F1}");
+    }
+
+    private void ShowObjectPicker(bool isUnit)
+    {
+        string[] ids = isUnit ? unitTypes : doodadTypes;
+        if (ids.Length == 0)
+        {
+            ui.SetStatus("没有可放置的对象");
+            return;
+        }
+
+        var picker = new ObjectPicker();
+        root.AddChild(picker);
+        picker.Build(isUnit, ids, id =>
+        {
+            if (isUnit)
+            {
+                unitType = id;
+                ui.SetUnitChoice(id, HiveCore.ObjectTypeName(0, id) ?? id);
+                tool = EditorUi.ToolMode.UnitPlace;
+            }
+            else
+            {
+                doodadType = id;
+                int category = HiveCore.DoodadCategory(id);
+                ui.SetDoodadChoice(id, category < 0 ? id : HiveCore.ObjectTypeName(category, id) ?? id);
+                tool = EditorUi.ToolMode.DoodadPlace;
+            }
+            ApplyTool();
+            UpdateStatus();
+        });
+        picker.PopupCentered(new Vector2I(780, 580));
     }
 
     private void PlaceStartLocation(Vector3 spot)
@@ -1449,6 +1476,38 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (objectPickTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var picker = new ObjectPicker();
+                root.AddChild(picker);
+                picker.Build(true, unitTypes, _ => { });
+                GD.Print($"单位选择器 {picker.EntryCount} 条");
+                for (int i = 0; i < 3; i++)
+                {
+                    GD.Print($"  {picker.Describe(i)}");
+                }
+                picker.SetFilter("步兵");
+                GD.Print($"筛选「步兵」剩 {picker.ShownCount} 条");
+                picker.SetFilter(string.Empty);
+                GD.Print($"清空筛选剩 {picker.ShownCount} 条");
+
+                var doodads = new ObjectPicker();
+                root.AddChild(doodads);
+                doodads.Build(false, doodadTypes, _ => { });
+                GD.Print($"装饰物选择器 {doodads.EntryCount} 条");
+                for (int i = 0; i < 3; i++)
+                {
+                    GD.Print($"  {doodads.Describe(i)}");
+                }
+                doodads.SetFilter("log");
+                GD.Print($"筛选「log」剩 {doodads.ShownCount} 条");
                 GetTree().Quit();
             }
             return;

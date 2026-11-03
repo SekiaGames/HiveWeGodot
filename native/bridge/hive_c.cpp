@@ -2520,6 +2520,63 @@ const HiveHandle::ObjectFields& build_object_fields(HiveHandle* hive, const int3
 	return cache;
 }
 
+/// WorldEditStrings 里的键可能是另一层键，最多解三层。
+std::string resolve_world_edit_string(const std::string_view key) {
+	std::string result(key);
+	for (int i = 0; i < 3; ++i) {
+		if (!world_edit_strings.section_exists("WorldEditStrings")
+			|| !world_edit_strings.key_exists("WorldEditStrings", result)) {
+			break;
+		}
+		const std::string next = world_edit_strings.data("WorldEditStrings", result);
+		if (next.empty() || next == result) {
+			break;
+		}
+		result = next;
+	}
+	return result;
+}
+
+/// 编辑器树里的分类：单位两层（种族、子类），装饰物和可破坏物一层。
+std::vector<std::string> object_type_folders(const int32_t category, const std::string_view id) {
+	if (category == 0) {
+		std::string race = to_lowercase_copy(units_slk.data<std::string_view>("race", id));
+		if (race.empty()) {
+			race = "other";
+		}
+		std::string race_key = race;
+		std::ranges::transform(race_key, race_key.begin(), [](const unsigned char c) { return std::toupper(c); });
+		std::string race_name = resolve_world_edit_string("WESTRING_UE_UNITRACE_" + race_key);
+		if (race_name.empty()) {
+			race_name = race;
+		}
+
+		std::string group = "单位";
+		if (units_slk.data<std::string_view>("special", id) == "1") {
+			group = resolve_world_edit_string("WESTRING_UTYPE_SPECIAL");
+		} else if (units_slk.data<std::string_view>("isbldg", id) == "1") {
+			group = resolve_world_edit_string("WESTRING_UTYPE_BUILDINGS");
+		} else if (!id.empty() && std::isupper(static_cast<unsigned char>(id.front()))) {
+			group = resolve_world_edit_string("WESTRING_UTYPE_HEROES");
+		}
+		return {race_name, group};
+	}
+
+	slk::SLK* slk = category_slk(category);
+	if (slk == nullptr) {
+		return {"其它"};
+	}
+	const std::string_view key = slk->data<std::string_view>("category", id);
+	if (key.empty()) {
+		return {"其它"};
+	}
+	const char* section = category == 2 ? "DoodadCategories" : "DestructibleCategories";
+	if (!world_edit_data.section_exists(section) || !world_edit_data.key_exists(section, std::string(1, key.front()))) {
+		return {"其它"};
+	}
+	return {resolve_world_edit_string(world_edit_data.data(std::string_view(section), std::string(1, key.front()), 0))};
+}
+
 int32_t hive_doodad_category(void* handle, const char* id) {
 	if (handle == nullptr || id == nullptr) {
 		return -1;
@@ -2531,6 +2588,37 @@ int32_t hive_doodad_category(void* handle, const char* id) {
 		return 3;
 	}
 	return -1;
+}
+
+const char* hive_object_type_name(void* handle, const int32_t category, const char* id) {
+	if (handle == nullptr || id == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	slk::SLK* slk = category_slk(category);
+	std::string name;
+	if (slk != nullptr && slk->row_headers.contains(id)) {
+		// 合并 ini 时键名统一转小写，所以列名是 name
+		name = slk->data<std::string_view>("name", id);
+	}
+	if (name.empty()) {
+		name = id;
+	}
+	hive->transient_string = std::move(name);
+	return hive->transient_string.c_str();
+}
+
+const char* hive_object_type_folder(void* handle, const int32_t category, const char* id, const int32_t level) {
+	if (handle == nullptr || id == nullptr || level < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const std::vector<std::string> folders = object_type_folders(category, id);
+	if (static_cast<std::size_t>(level) >= folders.size()) {
+		return nullptr;
+	}
+	hive->transient_string = folders[static_cast<std::size_t>(level)];
+	return hive->transient_string.c_str();
 }
 
 int32_t hive_object_field_count(void* handle, const int32_t category, const char* id) {

@@ -19,7 +19,7 @@
 | 地形渲染 | 完成：MultiMesh + 高度图 + 四层纹理混合 + 水面，BootyBay 出画面 |
 | 笔刷 | 完成：纹理 / 高度 / 水 / 悬崖，带撤销重做 |
 | 保存 | 完成：改完能存回 `.w3m`，重开数据一致 |
-| 装饰物 | 完成：MDX 静态渲染（按 Stand 帧烘姿态）+ 放置。716 种可选（含可破坏物），2011 个里摆上 1991 个 |
+| 装饰物 | 完成：MDX 静态渲染（按 Stand 帧烘姿态）+ 放置。716 种可选（含可破坏物），按分类树挑；2011 个里摆上 1991 个 |
 | 单位 | 完成：61 个里摆上 59 个，按玩家队伍色上色，Stand 序列循环播放 |
 | 拾取 | 完成：射线选中装饰物和单位，黄色线框标出包围盒 |
 | 删除 | 完成：选中后 Delete 删除，进撤销栈 |
@@ -129,6 +129,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_OBJECT_PICK_TEST=1 HIVE_SCREENSHOT=/tmp/pick2.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开对象选择器，打印分类与筛选结果
 HIVE_START_TEST=1 HIVE_SCREENSHOT=/tmp/start.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 加一个玩家 3 的开始点再删掉
 HIVE_TEAM_TEST=1 HIVE_SCREENSHOT=/tmp/team.png \

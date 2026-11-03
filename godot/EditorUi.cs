@@ -36,8 +36,8 @@ public partial class EditorUi : CanvasLayer
     public event Action<Vector2>? MinimapClicked;
     public event Action<bool>? PathingToggled;
     public event Action<bool>? RegionsToggled;
-    public event Action<string>? DoodadTypeSelected;
-    public event Action<string>? UnitTypeSelected;
+    public event Action? DoodadPickerRequested;
+    public event Action? UnitPickerRequested;
     public event Action<int, string, int, string>? ObjectValueChanged;
     public event Action? NewObjectRequested;
     public event Action? DeleteObjectRequested;
@@ -57,8 +57,8 @@ public partial class EditorUi : CanvasLayer
     private readonly ButtonGroup shapeGroup = new();
     private SpinBox brushSize = null!;
     private CheckBox pathingToggle = null!;
-    private OptionButton doodadPicker = null!;
-    private OptionButton unitPicker = null!;
+    private Button doodadButton = null!;
+    private Button unitButton = null!;
     private SpinBox startPlayer = null!;
 
     private PanelContainer objectPanel = null!;
@@ -330,29 +330,13 @@ public partial class EditorUi : CanvasLayer
         column.AddChild(Spacer(10));
         column.AddChild(SectionTitle("对象"));
 
-        var pickers = new HBoxContainer();
-        pickers.AddThemeConstantOverride("separation", 4);
-        column.AddChild(pickers);
+        doodadButton = new Button { Text = "装饰物…", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        doodadButton.Pressed += () => DoodadPickerRequested?.Invoke();
+        column.AddChild(doodadButton);
 
-        doodadPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        doodadPicker.ItemSelected += index =>
-        {
-            if (index > 0)
-            {
-                DoodadTypeSelected?.Invoke(doodadPicker.GetItemText((int)index));
-            }
-        };
-        pickers.AddChild(doodadPicker);
-
-        unitPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        unitPicker.ItemSelected += index =>
-        {
-            if (index > 0)
-            {
-                UnitTypeSelected?.Invoke(unitPicker.GetItemText((int)index));
-            }
-        };
-        pickers.AddChild(unitPicker);
+        unitButton = new Button { Text = "单位…", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        unitButton.Pressed += () => UnitPickerRequested?.Invoke();
+        column.AddChild(unitButton);
 
         var randomRow = new HBoxContainer();
         randomRow.AddThemeConstantOverride("separation", 4);
@@ -544,24 +528,18 @@ public partial class EditorUi : CanvasLayer
 
     public void SetBrushSize(int size) => brushSize.Value = size;
 
-    public void SetDoodadTypes(string[] ids)
+    public void SetDoodadTypes(int count) => doodadButton.TooltipText = $"可放置 {count} 种";
+
+    public void SetUnitTypes(int count) => unitButton.TooltipText = $"可放置 {count} 种";
+
+    public void SetDoodadChoice(string id, string name)
     {
-        doodadPicker.Clear();
-        doodadPicker.AddItem($"装饰物（{ids.Length}）", 0);
-        foreach (string id in ids)
-        {
-            doodadPicker.AddItem(id);
-        }
+        doodadButton.Text = $"装饰物：{name}（{id}）";
     }
 
-    public void SetUnitTypes(string[] ids)
+    public void SetUnitChoice(string id, string name)
     {
-        unitPicker.Clear();
-        unitPicker.AddItem($"单位（{ids.Length}）", 0);
-        foreach (string id in ids)
-        {
-            unitPicker.AddItem(id);
-        }
+        unitButton.Text = $"单位：{name}（{id}）";
     }
 
     public void SetPathingChecked(bool on)
