@@ -507,6 +507,65 @@ public static class HiveCore
     private static extern void hive_map_playable_size(IntPtr hive, out int width, out int height);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_map_option_flags(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_set_map_option_flags(IntPtr hive, int mask);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_map_fog(IntPtr hive, out int style, out float start, out float end,
+        out float density, out int red, out int green, out int blue);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_fog(IntPtr hive, int style, float start, float end, float density,
+        int red, int green, int blue);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_weather_id(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_weather_id(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_map_sound_environment(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_sound_environment(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_map_custom_light_tileset(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_custom_light_tileset(IntPtr hive, int key);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_map_custom_ambience_tileset(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_custom_ambience_tileset(IntPtr hive, int key);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void hive_map_water_color(IntPtr hive, out int red, out int green, out int blue, out int alpha);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_water_color(IntPtr hive, int red, int green, int blue, int alpha);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_map_game_data_set(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_map_game_data_set(IntPtr hive, int value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_tileset_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_tileset_key(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_tileset_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void hive_map_playable_insets(IntPtr hive, out int left, out int right, out int top, out int bottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1177,6 +1236,55 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int MapOptionFlags() => hive_map_option_flags(handle);
+
+    public static void SetMapOptionFlags(int mask) => hive_set_map_option_flags(handle, mask);
+
+    public static (int Style, float Start, float End, float Density, int Red, int Green, int Blue) MapFog()
+    {
+        hive_map_fog(handle, out int style, out float start, out float end, out float density, out int red,
+            out int green, out int blue);
+        return (style, start, end, density, red, green, blue);
+    }
+
+    public static void SetMapFog(int style, float start, float end, float density, int red, int green, int blue)
+        => hive_set_map_fog(handle, style, start, end, density, red, green, blue);
+
+    public static string? MapWeatherId() => ReadString(hive_map_weather_id(handle));
+
+    public static bool SetMapWeatherId(string value) => hive_set_map_weather_id(handle, value) == 0;
+
+    public static string? MapSoundEnvironment() => ReadString(hive_map_sound_environment(handle));
+
+    public static bool SetMapSoundEnvironment(string value) => hive_set_map_sound_environment(handle, value) == 0;
+
+    public static int MapCustomLightTileset() => hive_map_custom_light_tileset(handle);
+
+    public static bool SetMapCustomLightTileset(int key) => hive_set_map_custom_light_tileset(handle, key) == 0;
+
+    public static int MapCustomAmbienceTileset() => hive_map_custom_ambience_tileset(handle);
+
+    public static bool SetMapCustomAmbienceTileset(int key) => hive_set_map_custom_ambience_tileset(handle, key) == 0;
+
+    public static (int Red, int Green, int Blue, int Alpha) MapWaterColor()
+    {
+        hive_map_water_color(handle, out int red, out int green, out int blue, out int alpha);
+        return (red, green, blue, alpha);
+    }
+
+    public static void SetMapWaterColor(int red, int green, int blue, int alpha)
+        => hive_set_map_water_color(handle, red, green, blue, alpha);
+
+    public static int MapGameDataSet() => hive_map_game_data_set(handle);
+
+    public static void SetMapGameDataSet(int value) => hive_set_map_game_data_set(handle, value);
+
+    public static int TilesetCount() => hive_tileset_count(handle);
+
+    public static string? TilesetKey(int index) => ReadString(hive_tileset_key(handle, index));
+
+    public static string? TilesetName(int index) => ReadString(hive_tileset_name(handle, index));
 
     public static int PlayerCount() => hive_player_count(handle);
 

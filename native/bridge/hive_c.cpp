@@ -996,6 +996,46 @@ const char* hive_sound_variable(void* handle, const int32_t index) {
 	return hive->transient_string.c_str();
 }
 
+/// 解包目录里自带的模型文件，载入画面的「导入」下拉用。
+std::vector<std::string> imported_models(HiveHandle* hive) {
+	std::vector<std::string> list;
+	std::error_code ec;
+	if (!fs::is_directory(hive->unpack_dir, ec)) {
+		return list;
+	}
+	for (const auto& entry : fs::recursive_directory_iterator(hive->unpack_dir, ec)) {
+		if (ec || !entry.is_regular_file()) {
+			continue;
+		}
+		if (entry.path().extension().string() != ".mdx") {
+			continue;
+		}
+		list.push_back(entry.path().lexically_relative(hive->unpack_dir).string());
+	}
+	std::ranges::sort(list);
+	return list;
+}
+
+int32_t hive_imported_model_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(imported_models(static_cast<HiveHandle*>(handle)).size());
+}
+
+const char* hive_imported_model(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto list = imported_models(hive);
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = list[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
+}
+
 int32_t hive_weather_count(void* handle) {
 	if (handle == nullptr) {
 		return 0;
@@ -3135,6 +3175,373 @@ void hive_map_versions(void* handle, int32_t* out) {
 	out[3] = info.game_version_minor;
 	out[4] = info.game_version_patch;
 	out[5] = info.game_version_build;
+}
+
+/// 载入画面列表在 WorldEditData 的 [LoadingScreens] 里，键是 00、01……按它排序就是界面顺序。
+std::vector<std::pair<std::string, std::string>> loading_screens() {
+	std::vector<std::pair<std::string, std::string>> list;
+	if (!world_edit_data.section_exists("LoadingScreens")) {
+		return list;
+	}
+	for (const auto& [key, value] : world_edit_data.section("LoadingScreens")) {
+		if (key == "NumScreens" || value.size() < 2) {
+			continue;
+		}
+		list.emplace_back(key, value[1]);
+	}
+	std::ranges::sort(list, {}, &std::pair<std::string, std::string>::first);
+	return list;
+}
+
+int32_t hive_loading_screen_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(loading_screens().size());
+}
+
+const char* hive_loading_screen_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto list = loading_screens();
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = list[static_cast<std::size_t>(index)].second;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_map_loading_screen(void* handle) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	return static_cast<HiveHandle*>(handle)->map->info.loading_screen_number;
+}
+
+const char* hive_map_loading_screen_model(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->info.loading_screen_model;
+	return hive->transient_string.c_str();
+}
+
+const char* hive_map_loading_screen_title(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.loading_screen_title);
+	return hive->transient_string.c_str();
+}
+
+const char* hive_map_loading_screen_subtitle(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.loading_screen_subtitle);
+	return hive->transient_string.c_str();
+}
+
+const char* hive_map_loading_screen_text(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->trigger_strings.string(hive->map->info.loading_screen_text);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_loading_screen(void* handle, const int32_t number) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.loading_screen_number = number;
+	return 0;
+}
+
+int32_t hive_set_map_loading_screen_model(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.loading_screen_model = value;
+	return 0;
+}
+
+int32_t hive_set_map_loading_screen_title(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.loading_screen_title, value);
+	return 0;
+}
+
+int32_t hive_set_map_loading_screen_subtitle(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.loading_screen_subtitle, value);
+	return 0;
+}
+
+int32_t hive_set_map_loading_screen_text(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->map->trigger_strings.set_string(hive->map->info.loading_screen_text, value);
+	return 0;
+}
+
+int32_t hive_map_option_flags(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	const MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	int32_t mask = 0;
+	mask |= info.melee_map ? 0x01 : 0;
+	mask |= info.hide_minimap_preview ? 0x02 : 0;
+	mask |= info.masked_area_partially_visible ? 0x04 : 0;
+	mask |= info.cliff_shore_waves ? 0x08 : 0;
+	mask |= info.rolling_shore_waves ? 0x10 : 0;
+	mask |= info.item_classification ? 0x20 : 0;
+	mask |= info.water_tinting ? 0x40 : 0;
+	return mask;
+}
+
+void hive_set_map_option_flags(void* handle, const int32_t mask) {
+	if (handle == nullptr) {
+		return;
+	}
+	MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	info.melee_map = (mask & 0x01) != 0;
+	info.hide_minimap_preview = (mask & 0x02) != 0;
+	info.masked_area_partially_visible = (mask & 0x04) != 0;
+	info.cliff_shore_waves = (mask & 0x08) != 0;
+	info.rolling_shore_waves = (mask & 0x10) != 0;
+	info.item_classification = (mask & 0x20) != 0;
+	info.water_tinting = (mask & 0x40) != 0;
+}
+
+void hive_map_fog(void* handle, int32_t* style, float* start, float* end, float* density, int32_t* red,
+				  int32_t* green, int32_t* blue) {
+	if (handle == nullptr) {
+		return;
+	}
+	const MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	if (style != nullptr) {
+		*style = info.fog_style;
+	}
+	if (start != nullptr) {
+		*start = info.fog_start_z_height;
+	}
+	if (end != nullptr) {
+		*end = info.fog_end_z_height;
+	}
+	if (density != nullptr) {
+		*density = info.fog_density;
+	}
+	if (red != nullptr) {
+		*red = info.fog_color.r;
+	}
+	if (green != nullptr) {
+		*green = info.fog_color.g;
+	}
+	if (blue != nullptr) {
+		*blue = info.fog_color.b;
+	}
+}
+
+int32_t hive_set_map_fog(void* handle, const int32_t style, const float start, const float end, const float density,
+						 const int32_t red, const int32_t green, const int32_t blue) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	info.fog_style = style;
+	info.fog_start_z_height = start;
+	info.fog_end_z_height = end;
+	info.fog_density = density;
+	info.fog_color = glm::u8vec4 {
+		static_cast<uint8_t>(std::clamp(red, 0, 255)),
+		static_cast<uint8_t>(std::clamp(green, 0, 255)),
+		static_cast<uint8_t>(std::clamp(blue, 0, 255)),
+		255,
+	};
+	return 0;
+}
+
+const char* hive_map_weather_id(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const int weather = hive->map->info.weather_id;
+	if (weather == 0) {
+		hive->transient_string.clear();
+		return hive->transient_string.c_str();
+	}
+	hive->transient_string.assign(reinterpret_cast<const char*>(&weather), 4);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_weather_id(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	MapInfo& info = static_cast<HiveHandle*>(handle)->map->info;
+	if (value[0] == ' ') {
+		info.weather_id = 0;
+		return 0;
+	}
+	int weather = 0;
+	std::memcpy(&weather, value, std::min<std::size_t>(4, std::strlen(value)));
+	info.weather_id = weather;
+	return 0;
+}
+
+const char* hive_map_sound_environment(void* handle) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->transient_string = hive->map->info.custom_sound_environment;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_map_sound_environment(void* handle, const char* value) {
+	if (handle == nullptr || value == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.custom_sound_environment = value;
+	return 0;
+}
+
+int32_t hive_map_custom_light_tileset(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<unsigned char>(static_cast<HiveHandle*>(handle)->map->info.custom_light_tileset);
+}
+
+int32_t hive_set_map_custom_light_tileset(void* handle, const int32_t key) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.custom_light_tileset = static_cast<char>(key);
+	return 0;
+}
+
+int32_t hive_map_custom_ambience_tileset(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<unsigned char>(static_cast<HiveHandle*>(handle)->map->info.custom_ambience_tileset);
+}
+
+int32_t hive_set_map_custom_ambience_tileset(void* handle, const int32_t key) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.custom_ambience_tileset = static_cast<char>(key);
+	return 0;
+}
+
+void hive_map_water_color(void* handle, int32_t* red, int32_t* green, int32_t* blue, int32_t* alpha) {
+	if (handle == nullptr) {
+		return;
+	}
+	const glm::u8vec4& color = static_cast<HiveHandle*>(handle)->map->info.water_color;
+	if (red != nullptr) {
+		*red = color.r;
+	}
+	if (green != nullptr) {
+		*green = color.g;
+	}
+	if (blue != nullptr) {
+		*blue = color.b;
+	}
+	if (alpha != nullptr) {
+		*alpha = color.a;
+	}
+}
+
+int32_t hive_set_map_water_color(void* handle, const int32_t red, const int32_t green, const int32_t blue,
+								 const int32_t alpha) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.water_color = glm::u8vec4 {
+		static_cast<uint8_t>(std::clamp(red, 0, 255)),
+		static_cast<uint8_t>(std::clamp(green, 0, 255)),
+		static_cast<uint8_t>(std::clamp(blue, 0, 255)),
+		static_cast<uint8_t>(std::clamp(alpha, 0, 255)),
+	};
+	return 0;
+}
+
+int32_t hive_map_game_data_set(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<HiveHandle*>(handle)->map->info.game_data_set;
+}
+
+int32_t hive_set_map_game_data_set(void* handle, const int32_t value) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	static_cast<HiveHandle*>(handle)->map->info.game_data_set = value;
+	return 0;
+}
+
+int32_t hive_tileset_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->tilesets.tilesets().size());
+}
+
+/// 地形集表是无序的，按字符排序后给出稳定顺序。
+std::vector<std::pair<char, std::string>> sorted_tilesets(HiveHandle* hive) {
+	std::vector<std::pair<char, std::string>> list;
+	for (const auto& [key, tileset] : hive->map->tilesets.tilesets()) {
+		list.emplace_back(key, tileset.name);
+	}
+	std::ranges::sort(list, {}, &std::pair<char, std::string>::first);
+	return list;
+}
+
+const char* hive_tileset_key(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto list = sorted_tilesets(hive);
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = std::string(1, list[static_cast<std::size_t>(index)].first);
+	return hive->transient_string.c_str();
+}
+
+const char* hive_tileset_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto list = sorted_tilesets(hive);
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = list[static_cast<std::size_t>(index)].second;
+	return hive->transient_string.c_str();
 }
 
 void hive_map_playable_insets(void* handle, int32_t* left, int32_t* right, int32_t* top, int32_t* bottom) {

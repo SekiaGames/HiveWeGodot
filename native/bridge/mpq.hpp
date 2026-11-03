@@ -184,8 +184,14 @@ class MPQ {
 		}
 
 		do {
-			const fs::path entry = to_archive_path(data.cFileName);
+			// 归档里的路径是反斜杠，落盘要换成分隔符，不然子目录会变成一个带反斜杠的文件名
+			std::string name = to_archive_path(data.cFileName);
+			std::ranges::replace(name, '\\', '/');
+			const fs::path entry = name;
 			const fs::path target = directory / entry;
+			if (target.filename().string().starts_with("(")) {
+				continue;
+			}
 			fs::create_directories(target.parent_path());
 			SFileExtractFile(this->handle, data.cFileName, target.string().c_str(), SFILE_OPEN_FROM_MPQ);
 		} while (SFileFindNextFile(found, &data));

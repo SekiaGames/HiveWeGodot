@@ -365,6 +365,57 @@ const char* hive_map_suggested_players(void* handle);
 int32_t hive_set_map_suggested_players(void* handle, const char* value);
 /* 6 个 int：地图版本、编辑器版本、游戏主/次/补丁/构建版本。 */
 void hive_map_versions(void* handle, int32_t* out);
+/* 载入画面：阵营列表来自 WorldEditData 的 [LoadingScreens]，number 为 -1 表示不用。 */
+int32_t hive_loading_screen_count(void* handle);
+const char* hive_loading_screen_name(void* handle, int32_t index);
+int32_t hive_map_loading_screen(void* handle);
+const char* hive_map_loading_screen_model(void* handle);
+const char* hive_map_loading_screen_title(void* handle);
+const char* hive_map_loading_screen_subtitle(void* handle);
+const char* hive_map_loading_screen_text(void* handle);
+int32_t hive_set_map_loading_screen(void* handle, int32_t number);
+int32_t hive_set_map_loading_screen_model(void* handle, const char* value);
+int32_t hive_set_map_loading_screen_title(void* handle, const char* value);
+int32_t hive_set_map_loading_screen_subtitle(void* handle, const char* value);
+int32_t hive_set_map_loading_screen_text(void* handle, const char* value);
+
+/* 解包目录里自带的 .mdx，导入资源用。 */
+int32_t hive_imported_model_count(void* handle);
+const char* hive_imported_model(void* handle, int32_t index);
+
+/* 地图选项的布尔位：bit0 近战图、bit1 隐藏小地图预览、bit2 遮蔽区域半可见、
+   bit3 悬崖岸边水波、bit4 缓坡岸边水波、bit5 物品分类、bit6 水面着色。 */
+int32_t hive_map_option_flags(void* handle);
+void hive_set_map_option_flags(void* handle, int32_t mask);
+
+/* 地形雾：style 0 无、1 线性、2 遮蔽。 */
+void hive_map_fog(void* handle, int32_t* style, float* start, float* end, float* density, int32_t* red,
+				  int32_t* green, int32_t* blue);
+int32_t hive_set_map_fog(void* handle, int32_t style, float start, float end, float density, int32_t red,
+						 int32_t green, int32_t blue);
+
+/* 全局天气，四字符 id，空字符串表示没有。 */
+const char* hive_map_weather_id(void* handle);
+int32_t hive_set_map_weather_id(void* handle, const char* value);
+/* 自定义环境音（UI/SoundInfo/EnvironmentSounds.slk 里的行键）。 */
+const char* hive_map_sound_environment(void* handle);
+int32_t hive_set_map_sound_environment(void* handle, const char* value);
+/* 自定义光照 / 氛围的地形集，返回地形集字符，0 表示跟随地图地形集。 */
+int32_t hive_map_custom_light_tileset(void* handle);
+int32_t hive_set_map_custom_light_tileset(void* handle, int32_t key);
+int32_t hive_map_custom_ambience_tileset(void* handle);
+int32_t hive_set_map_custom_ambience_tileset(void* handle, int32_t key);
+/* 水面着色颜色。 */
+void hive_map_water_color(void* handle, int32_t* red, int32_t* green, int32_t* blue, int32_t* alpha);
+int32_t hive_set_map_water_color(void* handle, int32_t red, int32_t green, int32_t blue, int32_t alpha);
+int32_t hive_map_game_data_set(void* handle);
+int32_t hive_set_map_game_data_set(void* handle, int32_t value);
+
+/* 地形集列表，自定义光照/氛围的下拉用。 */
+int32_t hive_tileset_count(void* handle);
+const char* hive_tileset_key(void* handle, int32_t index);
+const char* hive_tileset_name(void* handle, int32_t index);
+
 /* 可玩区域尺寸。 */
 void hive_map_playable_size(void* handle, int32_t* width, int32_t* height);
 /* 可玩区域四边各留多少不可玩，单位是 tile。 */

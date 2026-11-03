@@ -964,20 +964,195 @@ public partial class Main : Node3D
         grid.AddChild(new Label { Text = "可玩区域" });
         grid.AddChild(insetRow);
 
-        dialog.AddChild(grid);
+        var tabs = new TabContainer { CustomMinimumSize = new Vector2(640, 520) };
+        var descriptionPage = new ScrollContainer
+        {
+            Name = "描述",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        grid.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        descriptionPage.AddChild(grid);
+        tabs.AddChild(descriptionPage);
+
+        Action applyOptions = BuildMapOptionsTab(tabs);
+        dialog.AddChild(tabs);
+
         dialog.Confirmed += () =>
         {
             HiveCore.SetMapName(nameEdit.Text);
             HiveCore.SetMapAuthor(authorEdit.Text);
             HiveCore.SetMapSuggestedPlayers(suggestedEdit.Text);
             HiveCore.SetMapDescription(descriptionEdit.Text);
+            applyOptions();
             ui.SetStatus("地图信息已改，Ctrl+S 存进地图");
             dialog.QueueFree();
         };
         dialog.Canceled += () => dialog.QueueFree();
 
         root.AddChild(dialog);
-        dialog.PopupCentered(new Vector2I(600, 420));
+        dialog.PopupCentered(new Vector2I(700, 600));
+    }
+
+    private Action BuildMapOptionsTab(TabContainer tabs)
+    {
+        var page = new ScrollContainer
+        {
+            Name = "选项",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        column.AddThemeConstantOverride("separation", 8);
+        page.AddChild(column);
+        tabs.AddChild(page);
+
+        int flags = HiveCore.MapOptionFlags();
+        var flagBoxes = new System.Collections.Generic.List<(CheckBox Box, int Bit)>();
+        var flagGrid = new GridContainer { Columns = 2 };
+        flagGrid.AddThemeConstantOverride("h_separation", 12);
+        column.AddChild(flagGrid);
+        foreach ((string label, int bit) in new[]
+                 {
+                     ("近战地图", 0x01), ("隐藏小地图预览", 0x02), ("遮蔽区域半可见", 0x04),
+                     ("悬崖岸边水波", 0x08), ("缓坡岸边水波", 0x10), ("物品分类系统", 0x20), ("水面着色", 0x40),
+                 })
+        {
+            var box = new CheckBox { Text = label, ButtonPressed = (flags & bit) != 0 };
+            flagGrid.AddChild(box);
+            flagBoxes.Add((box, bit));
+        }
+
+        var (fogStyle, fogStart, fogEnd, fogDensity, fogRed, fogGreen, fogBlue) = HiveCore.MapFog();
+        var fogGrid = new GridContainer { Columns = 2 };
+        fogGrid.AddThemeConstantOverride("h_separation", 12);
+        column.AddChild(fogGrid);
+
+        fogGrid.AddChild(new Label { Text = "地形雾" });
+        var fogStyleBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        foreach (string text in new[] { "无", "线性", "指数 1", "指数 2" })
+        {
+            fogStyleBox.AddItem(text);
+        }
+        fogStyleBox.Select(Math.Clamp(fogStyle, 0, 3));
+        fogGrid.AddChild(fogStyleBox);
+
+        fogGrid.AddChild(new Label { Text = "雾起始高度 / 结束高度 / 浓度" });
+        var fogRow = new HBoxContainer();
+        fogRow.AddThemeConstantOverride("separation", 6);
+        SpinBox FogSpin(float value, double min, double max, double step) => new()
+        {
+            MinValue = min,
+            MaxValue = max,
+            Step = step,
+            Value = value,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        SpinBox fogStartBox = FogSpin(fogStart, -10000, 10000, 100);
+        SpinBox fogEndBox = FogSpin(fogEnd, -10000, 10000, 100);
+        SpinBox fogDensityBox = FogSpin(fogDensity, 0, 10, 0.01);
+        fogRow.AddChild(fogStartBox);
+        fogRow.AddChild(fogEndBox);
+        fogRow.AddChild(fogDensityBox);
+        fogGrid.AddChild(fogRow);
+
+        fogGrid.AddChild(new Label { Text = "雾颜色" });
+        var fogColor = new ColorPickerButton
+        {
+            Color = new Color(fogRed / 255f, fogGreen / 255f, fogBlue / 255f),
+            EditAlpha = false,
+        };
+        fogGrid.AddChild(fogColor);
+
+        var weatherIds = new System.Collections.Generic.List<string>();
+        fogGrid.AddChild(new Label { Text = "全局天气" });
+        var weatherBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        weatherBox.AddItem("无");
+        weatherIds.Add(string.Empty);
+        for (int i = 0; i < HiveCore.WeatherCount(); i++)
+        {
+            weatherBox.AddItem(HiveCore.WeatherName(i) ?? HiveCore.WeatherId(i) ?? "?");
+            weatherIds.Add(HiveCore.WeatherId(i) ?? string.Empty);
+        }
+        weatherBox.Select(Math.Max(0, weatherIds.IndexOf(HiveCore.MapWeatherId() ?? string.Empty)));
+        fogGrid.AddChild(weatherBox);
+
+        var environmentIds = new System.Collections.Generic.List<string>();
+        fogGrid.AddChild(new Label { Text = "环境音效" });
+        var environmentBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        environmentBox.AddItem("无");
+        environmentIds.Add(string.Empty);
+        for (int i = 0; i < HiveCore.AmbientCount(); i++)
+        {
+            environmentBox.AddItem(HiveCore.AmbientName(i) ?? HiveCore.AmbientId(i) ?? "?");
+            environmentIds.Add(HiveCore.AmbientId(i) ?? string.Empty);
+        }
+        environmentBox.Select(Math.Max(0, environmentIds.IndexOf(HiveCore.MapSoundEnvironment() ?? string.Empty)));
+        fogGrid.AddChild(environmentBox);
+
+        var tilesetKeys = new System.Collections.Generic.List<int>();
+        fogGrid.AddChild(new Label { Text = "自定义光照地形集" });
+        var lightBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        lightBox.AddItem("跟随地图");
+        tilesetKeys.Add(0);
+        for (int i = 0; i < HiveCore.TilesetCount(); i++)
+        {
+            lightBox.AddItem(HiveCore.TilesetName(i) ?? HiveCore.TilesetKey(i) ?? "?");
+            tilesetKeys.Add((HiveCore.TilesetKey(i) ?? "\0")[0]);
+        }
+        lightBox.Select(Math.Max(0, tilesetKeys.IndexOf(HiveCore.MapCustomLightTileset())));
+        fogGrid.AddChild(lightBox);
+
+        fogGrid.AddChild(new Label { Text = "自定义氛围地形集" });
+        var ambienceBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        ambienceBox.AddItem("跟随地图");
+        for (int i = 1; i < lightBox.ItemCount; i++)
+        {
+            ambienceBox.AddItem(lightBox.GetItemText(i));
+        }
+        ambienceBox.Select(Math.Max(0, tilesetKeys.IndexOf(HiveCore.MapCustomAmbienceTileset())));
+        fogGrid.AddChild(ambienceBox);
+
+        var (waterRed, waterGreen, waterBlue, waterAlpha) = HiveCore.MapWaterColor();
+        fogGrid.AddChild(new Label { Text = "水面颜色" });
+        var waterColor = new ColorPickerButton
+        {
+            Color = new Color(waterRed / 255f, waterGreen / 255f, waterBlue / 255f, waterAlpha / 255f),
+        };
+        fogGrid.AddChild(waterColor);
+
+        fogGrid.AddChild(new Label { Text = "游戏数据版本" });
+        var dataSetBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        foreach (string text in new[] { "默认（按近战状态）", "自定义（TFT 1.02, RoC 1.01）", "近战（最新补丁）" })
+        {
+            dataSetBox.AddItem(text);
+        }
+        dataSetBox.Select(Math.Clamp(HiveCore.MapGameDataSet(), 0, 2));
+        fogGrid.AddChild(dataSetBox);
+
+        return () =>
+        {
+            int mask = 0;
+            foreach ((CheckBox box, int bit) in flagBoxes)
+            {
+                if (box.ButtonPressed)
+                {
+                    mask |= bit;
+                }
+            }
+            HiveCore.SetMapOptionFlags(mask);
+
+            Color fog = fogColor.Color;
+            HiveCore.SetMapFog(fogStyleBox.Selected, (float)fogStartBox.Value, (float)fogEndBox.Value,
+                (float)fogDensityBox.Value, (int)(fog.R * 255f), (int)(fog.G * 255f), (int)(fog.B * 255f));
+            HiveCore.SetMapWeatherId(weatherIds[Math.Max(0, weatherBox.Selected)]);
+            HiveCore.SetMapSoundEnvironment(environmentIds[Math.Max(0, environmentBox.Selected)]);
+            HiveCore.SetMapCustomLightTileset(tilesetKeys[Math.Max(0, lightBox.Selected)]);
+            HiveCore.SetMapCustomAmbienceTileset(tilesetKeys[Math.Max(0, ambienceBox.Selected)]);
+
+            Color water = waterColor.Color;
+            HiveCore.SetMapWaterColor((int)(water.R * 255f), (int)(water.G * 255f), (int)(water.B * 255f),
+                (int)(water.A * 255f));
+            HiveCore.SetMapGameDataSet(dataSetBox.Selected);
+        };
     }
 
     private TriggerWindow ShowTriggerWindow()
