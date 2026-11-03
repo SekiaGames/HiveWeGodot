@@ -2941,14 +2941,26 @@ void hive_map_playable_insets(void* handle, int32_t* left, int32_t* right, int32
 	}
 }
 
+PlayerData* player_by_slot(HiveHandle* hive, int32_t slot);
+
 /// w3i 里该玩家的出生点，和 sloc 单位保持一致。w3i 存原始坐标，单位这里存的是格子数。
 void sync_player_start(HiveHandle* hive, const int32_t player, const float x, const float y) {
-	auto& players = hive->map->info.players;
-	if (player < 0 || static_cast<std::size_t>(player) >= players.size()) {
+	PlayerData* data = player_by_slot(hive, player);
+	if (data == nullptr) {
 		return;
 	}
 	const glm::vec2 offset = hive->map->terrain.offset;
-	players[static_cast<std::size_t>(player)].starting_position = glm::vec2(x * 128.f + offset.x, y * 128.f + offset.y);
+	data->starting_position = glm::vec2(x * 128.f + offset.x, y * 128.f + offset.y);
+}
+
+/// 玩家槽位按 internal_number 存，可能是稀疏的。
+PlayerData* player_by_slot(HiveHandle* hive, const int32_t slot) {
+	for (PlayerData& player : hive->map->info.players) {
+		if (player.internal_number == slot) {
+			return &player;
+		}
+	}
+	return nullptr;
 }
 
 int32_t hive_player_count(void* handle) {
@@ -2962,16 +2974,90 @@ int32_t hive_player_start(void* handle, const int32_t slot, float* x, float* y) 
 	if (handle == nullptr || slot < 0) {
 		return -1;
 	}
-	const auto& players = static_cast<HiveHandle*>(handle)->map->info.players;
-	if (static_cast<std::size_t>(slot) >= players.size()) {
+	const PlayerData* player = player_by_slot(static_cast<HiveHandle*>(handle), slot);
+	if (player == nullptr) {
 		return -1;
 	}
-	const glm::vec2& start = players[static_cast<std::size_t>(slot)].starting_position;
+	const glm::vec2& start = player->starting_position;
 	if (x != nullptr) {
 		*x = start.x;
 	}
 	if (y != nullptr) {
 		*y = start.y;
+	}
+	return 0;
+}
+
+int32_t hive_player_slot_type(void* handle, const int32_t slot) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	const PlayerData* player = player_by_slot(static_cast<HiveHandle*>(handle), slot);
+	return player == nullptr ? -1 : static_cast<int32_t>(player->type);
+}
+
+int32_t hive_player_slot_race(void* handle, const int32_t slot) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	const PlayerData* player = player_by_slot(static_cast<HiveHandle*>(handle), slot);
+	return player == nullptr ? -1 : static_cast<int32_t>(player->race);
+}
+
+int32_t hive_player_slot_fixed(void* handle, const int32_t slot) {
+	if (handle == nullptr) {
+		return -1;
+	}
+	const PlayerData* player = player_by_slot(static_cast<HiveHandle*>(handle), slot);
+	return player == nullptr ? -1 : player->fixed_start_position;
+}
+
+const char* hive_player_slot_name(void* handle, const int32_t slot) {
+	if (handle == nullptr) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const PlayerData* player = player_by_slot(hive, slot);
+	if (player == nullptr) {
+		return nullptr;
+	}
+	hive->transient_string = hive->map->trigger_strings.string(player->name);
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_player_slot(void* handle, const int32_t slot, const int32_t type, const int32_t race, const char* name,
+							 const int32_t fixed_start) {
+	if (handle == nullptr || slot < 0 || slot >= 24 || type < -1 || type > 3 || race < 0 || race > 4) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& players = hive->map->info.players;
+
+	PlayerData* player = player_by_slot(hive, slot);
+	if (type < 0) {
+		if (player != nullptr) {
+			std::erase_if(players, [&](const PlayerData& entry) { return entry.internal_number == slot; });
+		}
+		return 0;
+	}
+
+	if (player == nullptr) {
+		players.emplace_back();
+		player = &players.back();
+		player->internal_number = slot;
+		player->hud_skin = 1;
+		player->starting_position = glm::vec2(0.f);
+		player->ally_low_priorities_flags = 0;
+		player->ally_high_priorities_flags = 0;
+		player->enemy_low_priorities_flags = 0;
+		player->enemy_high_priorities_flags = 0;
+	}
+
+	player->type = static_cast<PlayerType>(type);
+	player->race = static_cast<PlayerRace>(race);
+	player->fixed_start_position = fixed_start;
+	if (name != nullptr) {
+		hive->map->trigger_strings.set_string(player->name, name);
 	}
 	return 0;
 }

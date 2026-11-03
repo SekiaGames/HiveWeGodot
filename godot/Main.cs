@@ -53,6 +53,7 @@ public partial class Main : Node3D
     private readonly string startTest = OS.GetEnvironment("HIVE_START_TEST");
     private readonly string objectPickTest = OS.GetEnvironment("HIVE_OBJECT_PICK_TEST");
     private readonly string pathingPaintTest = OS.GetEnvironment("HIVE_PATHING_PAINT_TEST");
+    private readonly string playerTest = OS.GetEnvironment("HIVE_PLAYER_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -176,6 +177,7 @@ public partial class Main : Node3D
         ui.NewObjectRequested += CreateObjectFromSelection;
         ui.DeleteObjectRequested += DeleteCustomObject;
         ui.MapInfoRequested += ShowMapInfoDialog;
+        ui.PlayersRequested += ShowPlayerWindow;
         ui.DoodadRandomChanged += HiveCore.SetDoodadRandom;
         ui.TriggerRequested += () => ShowTriggerWindow();
         ui.RegionRequested += ShowRegionWindow;
@@ -1000,6 +1002,15 @@ public partial class Main : Node3D
         window.PopupCentered(new Vector2I(520, 520));
     }
 
+    private void ShowPlayerWindow()
+    {
+        var window = new PlayerWindow();
+        root.AddChild(window);
+        window.Build();
+        window.PopupCentered(new Vector2I(760, 620));
+        ui.SetStatus("玩家设置改完记得应用");
+    }
+
     private ModelWindow ShowModelWindow(string path)
     {
         var window = new ModelWindow();
@@ -1534,6 +1545,27 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (playerTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new PlayerWindow();
+                root.AddChild(window);
+                window.Build();
+                GD.Print($"玩家窗口建好，槽位 0 控制器 {HiveCore.PlayerSlotType(0)} 名字 {HiveCore.PlayerSlotName(0)}");
+                HiveCore.SetPlayerSlot(3, 1, 3, "测试电脑", 1);
+                GD.Print($"加槽位 3：控制器 {HiveCore.PlayerSlotType(3)} 种族 {HiveCore.PlayerSlotRace(3)} "
+                    + $"固定 {HiveCore.PlayerSlotFixed(3)} 名字 {HiveCore.PlayerSlotName(3)}");
+                window.RestoreDefaults();
+                window.Apply();
+                GD.Print($"恢复默认并应用后：槽位 0 控制器 {HiveCore.PlayerSlotType(0)} 名字 {HiveCore.PlayerSlotName(0)}，"
+                    + $"槽位 3 控制器 {HiveCore.PlayerSlotType(3)}");
+                GD.Print($"w3i 里还剩 {HiveCore.PlayerCount()} 条");
                 GetTree().Quit();
             }
             return;

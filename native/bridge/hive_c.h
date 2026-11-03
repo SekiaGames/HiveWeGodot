@@ -75,6 +75,15 @@ typedef struct HiveRegion {
 int32_t hive_player_count(void* handle);
 int32_t hive_player_start(void* handle, int32_t slot, float* x, float* y);
 
+/* 玩家槽位（0..23）。type：-1 空槽、0 用户、1 电脑、2 中立、3 可营救；race：0 可选、1 人、2 兽、3 不死、4 暗夜。 */
+int32_t hive_player_slot_type(void* handle, int32_t slot);
+int32_t hive_player_slot_race(void* handle, int32_t slot);
+int32_t hive_player_slot_fixed(void* handle, int32_t slot);
+const char* hive_player_slot_name(void* handle, int32_t slot);
+/* type 传 -1 表示清掉这个槽位。 */
+int32_t hive_set_player_slot(void* handle, int32_t slot, int32_t type, int32_t race, const char* name,
+							 int32_t fixed_start);
+
 /* 开始点就是 war3mapUnits.doo 里的 sloc 单位，一个玩家一个。 */
 int32_t hive_start_location_count(void* handle);
 int32_t hive_start_location(void* handle, int32_t index, int32_t* player, float* x, float* y);

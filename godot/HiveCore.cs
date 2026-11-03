@@ -465,6 +465,25 @@ public static class HiveCore
     private static extern void hive_map_playable_insets(IntPtr hive, out int left, out int right, out int top, out int bottom);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_player_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_player_slot_type(IntPtr hive, int slot);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_player_slot_race(IntPtr hive, int slot);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_player_slot_fixed(IntPtr hive, int slot);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_player_slot_name(IntPtr hive, int slot);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_player_slot(IntPtr hive, int slot, int type, int race,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int fixedStart);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_start_location_count(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1113,6 +1132,19 @@ public static class HiveCore
         hive_map_playable_size(handle, out int width, out int height);
         return (width, height);
     }
+
+    public static int PlayerCount() => hive_player_count(handle);
+
+    public static int PlayerSlotType(int slot) => hive_player_slot_type(handle, slot);
+
+    public static int PlayerSlotRace(int slot) => hive_player_slot_race(handle, slot);
+
+    public static int PlayerSlotFixed(int slot) => hive_player_slot_fixed(handle, slot);
+
+    public static string? PlayerSlotName(int slot) => ReadString(hive_player_slot_name(handle, slot));
+
+    public static bool SetPlayerSlot(int slot, int type, int race, string name, int fixedStart)
+        => hive_set_player_slot(handle, slot, type, race, name, fixedStart) == 0;
 
     public static int StartLocationCount() => hive_start_location_count(handle);
 

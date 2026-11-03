@@ -28,7 +28,7 @@
 | 路径图 | 完成：叠加显示（不可走红/不可飞绿/不可建蓝），随装饰物增删刷新；可用路径笔刷覆盖/加/减，带撤销 |
 | 区域 | 完成：矩形线框贴合地形，颜色取自 w3r，可新建改名删除 |
 | 开始点 | 完成：按玩家放置/移动/移除，w3i 的出生点同步，圆盘 + 玩家号标出 |
-| 界面 | 地形调色板、小地图、工具条、状态栏、属性面板，区域 / 模型 / 触发器窗口可用 |
+| 玩家 | 完成：24 个槽位的控制器、名字、种族、固定出生点，颜色按槽位展示 |
 
 ## 文档
 
@@ -129,6 +129,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_PLAYER_TEST=1 HIVE_SCREENSHOT=/tmp/players.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开玩家窗口，改一个槽位再恢复默认
 HIVE_PATHING_PAINT_TEST=1 HIVE_SCREENSHOT=/tmp/pathing.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 用路径笔刷画一片再撤销
 HIVE_OBJECT_PICK_TEST=1 HIVE_SCREENSHOT=/tmp/pick2.png \
