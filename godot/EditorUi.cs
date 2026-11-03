@@ -45,6 +45,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? SaveRequested;
     public event Action? ExportRequested;
     public event Action? SaveAsRequested;
+    public event Action? TileSetRequested;
     public event Action? OpenRequested;
     public event Action? NewMapRequested;
     public event Action<Vector2>? MinimapClicked;
@@ -282,7 +283,8 @@ public partial class EditorUi : CanvasLayer
         grid.AddThemeConstantOverride("v_separation", 4);
         column.AddChild(grid);
 
-        for (int i = 0; i < view.Info.TextureCount; i++)
+        // 最后一个槽是 blight，单独做一个按钮
+        for (int i = 0; i < view.Info.TextureCount - 1; i++)
         {
             int index = i;
             var button = new Button
@@ -648,6 +650,7 @@ public partial class EditorUi : CanvasLayer
         row.AddChild(ActionButton("对象", () => ObjectEditorRequested?.Invoke()));
         row.AddChild(ActionButton("触发器", () => TriggerRequested?.Invoke()));
         row.AddChild(ActionButton("区域", () => RegionRequested?.Invoke()));
+        row.AddChild(ActionButton("地形集", () => TileSetRequested?.Invoke()));
         row.AddChild(ActionButton("模型", () => ModelRequested?.Invoke()));
     }
 

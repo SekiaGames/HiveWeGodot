@@ -63,6 +63,7 @@ public partial class Main : Node3D
     private readonly string jassTest = OS.GetEnvironment("HIVE_JASS_TEST");
     private readonly string protectTest = OS.GetEnvironment("HIVE_PROTECT_TEST");
     private readonly string visibleTest = OS.GetEnvironment("HIVE_VISIBLE_TEST");
+    private readonly string tilesetTest = OS.GetEnvironment("HIVE_TILESET_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -202,6 +203,7 @@ public partial class Main : Node3D
         ui.SaveRequested += SaveMap;
         ui.ExportRequested += ShowExportDialog;
         ui.SaveAsRequested += ShowSaveAsDialog;
+        ui.TileSetRequested += ShowTileSetterWindow;
         ui.OpenRequested += ShowOpenDialog;
         ui.NewMapRequested += NewMap;
         ui.PathingToggled += view.SetPathingVisible;
@@ -331,6 +333,21 @@ public partial class Main : Node3D
         };
         root.AddChild(dialog);
         dialog.PopupCentered(new Vector2I(900, 600));
+    }
+
+    private void ShowTileSetterWindow()
+    {
+        var window = new TileSetterWindow();
+        root.AddChild(window);
+        window.Build();
+        window.Applied += () =>
+        {
+            CloseEditor();
+            ResetEditorState();
+            BuildEditor();
+            ui.SetStatus("地形集已换，撤销栈已清空");
+        };
+        window.PopupCentered(new Vector2I(660, 620));
     }
 
     private void ShowExportDialog()
@@ -2175,6 +2192,22 @@ public partial class Main : Node3D
                 HiveCore.RemoveStartLocation(2);
                 view.BuildStartLocations();
                 DumpStartLocations("移除后");
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (tilesetTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                var window = new TileSetterWindow();
+                root.AddChild(window);
+                window.Build();
+                GD.Print($"地形集窗口：{window.Describe()}");
+                int before = HiveCore.MapInfo.TextureCount;
+                window.EmitSignal(AcceptDialog.SignalName.Confirmed);
+                GD.Print($"应用前后纹理槽 {before} → {HiveCore.MapInfo.TextureCount}");
                 GetTree().Quit();
             }
             return;

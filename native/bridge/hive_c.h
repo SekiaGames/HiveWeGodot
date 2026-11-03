@@ -70,6 +70,21 @@ float hive_water_offset(void* handle);
 /* 第 index 个地面纹理的 id（四字符，如 Adrt），越界返回 NULL。index 等于纹理数时返回 "blight"。 */
 const char* hive_texture_id(void* handle, int32_t index);
 
+/* 某个基础地形集（单字母，如 A）里的全部瓦片。 */
+int32_t hive_tileset_texture_count(void* handle, const char* tileset);
+const char* hive_tileset_texture_id(void* handle, const char* tileset, int32_t index);
+const char* hive_tileset_texture_name(void* handle, const char* tileset, int32_t index);
+/* 这块瓦片是悬崖纹理时返回 1。 */
+int32_t hive_tileset_texture_cliff(void* handle, const char* tileset, int32_t index);
+
+/* 按瓦片 id 取左上角那一格的图，RGBA8，边长写进 size。返回写入的字节数。 */
+int32_t hive_terrain_tile_image(void* handle, const char* id, uint8_t* out, int32_t capacity, int32_t* size);
+
+/* 换地形集。ids 是新列表，count 是条数；from_to[i] 是旧第 i 块纹理在新列表里的下标，
+   from_to 的条数必须等于当前地图的纹理数。成功后地形上的贴图按它重映射。 */
+int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, int32_t count,
+							const int32_t* from_to, char* error, int32_t error_size);
+
 /* 地面纹理已经被切成 tile 网格：width = height = 单块边长，channels = 层数（16 或 32），
    每层是 width×width 的 RGBA8。变体号就是层号。成功返回 0。 */
 int32_t hive_texture_info(void* handle, int32_t index, int32_t* width, int32_t* height, int32_t* channels);

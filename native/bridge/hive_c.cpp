@@ -1055,6 +1055,121 @@ int32_t hive_copy_texture(void* handle, const int32_t index, uint8_t* out, const
 	return static_cast<int32_t>(count);
 }
 
+int32_t hive_tileset_texture_count(void* handle, const char* tileset) {
+	if (handle == nullptr || tileset == nullptr || tileset[0] == 0) {
+		return 0;
+	}
+	const Tileset* found = static_cast<HiveHandle*>(handle)->map->tilesets.tileset(tileset[0]);
+	return found == nullptr ? 0 : static_cast<int32_t>(found->terrain_textures.size());
+}
+
+const char* hive_tileset_texture_id(void* handle, const char* tileset, const int32_t index) {
+	if (handle == nullptr || tileset == nullptr || tileset[0] == 0 || index < 0) {
+		return nullptr;
+	}
+	const Tileset* found = static_cast<HiveHandle*>(handle)->map->tilesets.tileset(tileset[0]);
+	if (found == nullptr || static_cast<std::size_t>(index) >= found->terrain_textures.size()) {
+		return nullptr;
+	}
+	return found->terrain_textures[static_cast<std::size_t>(index)].c_str();
+}
+
+const char* hive_tileset_texture_name(void* handle, const char* tileset, const int32_t index) {
+	const char* id = hive_tileset_texture_id(handle, tileset, index);
+	if (id == nullptr) {
+		return nullptr;
+	}
+	const TerrainTexture* texture = static_cast<HiveHandle*>(handle)->map->tilesets.terrain_texture(id);
+	return texture == nullptr ? nullptr : texture->name.c_str();
+}
+
+int32_t hive_tileset_texture_cliff(void* handle, const char* tileset, const int32_t index) {
+	const char* id = hive_tileset_texture_id(handle, tileset, index);
+	if (id == nullptr) {
+		return 0;
+	}
+	const TerrainTexture* texture = static_cast<HiveHandle*>(handle)->map->tilesets.terrain_texture(id);
+	return texture != nullptr && texture->cliff_type_id.has_value() ? 1 : 0;
+}
+
+/// 地形纹理在客户端里的实际文件，重制版带 _diffuse 后缀。
+static fs::path terrain_texture_path(const TerrainTexture& texture) {
+	fs::path path = texture.file_path;
+	if (hierarchy.remastered) {
+		path.replace_filename(path.stem().string() + "_diffuse");
+	}
+	return path;
+}
+
+int32_t hive_terrain_tile_image(void* handle, const char* id, uint8_t* out, const int32_t capacity, int32_t* size) {
+	if (handle == nullptr || id == nullptr || out == nullptr || capacity <= 0) {
+		return 0;
+	}
+	const TerrainTexture* texture = static_cast<HiveHandle*>(handle)->map->tilesets.terrain_texture(id);
+	if (texture == nullptr) {
+		return 0;
+	}
+
+	auto opened = hierarchy.open_file(terrain_texture_path(*texture), Hierarchy::FileSource::all, {".blp"});
+	if (!opened) {
+		return 0;
+	}
+	auto image = blp::load(*opened);
+	if (!image) {
+		return 0;
+	}
+
+	const int tile_size = std::max(image->height / 4, 1);
+	const std::size_t needed = static_cast<std::size_t>(tile_size) * tile_size * 4;
+	if (needed > static_cast<std::size_t>(capacity)) {
+		return 0;
+	}
+
+	for (int y = 0; y < tile_size; ++y) {
+		for (int x = 0; x < tile_size; ++x) {
+			const std::size_t source = (static_cast<std::size_t>(y) * image->width + x) * image->channels;
+			const std::size_t target = (static_cast<std::size_t>(y) * tile_size + x) * 4;
+			for (int c = 0; c < 4; ++c) {
+				out[target + c] = c < image->channels ? image->data[source + c] : (c == 3 ? 255 : 0);
+			}
+		}
+	}
+	if (size != nullptr) {
+		*size = tile_size;
+	}
+	return static_cast<int32_t>(needed);
+}
+
+int32_t hive_change_tileset(void* handle, const char* tileset, const char** ids, const int32_t count,
+							const int32_t* from_to, char* error, const int32_t error_size) {
+	if (handle == nullptr || tileset == nullptr || tileset[0] == 0 || ids == nullptr || count <= 0
+		|| from_to == nullptr) {
+		set_error(error, error_size, "参数为空");
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	auto& terrain = hive->map->terrain;
+
+	std::vector<std::string> new_ids;
+	new_ids.reserve(static_cast<std::size_t>(count));
+	for (int i = 0; i < count; ++i) {
+		if (ids[i] == nullptr) {
+			set_error(error, error_size, "纹理 id 为空");
+			return -1;
+		}
+		new_ids.emplace_back(ids[i]);
+	}
+	std::vector<int> mapping(from_to, from_to + terrain.tileset_ids.size());
+
+	try {
+		terrain.change_tileset(new_ids, mapping, tileset[0], hive->map->tilesets, hive->map->info);
+	} catch (const std::exception& e) {
+		set_error(error, error_size, e.what());
+		return -1;
+	}
+	return 0;
+}
+
 int32_t hive_copy_regions(void* handle, HiveRegion* out, const int32_t capacity) {
 	if (handle == nullptr || out == nullptr || capacity <= 0) {
 		return 0;

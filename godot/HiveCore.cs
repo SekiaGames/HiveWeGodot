@@ -291,6 +291,29 @@ public static class HiveCore
     private static extern IntPtr hive_texture_id(IntPtr hive, int index);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_tileset_texture_count(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_tileset_texture_id(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset,
+        int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_tileset_texture_name(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_tileset_texture_cliff(IntPtr hive,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_terrain_tile_image(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        byte[] output, int capacity, ref int size);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_change_tileset(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string tileset,
+        IntPtr[] ids, int count, int[] fromTo, byte[] error, int errorSize);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_texture_info(IntPtr hive, int index, out int width, out int layers, out int channels);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1555,6 +1578,65 @@ public static class HiveCore
     public static void SetMapGameDataSet(int value) => hive_set_map_game_data_set(handle, value);
 
     public static int TilesetCount() => hive_tileset_count(handle);
+
+    public static int TilesetTextureCount(string tileset) => hive_tileset_texture_count(handle, tileset);
+
+    public static string? TilesetTextureId(string tileset, int index)
+        => ReadString(hive_tileset_texture_id(handle, tileset, index));
+
+    public static string? TilesetTextureName(string tileset, int index)
+        => ReadString(hive_tileset_texture_name(handle, tileset, index));
+
+    public static bool TilesetTextureCliff(string tileset, int index)
+        => hive_tileset_texture_cliff(handle, tileset, index) != 0;
+
+    public static Image? TerrainTileImage(string id)
+    {
+        byte[] buffer = new byte[512 * 512 * 4];
+        int size = 0;
+        int bytes = hive_terrain_tile_image(handle, id, buffer, buffer.Length, ref size);
+        if (bytes <= 0 || size <= 0)
+        {
+            return null;
+        }
+        byte[] slice = new byte[bytes];
+        Array.Copy(buffer, slice, bytes);
+        return Image.CreateFromData(size, size, false, Image.Format.Rgba8, slice);
+    }
+
+    public static bool ChangeTileset(string tileset, string[] ids, int[] fromTo, out string error)
+    {
+        byte[] buffer = new byte[512];
+        var pointers = new IntPtr[ids.Length];
+        int result;
+        try
+        {
+            for (int i = 0; i < ids.Length; i++)
+            {
+                pointers[i] = Marshal.StringToCoTaskMemUTF8(ids[i]);
+            }
+            result = hive_change_tileset(handle, tileset, pointers, ids.Length, fromTo, buffer, buffer.Length);
+        }
+        finally
+        {
+            foreach (IntPtr pointer in pointers)
+            {
+                if (pointer != IntPtr.Zero)
+                {
+                    Marshal.FreeCoTaskMem(pointer);
+                }
+            }
+        }
+
+        if (result == 0)
+        {
+            error = string.Empty;
+            return true;
+        }
+        int end = Array.IndexOf(buffer, (byte)0);
+        error = System.Text.Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);
+        return false;
+    }
 
     public static string? TilesetKey(int index) => ReadString(hive_tileset_key(handle, index));
 
