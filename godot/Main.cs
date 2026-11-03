@@ -46,10 +46,13 @@ public partial class Main : Node3D
     private readonly string unitTest = OS.GetEnvironment("HIVE_UNIT_TEST");
     private readonly string teamTest = OS.GetEnvironment("HIVE_TEAM_TEST");
     private int startPlayer;
+    private int pathingMask;
+    private int pathingOperation;
     private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
     private readonly string modelTest = OS.GetEnvironment("HIVE_MODEL_TEST");
     private readonly string startTest = OS.GetEnvironment("HIVE_START_TEST");
     private readonly string objectPickTest = OS.GetEnvironment("HIVE_OBJECT_PICK_TEST");
+    private readonly string pathingPaintTest = OS.GetEnvironment("HIVE_PATHING_PAINT_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -186,6 +189,19 @@ public partial class Main : Node3D
         doodadTypes = HiveCore.DoodadTypes();
         ui.SetDoodadTypes(doodadTypes.Length);
         ui.DoodadPickerRequested += () => ShowObjectPicker(false);
+        ui.PathingBrushRequested += (mask, operation) =>
+        {
+            if (HiveCore.SetPathingTool(mask, operation) != 0)
+            {
+                ui.SetStatus("切路径笔刷失败");
+                return;
+            }
+            pathingMask = mask;
+            pathingOperation = operation;
+            tool = EditorUi.ToolMode.PathingPaint;
+            ApplyTool();
+            UpdateStatus();
+        };
         ui.StartLocationRequested += player =>
         {
             startPlayer = player;
@@ -342,6 +358,20 @@ public partial class Main : Node3D
             case EditorUi.ToolMode.StartLocation:
                 name = $"放置开始点（玩家 {startPlayer + 1}）";
                 break;
+            case EditorUi.ToolMode.PathingPaint:
+                string[] flags = { "不可走", "不可飞", "不可建" };
+                var picked = new System.Collections.Generic.List<string>();
+                int[] bits = { 0x02, 0x04, 0x08 };
+                for (int i = 0; i < 3; i++)
+                {
+                    if ((pathingMask & bits[i]) != 0)
+                    {
+                        picked.Add(flags[i]);
+                    }
+                }
+                name = $"画路径：{(picked.Count == 0 ? "什么都不标" : string.Join("、", picked))}"
+                    + $"（{new[] { "覆盖", "加", "减" }[pathingOperation]}）";
+                break;
             default:
                 name = "?";
                 break;
@@ -472,7 +502,14 @@ public partial class Main : Node3D
                 {
                     painting = false;
                     HiveCore.BrushEnd();
-                    ReloadView();
+                    if (tool == EditorUi.ToolMode.PathingPaint)
+                    {
+                        view.RefreshPathing();
+                    }
+                    else
+                    {
+                        ReloadView();
+                    }
                 }
                 break;
         }
@@ -537,7 +574,14 @@ public partial class Main : Node3D
         {
             HiveCore.BrushMove(hit.X, hit.Z);
             HiveCore.BrushApply(0.016);
-            ReloadView();
+            if (tool == EditorUi.ToolMode.PathingPaint)
+            {
+                view.RefreshPathing();
+            }
+            else
+            {
+                ReloadView();
+            }
         }
     }
 
@@ -549,12 +593,26 @@ public partial class Main : Node3D
             return;
         }
 
-        float half = brushSize * 0.5f;
         brushPreview.Visible = true;
+        if (tool == EditorUi.ToolMode.PathingPaint)
+        {
+            // 路径图一格是 1/4 tile，笔刷尺寸也按这一格算
+            float cells = brushSize * 0.25f;
+            float half = cells * 0.5f;
+            brushPreview.Scale = new Vector3(0.25f, 1f, 0.25f);
+            brushPreview.Position = new Vector3(
+                MathF.Floor(hit.X * 4f / brushSize) * cells + half,
+                hit.Y + 0.06f,
+                MathF.Floor(hit.Z * 4f / brushSize) * cells + half);
+            return;
+        }
+
+        brushPreview.Scale = Vector3.One;
+        float halfSize = brushSize * 0.5f;
         brushPreview.Position = new Vector3(
-            MathF.Floor(hit.X / brushSize) * brushSize + half,
+            MathF.Floor(hit.X / brushSize) * brushSize + halfSize,
             hit.Y + 0.06f,
-            MathF.Floor(hit.Z / brushSize) * brushSize + half);
+            MathF.Floor(hit.Z / brushSize) * brushSize + halfSize);
     }
 
     private void HandleKey(InputEventKey key)
@@ -1481,6 +1539,28 @@ public partial class Main : Node3D
             return;
         }
 
+        if (pathingPaintTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                int changed = PathingBlocked();
+                GD.Print($"画之前不可走格 {changed}");
+                HiveCore.SetPathingTool(0x02 | 0x08, 1);
+                HiveCore.BrushSize(8);
+                HiveCore.BrushMove(96f, 48f);
+                HiveCore.BrushBegin();
+                HiveCore.BrushApply(1.0);
+                HiveCore.BrushEnd();
+                view.RefreshPathing();
+                GD.Print($"画之后不可走格 {PathingBlocked()}");
+                HiveCore.Undo();
+                view.RefreshPathing();
+                GD.Print($"撤销后不可走格 {PathingBlocked()}");
+                GetTree().Quit();
+            }
+            return;
+        }
+
         if (objectPickTest.Length > 0)
         {
             if (frames == 8)
@@ -1777,6 +1857,25 @@ public partial class Main : Node3D
                 GetTree().Quit();
             }
         }
+    }
+
+    private static int PathingBlocked()
+    {
+        byte[]? cells = HiveCore.Pathing(out _, out _);
+        if (cells == null)
+        {
+            return -1;
+        }
+
+        int blocked = 0;
+        foreach (byte cell in cells)
+        {
+            if ((cell & 0x02) != 0)
+            {
+                blocked++;
+            }
+        }
+        return blocked;
     }
 
     private void DumpStartLocations(string label)

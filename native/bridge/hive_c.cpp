@@ -18,6 +18,7 @@
 #include "skinned_mesh.hpp"
 #include "units_undo.hpp"
 #include "terrain_brush.h"
+#include "pathing_brush.h"
 
 namespace fs = std::filesystem;
 
@@ -62,6 +63,10 @@ void collect_trigger_nodes(std::vector<HiveTriggerNode>& out, std::vector<ECA>& 
 struct HiveHandle {
 	Map* map = nullptr;
 	TerrainBrush* brush = nullptr;
+	PathingBrush* pathing_brush = nullptr;
+	Brush* active_brush = nullptr;
+	glm::ivec2 brush_size {1};
+	Brush::Shape brush_shape = Brush::Shape::square;
 	fs::path unpack_dir;
 	std::string unpack_dir_string;
 	std::vector<std::shared_ptr<CachedModel>> models;
@@ -699,6 +704,7 @@ void* hive_open(const char* map_path, const char* data_dir, char* error, const i
 	handle->brush = new TerrainBrush(
 		handle->map->terrain, handle->map->units, handle->map->tilesets, handle->map->world_undo);
 	handle->map->brush = handle->brush;
+	handle->active_brush = handle->brush;
 
 	return handle.release();
 }
@@ -708,6 +714,7 @@ void hive_close(void* handle) {
 		return;
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
+	delete hive->pathing_brush;
 	delete hive->brush;
 	delete hive->map;
 	delete hive;
@@ -1075,7 +1082,12 @@ void hive_brush_size(void* handle, const int32_t size) {
 	if (handle == nullptr) {
 		return;
 	}
-	static_cast<HiveHandle*>(handle)->brush->set_size(glm::ivec2(size));
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->brush_size = glm::ivec2(size);
+	hive->brush->set_size(hive->brush_size);
+	if (hive->pathing_brush != nullptr) {
+		hive->pathing_brush->set_size(hive->brush_size);
+	}
 }
 
 void hive_brush_shape(void* handle, const int32_t shape) {
@@ -1096,13 +1108,19 @@ void hive_brush_shape(void* handle, const int32_t shape) {
 		default:
 			return;
 	}
-	static_cast<HiveHandle*>(handle)->brush->set_shape(target);
+	auto* hive = static_cast<HiveHandle*>(handle);
+	hive->brush_shape = target;
+	hive->brush->set_shape(target);
+	if (hive->pathing_brush != nullptr) {
+		hive->pathing_brush->set_shape(target);
+	}
 }
 
 int32_t hive_set_texture_tool(void* handle, const char* tile_id) {
 	if (handle == nullptr || tile_id == nullptr) {
 		return -1;
 	}
+	static_cast<HiveHandle*>(handle)->active_brush = static_cast<HiveHandle*>(handle)->brush;
 	auto* brush = static_cast<HiveHandle*>(handle)->brush;
 	brush->texture_operator.tile_id = tile_id;
 	brush->activate_operator(brush->texture_operator);
@@ -1113,6 +1131,7 @@ int32_t hive_set_height_tool(void* handle, const int32_t deformation) {
 	if (handle == nullptr || deformation < 0 || deformation > 4) {
 		return -1;
 	}
+	static_cast<HiveHandle*>(handle)->active_brush = static_cast<HiveHandle*>(handle)->brush;
 	auto* brush = static_cast<HiveHandle*>(handle)->brush;
 	brush->height_operator.deformation_type = static_cast<HeightOperator::deformation>(deformation);
 	brush->activate_operator(brush->height_operator);
@@ -1123,6 +1142,7 @@ int32_t hive_set_cliff_tool(void* handle, const int32_t operation, const char* c
 	if (handle == nullptr || operation < 0 || operation > 7) {
 		return -1;
 	}
+	static_cast<HiveHandle*>(handle)->active_brush = static_cast<HiveHandle*>(handle)->brush;
 	auto* brush = static_cast<HiveHandle*>(handle)->brush;
 	brush->cliff_operator.cliff_operation_type = static_cast<CliffOperator::cliff_operation>(operation);
 	if (cliff_id != nullptr) {
@@ -1136,9 +1156,27 @@ int32_t hive_set_cell_tool(void* handle, const int32_t operation) {
 	if (handle == nullptr || operation < 0 || operation > 3) {
 		return -1;
 	}
+	static_cast<HiveHandle*>(handle)->active_brush = static_cast<HiveHandle*>(handle)->brush;
 	auto* brush = static_cast<HiveHandle*>(handle)->brush;
 	brush->cell_operator.set_operation_type(static_cast<CellOperator::cell_operation>(operation));
 	brush->activate_operator(brush->cell_operator);
+	return 0;
+}
+
+int32_t hive_set_pathing_tool(void* handle, const int32_t mask, const int32_t operation) {
+	if (handle == nullptr || operation < 0 || operation > 2) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (hive->pathing_brush == nullptr) {
+		hive->pathing_brush = new PathingBrush(hive->map->world_undo);
+		// 和地形笔刷共用同一套尺寸与形状
+		hive->pathing_brush->set_size(hive->brush_size);
+		hive->pathing_brush->set_shape(hive->brush_shape);
+	}
+	hive->pathing_brush->brush_mask = static_cast<uint8_t>(mask);
+	hive->pathing_brush->operation = static_cast<PathingBrush::Operation>(operation);
+	hive->active_brush = hive->pathing_brush;
 	return 0;
 }
 
@@ -1148,7 +1186,7 @@ void hive_brush_begin(void* handle) {
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
 	auto ctx = hive->map->edit_context();
-	hive->brush->apply_begin(ctx);
+	hive->active_brush->apply_begin(ctx);
 }
 
 void hive_brush_apply(void* handle, const double frame_delta) {
@@ -1157,7 +1195,7 @@ void hive_brush_apply(void* handle, const double frame_delta) {
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
 	auto ctx = hive->map->edit_context();
-	hive->brush->apply(ctx, frame_delta);
+	hive->active_brush->apply(ctx, frame_delta);
 }
 
 void hive_brush_end(void* handle) {
@@ -1166,7 +1204,7 @@ void hive_brush_end(void* handle) {
 	}
 	auto* hive = static_cast<HiveHandle*>(handle);
 	auto ctx = hive->map->edit_context();
-	hive->brush->apply_end(ctx);
+	hive->active_brush->apply_end(ctx);
 }
 
 

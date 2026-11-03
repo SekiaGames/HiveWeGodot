@@ -122,6 +122,9 @@ int32_t hive_set_cliff_tool(void* handle, int32_t operation, const char* cliff_i
 int32_t hive_set_cell_tool(void* handle, int32_t operation);
 
 /* 一次绘制。begin 会快照整张地形用于撤销，apply 可以按帧连调多次，end 收尾并入撤销栈。 */
+/* 路径笔刷：mask 是 0x02 不可走、0x04 不可飞、0x08 不可建；operation 0 覆盖、1 加、2 减。 */
+int32_t hive_set_pathing_tool(void* handle, int32_t mask, int32_t operation);
+
 void hive_brush_begin(void* handle);
 void hive_brush_apply(void* handle, double frame_delta);
 void hive_brush_end(void* handle);

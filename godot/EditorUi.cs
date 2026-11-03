@@ -23,6 +23,7 @@ public partial class EditorUi : CanvasLayer
         DoodadPlace,
         UnitPlace,
         StartLocation,
+        PathingPaint,
     }
 
     public event Action<int>? TextureSelected;
@@ -46,6 +47,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? RegionRequested;
     public event Action? ModelRequested;
     public event Action<int>? DoodadRandomChanged;
+    public event Action<int, int>? PathingBrushRequested;
     public event Action<int>? StartLocationRequested;
     public event Action<int>? StartLocationRemoveRequested;
 
@@ -390,6 +392,47 @@ public partial class EditorUi : CanvasLayer
         pathingToggle = new CheckBox { Text = "显示路径" };
         pathingToggle.Toggled += on => PathingToggled?.Invoke(on);
         column.AddChild(pathingToggle);
+
+        var pathingFlags = new HBoxContainer();
+        pathingFlags.AddThemeConstantOverride("separation", 4);
+        column.AddChild(pathingFlags);
+
+        var walkBox = new CheckBox { Text = "不可走", ButtonPressed = true };
+        var flyBox = new CheckBox { Text = "不可飞" };
+        var buildBox = new CheckBox { Text = "不可建", ButtonPressed = true };
+        pathingFlags.AddChild(walkBox);
+        pathingFlags.AddChild(flyBox);
+        pathingFlags.AddChild(buildBox);
+
+        int Mask()
+        {
+            int mask = 0;
+            if (walkBox.ButtonPressed)
+            {
+                mask |= 0x02;
+            }
+            if (flyBox.ButtonPressed)
+            {
+                mask |= 0x04;
+            }
+            if (buildBox.ButtonPressed)
+            {
+                mask |= 0x08;
+            }
+            return mask;
+        }
+
+        var pathingOps = new HBoxContainer();
+        pathingOps.AddThemeConstantOverride("separation", 4);
+        column.AddChild(pathingOps);
+
+        foreach ((string label, int operation) in new[] { ("覆盖", 0), ("加", 1), ("减", 2) })
+        {
+            int op = operation;
+            var button = new Button { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            button.Pressed += () => PathingBrushRequested?.Invoke(Mask(), op);
+            pathingOps.AddChild(button);
+        }
 
         var regionToggle = new CheckBox { Text = "显示区域", ButtonPressed = true };
         regionToggle.Toggled += on => RegionsToggled?.Invoke(on);

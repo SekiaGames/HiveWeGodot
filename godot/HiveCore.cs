@@ -216,6 +216,9 @@ public static class HiveCore
     private static extern int hive_set_cell_tool(IntPtr hive, int operation);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_pathing_tool(IntPtr hive, int mask, int operation);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void hive_brush_begin(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -789,6 +792,8 @@ public static class HiveCore
     public static bool SetCliffTool(int operation, string? cliffId) => hive_set_cliff_tool(handle, operation, cliffId) == 0;
 
     public static bool SetCellTool(int operation) => hive_set_cell_tool(handle, operation) == 0;
+
+    public static int SetPathingTool(int mask, int operation) => hive_set_pathing_tool(handle, mask, operation);
 
     public static void BrushBegin() => hive_brush_begin(handle);
 

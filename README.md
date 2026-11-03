@@ -25,7 +25,7 @@
 | 删除 | 完成：选中后 Delete 删除，进撤销栈 |
 | 拖动 | 完成：选中后拖动改位置，高度自动贴地形 |
 | 旋转 | 完成：Ctrl + 拖动绕中心转，按 slk 的 fixedrot 吸附 |
-| 路径图 | 完成：只读叠加显示（不可走/不可飞/不可建），随装饰物增删刷新；不能画 |
+| 路径图 | 完成：叠加显示（不可走红/不可飞绿/不可建蓝），随装饰物增删刷新；可用路径笔刷覆盖/加/减，带撤销 |
 | 区域 | 完成：矩形线框贴合地形，颜色取自 w3r，可新建改名删除 |
 | 开始点 | 完成：按玩家放置/移动/移除，w3i 的出生点同步，圆盘 + 玩家号标出 |
 | 界面 | 地形调色板、小地图、工具条、状态栏、属性面板，区域 / 模型 / 触发器窗口可用 |
@@ -129,6 +129,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_PATHING_PAINT_TEST=1 HIVE_SCREENSHOT=/tmp/pathing.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 用路径笔刷画一片再撤销
 HIVE_OBJECT_PICK_TEST=1 HIVE_SCREENSHOT=/tmp/pick2.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开对象选择器，打印分类与筛选结果
 HIVE_START_TEST=1 HIVE_SCREENSHOT=/tmp/start.png \
