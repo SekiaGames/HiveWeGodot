@@ -44,6 +44,7 @@ public struct HiveRegion
     public byte Red;
     public byte Green;
     public byte Blue;
+    public byte Alpha;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -157,6 +158,50 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_region_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_weather_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_weather_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_weather_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_sound_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_sound_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_sound_variable(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_ambient_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_ambient_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_ambient_name(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_region_weather(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_region_ambient(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_region_weather(IntPtr hive, int index,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_region_ambient(IntPtr hive, int index,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_set_region_color(IntPtr hive, int index, int red, int green, int blue, int alpha);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_create_region(IntPtr hive, float left, float bottom, float right, float top);
@@ -1145,6 +1190,36 @@ public static class HiveCore
 
     public static bool SetPlayerSlot(int slot, int type, int race, string name, int fixedStart)
         => hive_set_player_slot(handle, slot, type, race, name, fixedStart) == 0;
+
+    public static int WeatherCount() => hive_weather_count(handle);
+
+    public static string? WeatherId(int index) => ReadString(hive_weather_id(handle, index));
+
+    public static string? WeatherName(int index) => ReadString(hive_weather_name(handle, index));
+
+    public static int SoundCount() => hive_sound_count(handle);
+
+    public static string? SoundName(int index) => ReadString(hive_sound_name(handle, index));
+
+    public static string? SoundVariable(int index) => ReadString(hive_sound_variable(handle, index));
+
+    public static int AmbientCount() => hive_ambient_count(handle);
+
+    public static string? AmbientId(int index) => ReadString(hive_ambient_id(handle, index));
+
+    public static string? AmbientName(int index) => ReadString(hive_ambient_name(handle, index));
+
+    public static string? RegionWeather(int index) => ReadString(hive_region_weather(handle, index));
+
+    public static string? RegionAmbient(int index) => ReadString(hive_region_ambient(handle, index));
+
+    public static bool SetRegionWeather(int index, string value) => hive_set_region_weather(handle, index, value) == 0;
+
+    public static bool SetRegionAmbient(int index, string value) => hive_set_region_ambient(handle, index, value) == 0;
+
+    public static bool SetRegionColor(int index, Color color)
+        => hive_set_region_color(handle, index, (int)(color.R * 255f), (int)(color.G * 255f), (int)(color.B * 255f),
+            (int)(color.A * 255f)) == 0;
 
     public static int StartLocationCount() => hive_start_location_count(handle);
 

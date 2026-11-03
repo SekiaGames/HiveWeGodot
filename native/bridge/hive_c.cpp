@@ -105,6 +105,11 @@ struct HiveHandle {
 		std::string id;
 		std::vector<ObjectField> fields;
 	};
+	std::vector<std::string> weather_ids;
+	std::vector<std::string> ambient_ids;
+	bool extra_tables_loaded = false;
+	slk::SLK weather_slk;
+	slk::SLK ambient_slk;
 	std::vector<HiveTriggerNode> trigger_nodes;
 	ObjectFields object_fields;
 	int32_t doodad_random = 0;
@@ -917,8 +922,150 @@ int32_t hive_copy_regions(void* handle, HiveRegion* out, const int32_t capacity)
 		out[i].red = source[i].color.r;
 		out[i].green = source[i].color.g;
 		out[i].blue = source[i].color.b;
+		out[i].alpha = source[i].color.a;
 	}
 	return static_cast<int32_t>(count);
+}
+
+std::string strip_quotes(std::string value);
+
+/// 天气与环境音表在 UI 用到时才读，地图加载时不碰。
+void ensure_extra_tables(HiveHandle* hive) {
+	if (hive->extra_tables_loaded) {
+		return;
+	}
+	hive->weather_slk = slk::SLK("TerrainArt/Weather.slk");
+	hive->weather_slk.substitute(world_edit_strings, "WorldEditStrings");
+	hive->ambient_slk = slk::SLK("UI/SoundInfo/EnvironmentSounds.slk");
+	hive->ambient_slk.substitute(world_edit_strings, "WorldEditStrings");
+
+	std::vector<std::pair<std::size_t, std::string>> weather_rows;
+	for (const auto& [index, id] : hive->weather_slk.index_to_row) {
+		if (id.size() == 4) {
+			weather_rows.emplace_back(index, id);
+		}
+	}
+	std::ranges::sort(weather_rows, {}, &std::pair<std::size_t, std::string>::first);
+	for (auto& [index, id] : weather_rows) {
+		hive->weather_ids.push_back(std::move(id));
+	}
+
+	std::vector<std::pair<std::size_t, std::string>> ambient_rows;
+	for (const auto& [index, id] : hive->ambient_slk.index_to_row) {
+		ambient_rows.emplace_back(index, id);
+	}
+	std::ranges::sort(ambient_rows, {}, &std::pair<std::size_t, std::string>::first);
+	for (auto& [index, id] : ambient_rows) {
+		hive->ambient_ids.push_back(std::move(id));
+	}
+
+	hive->extra_tables_loaded = true;
+}
+
+int32_t hive_sound_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->sounds.sounds.size());
+}
+
+const char* hive_sound_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& sounds = hive->map->sounds.sounds;
+	if (static_cast<std::size_t>(index) >= sounds.size()) {
+		return nullptr;
+	}
+	hive->transient_string = sounds[static_cast<std::size_t>(index)].name;
+	return hive->transient_string.c_str();
+}
+
+const char* hive_sound_variable(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& sounds = hive->map->sounds.sounds;
+	if (static_cast<std::size_t>(index) >= sounds.size()) {
+		return nullptr;
+	}
+	const std::string& name = sounds[static_cast<std::size_t>(index)].name;
+	hive->transient_string = name.starts_with("gg_snd_") ? name : "gg_snd_" + name;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_weather_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	return static_cast<int32_t>(hive->weather_ids.size());
+}
+
+const char* hive_weather_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	if (static_cast<std::size_t>(index) >= hive->weather_ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = hive->weather_ids[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
+}
+
+const char* hive_weather_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	if (static_cast<std::size_t>(index) >= hive->weather_ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = strip_quotes(
+		hive->weather_slk.data<std::string>("name", hive->weather_ids[static_cast<std::size_t>(index)]));
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_ambient_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	return static_cast<int32_t>(hive->ambient_ids.size());
+}
+
+const char* hive_ambient_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	if (static_cast<std::size_t>(index) >= hive->ambient_ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = hive->ambient_ids[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
+}
+
+const char* hive_ambient_name(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	ensure_extra_tables(hive);
+	if (static_cast<std::size_t>(index) >= hive->ambient_ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = strip_quotes(
+		hive->ambient_slk.data<std::string>("displaytext", hive->ambient_ids[static_cast<std::size_t>(index)]));
+	return hive->transient_string.c_str();
 }
 
 int32_t hive_create_region(void* handle, const float left, const float bottom, const float right, const float top) {
@@ -979,6 +1126,74 @@ int32_t hive_set_region_name(void* handle, const int32_t index, const char* valu
 		return -1;
 	}
 	list[static_cast<std::size_t>(index)].name = value;
+	return 0;
+}
+
+const char* hive_region_weather(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& list = hive->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = list[static_cast<std::size_t>(index)].weather_id;
+	return hive->transient_string.c_str();
+}
+
+const char* hive_region_ambient(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& list = hive->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return nullptr;
+	}
+	hive->transient_string = list[static_cast<std::size_t>(index)].ambient_id;
+	return hive->transient_string.c_str();
+}
+
+int32_t hive_set_region_weather(void* handle, const int32_t index, const char* value) {
+	if (handle == nullptr || index < 0 || value == nullptr) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list[static_cast<std::size_t>(index)].weather_id = value;
+	return 0;
+}
+
+int32_t hive_set_region_ambient(void* handle, const int32_t index, const char* value) {
+	if (handle == nullptr || index < 0 || value == nullptr) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list[static_cast<std::size_t>(index)].ambient_id = value;
+	return 0;
+}
+
+int32_t hive_set_region_color(void* handle, const int32_t index, const int32_t red, const int32_t green,
+							 const int32_t blue, const int32_t alpha) {
+	if (handle == nullptr || index < 0) {
+		return -1;
+	}
+	auto& list = static_cast<HiveHandle*>(handle)->map->regions.regions;
+	if (static_cast<std::size_t>(index) >= list.size()) {
+		return -1;
+	}
+	list[static_cast<std::size_t>(index)].color = glm::u8vec4 {
+		static_cast<uint8_t>(std::clamp(red, 0, 255)),
+		static_cast<uint8_t>(std::clamp(green, 0, 255)),
+		static_cast<uint8_t>(std::clamp(blue, 0, 255)),
+		static_cast<uint8_t>(std::clamp(alpha, 0, 255)),
+	};
 	return 0;
 }
 

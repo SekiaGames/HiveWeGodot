@@ -69,6 +69,7 @@ typedef struct HiveRegion {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
+	uint8_t alpha;
 } HiveRegion;
 
 /* w3i 里的玩家槽位数，以及该槽位的出生点（原始坐标）。 */
@@ -97,6 +98,26 @@ const char* hive_region_name(void* handle, int32_t index);
 int32_t hive_create_region(void* handle, float left, float bottom, float right, float top);
 int32_t hive_delete_region(void* handle, int32_t index);
 int32_t hive_set_region_rect(void* handle, int32_t index, float left, float bottom, float right, float top);
+/* 地图里的音效（war3map.w3s），区域的环境音引用它们。 */
+int32_t hive_sound_count(void* handle);
+const char* hive_sound_name(void* handle, int32_t index);
+/* 声音在 JASS 里的变量名，带 gg_snd_ 前缀。 */
+const char* hive_sound_variable(void* handle, int32_t index);
+
+/* 天气（TerrainArt/Weather.slk）与环境音（UI/SoundInfo/EnvironmentSounds.slk）列表。 */
+int32_t hive_weather_count(void* handle);
+const char* hive_weather_id(void* handle, int32_t index);
+const char* hive_weather_name(void* handle, int32_t index);
+int32_t hive_ambient_count(void* handle);
+const char* hive_ambient_id(void* handle, int32_t index);
+const char* hive_ambient_name(void* handle, int32_t index);
+
+/* 区域的天气、环境音与颜色。传空字符串就是清掉。 */
+const char* hive_region_weather(void* handle, int32_t index);
+const char* hive_region_ambient(void* handle, int32_t index);
+int32_t hive_set_region_weather(void* handle, int32_t index, const char* value);
+int32_t hive_set_region_ambient(void* handle, int32_t index, const char* value);
+int32_t hive_set_region_color(void* handle, int32_t index, int32_t red, int32_t green, int32_t blue, int32_t alpha);
 int32_t hive_set_region_name(void* handle, int32_t index, const char* value);
 
 /* 路径图。宽高是 tile 数 × 4，每格一个字节，位标志见 HivePathing。
