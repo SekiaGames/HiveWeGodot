@@ -156,7 +156,7 @@ public partial class TerrainView : Node3D
         Image image = Image.CreateFromData(width, height, false, Image.Format.Rgba8, rgba);
         terrainMaterial.SetShaderParameter("pathing_overlay", ImageTexture.CreateFromImage(image));
         PathingBlocked = blocked;
-        GD.Print($"路径图 {width}×{height}，不可走 {blocked} 格");
+        GD.Print($"路径图 {width}×{height}，标记 {blocked} 格（不可走/不可飞/不可建）");
     }
 
     public int PathingBlocked { get; private set; }
