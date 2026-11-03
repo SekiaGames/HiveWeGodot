@@ -76,6 +76,49 @@ public struct HiveModelInfo
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct HiveMaterialInfo
+{
+    public int PriorityPlane;
+    public uint Flags;
+    public int LayerCount;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct HiveLayerInfo
+{
+    public uint BlendMode;
+    public uint Shader;
+    public uint ShadingFlags;
+    public uint CoordId;
+    public int TextureAnimationId;
+    public int TextureCount;
+    public float Alpha;
+    public float EmissiveGain;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct HiveTextureInfo
+{
+    public uint ReplaceableId;
+    public uint Flags;
+    public int Width;
+    public int Height;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct HiveNodeInfo
+{
+    public int Id;
+    public int ParentId;
+    public int Flags;
+    public int TranslationKeys;
+    public int RotationKeys;
+    public int ScalingKeys;
+    public int Interpolation;
+    public int GlobalSequence;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct HiveGeosetInfo
 {
     public int VertexOffset;
@@ -437,6 +480,28 @@ public static class HiveCore
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hive_model_geoset_texture(IntPtr hive, int model, int geoset);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_material(IntPtr hive, int model, int material, out HiveMaterialInfo info);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_layer(IntPtr hive, int model, int material, int layer, out HiveLayerInfo info);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_layer_texture(IntPtr hive, int model, int material, int layer, int index,
+        out int slot, out int texture);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_model_texture_name(IntPtr hive, int model, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_texture(IntPtr hive, int model, int index, out HiveTextureInfo info);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_model_node_name(IntPtr hive, int model, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_node(IntPtr hive, int model, int index, out HiveNodeInfo info);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_copy_model_positions(IntPtr hive, int model, float[] output, int capacity);
@@ -1647,6 +1712,54 @@ public static class HiveCore
     {
         IntPtr pointer = hive_model_geoset_texture(handle, model, geoset);
         return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
+
+    public static HiveMaterialInfo? ModelMaterial(int model, int material)
+    {
+        if (hive_model_material(handle, model, material, out HiveMaterialInfo info) != 0)
+        {
+            return null;
+        }
+        return info;
+    }
+
+    public static HiveLayerInfo? ModelLayer(int model, int material, int layer)
+    {
+        if (hive_model_layer(handle, model, material, layer, out HiveLayerInfo info) != 0)
+        {
+            return null;
+        }
+        return info;
+    }
+
+    public static (int Slot, int Texture) ModelLayerTexture(int model, int material, int layer, int index)
+    {
+        if (hive_model_layer_texture(handle, model, material, layer, index, out int slot, out int texture) != 0)
+        {
+            return (-1, -1);
+        }
+        return (slot, texture);
+    }
+
+    public static string? ModelTextureName(int model, int index)
+        => ReadString(hive_model_texture_name(handle, model, index));
+
+    public static HiveTextureInfo ModelTexture(int model, int index)
+    {
+        hive_model_texture(handle, model, index, out HiveTextureInfo info);
+        return info;
+    }
+
+    public static string? ModelNodeName(int model, int index)
+        => ReadString(hive_model_node_name(handle, model, index));
+
+    public static HiveNodeInfo? ModelNode(int model, int index)
+    {
+        if (hive_model_node(handle, model, index, out HiveNodeInfo info) != 0)
+        {
+            return null;
+        }
+        return info;
     }
 
     public static float[] ModelPositions(int model, int vertexCount)

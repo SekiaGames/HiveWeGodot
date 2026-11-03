@@ -4865,6 +4865,210 @@ int32_t hive_model_apply_pose(void* handle, const int32_t model, const int32_t s
 	return 0;
 }
 
+/// 模型里某个材质、层、贴图的明细，模型窗口的材质栏用。
+int32_t hive_model_material(void* handle, const int32_t model, const int32_t material, HiveMaterialInfo* out) {
+	if (handle == nullptr || out == nullptr || model < 0 || material < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(material) >= source->materials.size()) {
+		return -1;
+	}
+	const auto& value = source->materials[static_cast<std::size_t>(material)];
+	out->priority_plane = value.priority_plane;
+	out->flags = value.flags;
+	out->layer_count = static_cast<int32_t>(value.layers.size());
+	return 0;
+}
+
+int32_t hive_model_layer(void* handle, const int32_t model, const int32_t material, const int32_t layer,
+						 HiveLayerInfo* out) {
+	if (handle == nullptr || out == nullptr || model < 0 || material < 0 || layer < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(material) >= source->materials.size()) {
+		return -1;
+	}
+	const auto& layers = source->materials[static_cast<std::size_t>(material)].layers;
+	if (static_cast<std::size_t>(layer) >= layers.size()) {
+		return -1;
+	}
+	const auto& value = layers[static_cast<std::size_t>(layer)];
+	out->blend_mode = value.blend_mode;
+	out->shader = static_cast<uint32_t>(value.shader);
+	out->shading_flags = value.shading_flags;
+	out->coord_id = value.coord_id;
+	out->texture_animation_id = static_cast<int32_t>(value.texture_animation_id);
+	out->texture_count = static_cast<int32_t>(value.textures.size());
+	out->alpha = value.alpha;
+	out->emissive_gain = value.emissive_gain;
+	return 0;
+}
+
+int32_t hive_model_layer_texture(void* handle, const int32_t model, const int32_t material, const int32_t layer,
+								 const int32_t index, int32_t* slot, int32_t* texture) {
+	if (handle == nullptr || model < 0 || material < 0 || layer < 0 || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(material) >= source->materials.size()) {
+		return -1;
+	}
+	const auto& layers = source->materials[static_cast<std::size_t>(material)].layers;
+	if (static_cast<std::size_t>(layer) >= layers.size()) {
+		return -1;
+	}
+	const auto& textures = layers[static_cast<std::size_t>(layer)].textures;
+	if (static_cast<std::size_t>(index) >= textures.size()) {
+		return -1;
+	}
+	if (slot != nullptr) {
+		*slot = static_cast<int32_t>(textures[static_cast<std::size_t>(index)].slot);
+	}
+	if (texture != nullptr) {
+		*texture = static_cast<int32_t>(textures[static_cast<std::size_t>(index)].id);
+	}
+	return 0;
+}
+
+/// 贴图在 MPQ 里的实际路径，可替换贴图换成 ReplaceableTextures 下的具体文件。
+static std::string model_texture_path(const mdx::MDX& source, const int32_t index) {
+	if (index < 0 || static_cast<std::size_t>(index) >= source.textures.size()) {
+		return {};
+	}
+	const auto& texture = source.textures[static_cast<std::size_t>(index)];
+	if (texture.replaceable_id == 0) {
+		return texture.file_name.generic_string();
+	}
+	const auto found = mdx::replaceable_id_to_texture.find(static_cast<int>(texture.replaceable_id));
+	if (found == mdx::replaceable_id_to_texture.end()) {
+		return {};
+	}
+	return found->second + ".blp";
+}
+
+const char* hive_model_texture_name(void* handle, const int32_t model, const int32_t index) {
+	if (handle == nullptr || model < 0 || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return nullptr;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(index) >= source->textures.size()) {
+		return nullptr;
+	}
+	const auto& texture = source->textures[static_cast<std::size_t>(index)];
+	if (texture.replaceable_id != 0) {
+		hive->transient_string = model_texture_path(*source, index);
+		if (hive->transient_string.empty()) {
+			hive->transient_string = "替换贴图 " + std::to_string(texture.replaceable_id);
+		}
+		return hive->transient_string.c_str();
+	}
+	return texture.file_name.c_str();
+}
+
+int32_t hive_model_texture(void* handle, const int32_t model, const int32_t index, HiveTextureInfo* out) {
+	if (handle == nullptr || out == nullptr || model < 0 || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source || static_cast<std::size_t>(index) >= source->textures.size()) {
+		return -1;
+	}
+	const auto& texture = source->textures[static_cast<std::size_t>(index)];
+	out->replaceable_id = texture.replaceable_id;
+	out->flags = texture.flags;
+	out->width = 0;
+	out->height = 0;
+
+	const std::string path = model_texture_path(*source, index);
+	if (!path.empty()) {
+		bool ok = false;
+		const blp::Image* image = load_replacement_image(hive, path, ok);
+		if (ok && image != nullptr) {
+			out->width = image->width;
+			out->height = image->height;
+		}
+	}
+	return 0;
+}
+
+/// 按 for_each_node 的顺序取节点，index 越界返回 nullptr。
+static const mdx::Node* model_node_at(mdx::MDX& source, const int32_t index) {
+	int32_t seen = 0;
+	const mdx::Node* found = nullptr;
+	source.for_each_node([&](const mdx::Node& node) {
+		if (seen == index) {
+			found = &node;
+		}
+		seen++;
+	});
+	return found;
+}
+
+const char* hive_model_node_name(void* handle, const int32_t model, const int32_t index) {
+	if (handle == nullptr || model < 0 || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return nullptr;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source) {
+		return nullptr;
+	}
+	const mdx::Node* node = model_node_at(*source, index);
+	return node == nullptr ? nullptr : node->name.c_str();
+}
+
+int32_t hive_model_node(void* handle, const int32_t model, const int32_t index, HiveNodeInfo* out) {
+	if (handle == nullptr || out == nullptr || model < 0 || index < 0) {
+		return -1;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return -1;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (!source) {
+		return -1;
+	}
+	const mdx::Node* node = model_node_at(*source, index);
+	if (node == nullptr) {
+		return -1;
+	}
+	out->id = node->id;
+	out->parent_id = node->parent_id;
+	out->flags = node->flags;
+	out->translation_keys = static_cast<int32_t>(node->KGTR.tracks.size());
+	out->rotation_keys = static_cast<int32_t>(node->KGRT.tracks.size());
+	out->scaling_keys = static_cast<int32_t>(node->KGSC.tracks.size());
+	out->interpolation = static_cast<int32_t>(node->KGTR.interpolation_type);
+	out->global_sequence = node->KGTR.global_sequence_ID;
+	return 0;
+}
+
 int32_t hive_set_map_global_script(void* handle, const char* value) {
 	if (handle == nullptr || value == nullptr) {
 		return -1;

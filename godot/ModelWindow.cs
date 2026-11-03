@@ -17,6 +17,10 @@ public partial class ModelWindow : AcceptDialog
     private CheckBox boxToggle = null!;
     private CheckBox gridToggle = null!;
     private Tree geosetTree = null!;
+    private Tree materialTree = null!;
+    private Tree textureTree = null!;
+    private Tree nodeTree = null!;
+    private TextureRect texturePreview = null!;
     private MeshInstance3D? boxNode;
     private MeshInstance3D? gridNode;
 
@@ -148,15 +152,19 @@ public partial class ModelWindow : AcceptDialog
         instance = new MeshInstance3D { Name = "Preview" };
         preview.AddChild(instance);
 
-        var split = new VSplitContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        column.AddChild(split);
+        var tabs = new TabContainer
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 200),
+        };
+        column.AddChild(tabs);
 
         geosetTree = new Tree
         {
+            Name = "几何体",
             Columns = 6,
             ColumnTitlesVisible = true,
             HideRoot = true,
-            CustomMinimumSize = new Vector2(0, 140),
         };
         string[] titles = { "层", "顶点", "面", "贴图", "双面", "alpha" };
         for (int i = 0; i < titles.Length; i++)
@@ -164,7 +172,63 @@ public partial class ModelWindow : AcceptDialog
             geosetTree.SetColumnTitle(i, titles[i]);
             geosetTree.SetColumnExpandRatio(i, i == 3 ? 4 : 1);
         }
-        split.AddChild(geosetTree);
+        tabs.AddChild(geosetTree);
+
+        materialTree = new Tree
+        {
+            Name = "材质",
+            Columns = 5,
+            ColumnTitlesVisible = true,
+            HideRoot = true,
+        };
+        string[] materialTitles = { "层", "混合", "着色", "alpha", "贴图" };
+        for (int i = 0; i < materialTitles.Length; i++)
+        {
+            materialTree.SetColumnTitle(i, materialTitles[i]);
+            materialTree.SetColumnExpandRatio(i, i == 4 ? 4 : 1);
+        }
+        tabs.AddChild(materialTree);
+
+        var texturePage = new VSplitContainer { Name = "贴图" };
+        tabs.AddChild(texturePage);
+
+        textureTree = new Tree
+        {
+            Columns = 4,
+            ColumnTitlesVisible = true,
+            HideRoot = true,
+        };
+        string[] textureTitles = { "ID", "路径", "尺寸", "Wrap" };
+        for (int i = 0; i < textureTitles.Length; i++)
+        {
+            textureTree.SetColumnTitle(i, textureTitles[i]);
+            textureTree.SetColumnExpandRatio(i, i == 1 ? 4 : 1);
+        }
+        textureTree.ItemSelected += ShowTexture;
+        texturePage.AddChild(textureTree);
+
+        texturePreview = new TextureRect
+        {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(0, 150),
+        };
+        texturePage.AddChild(texturePreview);
+
+        nodeTree = new Tree
+        {
+            Name = "节点",
+            Columns = 5,
+            ColumnTitlesVisible = true,
+            HideRoot = true,
+        };
+        string[] nodeTitles = { "名称", "id", "类型", "关键帧", "标志" };
+        for (int i = 0; i < nodeTitles.Length; i++)
+        {
+            nodeTree.SetColumnTitle(i, nodeTitles[i]);
+            nodeTree.SetColumnExpandRatio(i, i == 4 ? 4 : 1);
+        }
+        tabs.AddChild(nodeTree);
 
         status = new Label { Text = "输入模型路径后打开" };
         column.AddChild(status);
@@ -237,6 +301,9 @@ public partial class ModelWindow : AcceptDialog
         BuildBox(info);
         BuildGrid();
         FillGeosets(info);
+        FillMaterials();
+        FillTextures();
+        FillNodes();
         status.Text = $"{path}　{info.GeosetCount} 层　{info.VertexCount} 顶点　{count} 个序列"
             + $"　{HiveCore.ModelMaterialCount(model)} 材质　{HiveCore.ModelTextureCount(model)} 贴图"
             + $"　{HiveCore.ModelNodeCount(model)} 节点";
@@ -257,6 +324,251 @@ public partial class ModelWindow : AcceptDialog
             item.SetText(4, geoset.TwoSided != 0 ? "是" : "否");
             item.SetText(5, geoset.Alpha.ToString("F2"));
         }
+    }
+
+    private void FillMaterials()
+    {
+        materialTree.Clear();
+        TreeItem root = materialTree.CreateItem();
+        int count = HiveCore.ModelMaterialCount(model);
+        for (int m = 0; m < count; m++)
+        {
+            if (HiveCore.ModelMaterial(model, m) is not { } material)
+            {
+                continue;
+            }
+
+            TreeItem item = materialTree.CreateItem(root);
+            item.SetText(0, $"材质 {m}（{material.LayerCount} 层）");
+            item.SetText(1, $"平面 {material.PriorityPlane}");
+            item.SetText(2, MaterialFlags(material.Flags));
+            item.SetText(3, string.Empty);
+            item.SetText(4, string.Empty);
+            item.Collapsed = true;
+
+            for (int l = 0; l < material.LayerCount; l++)
+            {
+                if (HiveCore.ModelLayer(model, m, l) is not { } layer)
+                {
+                    continue;
+                }
+
+                TreeItem layerItem = materialTree.CreateItem(item);
+                layerItem.SetText(0, layer.TextureAnimationId >= 0 ? $"层 {l} · 贴图动画 {layer.TextureAnimationId}" : $"层 {l}");
+                layerItem.SetText(1, BlendMode(layer.BlendMode));
+                layerItem.SetText(2, ShaderName(layer.Shader));
+                layerItem.SetText(3, layer.Alpha.ToString("F2"));
+                string shading = ShadingFlags(layer.ShadingFlags);
+                layerItem.SetText(4, MathF.Abs(layer.EmissiveGain - 1f) < 0.001f ? shading : $"{shading} · 自发光 {layer.EmissiveGain:F2}");
+                layerItem.Collapsed = true;
+
+                for (int t = 0; t < layer.TextureCount; t++)
+                {
+                    (int slot, int texture) = HiveCore.ModelLayerTexture(model, m, l, t);
+                    TreeItem textureItem = materialTree.CreateItem(layerItem);
+                    textureItem.SetText(0, $"槽 {slot}（{TextureSlot(slot)}）");
+                    textureItem.SetText(1, $"[{texture}]");
+                    textureItem.SetText(2, string.Empty);
+                    textureItem.SetText(3, string.Empty);
+                    textureItem.SetText(4, texture < 0 ? "（无效）" : HiveCore.ModelTextureName(model, texture) ?? "（无）");
+                }
+            }
+        }
+    }
+
+    private void FillTextures()
+    {
+        textureTree.Clear();
+        texturePreview.Texture = null;
+        TreeItem root = textureTree.CreateItem();
+        int count = HiveCore.ModelTextureCount(model);
+        for (int i = 0; i < count; i++)
+        {
+            HiveTextureInfo texture = HiveCore.ModelTexture(model, i);
+            TreeItem item = textureTree.CreateItem(root);
+            item.SetText(0, i.ToString());
+            item.SetText(1, HiveCore.ModelTextureName(model, i) ?? "（无）");
+            item.SetText(2, texture.Width > 0 ? $"{texture.Width}x{texture.Height}" : "解不出");
+            item.SetText(3, WrapFlags(texture.Flags));
+            item.SetMetadata(0, i);
+        }
+    }
+
+    private void ShowTexture()
+    {
+        TreeItem? item = textureTree.GetSelected();
+        if (item == null)
+        {
+            return;
+        }
+
+        string? path = HiveCore.ModelTextureName(model, (int)item.GetMetadata(0));
+        Image? image = path == null ? null : HiveCore.ImageAt(path);
+        texturePreview.Texture = image == null ? null : ImageTexture.CreateFromImage(image);
+    }
+
+    private void FillNodes()
+    {
+        nodeTree.Clear();
+        int count = HiveCore.ModelNodeCount(model);
+        var infos = new HiveNodeInfo[count];
+        var names = new string[count];
+        var ids = new System.Collections.Generic.HashSet<int>();
+        for (int i = 0; i < count; i++)
+        {
+            infos[i] = HiveCore.ModelNode(model, i) ?? default;
+            names[i] = HiveCore.ModelNodeName(model, i) ?? string.Empty;
+            ids.Add(infos[i].Id);
+        }
+
+        var roots = new System.Collections.Generic.List<int>();
+        var children = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<int>>();
+        for (int i = 0; i < count; i++)
+        {
+            int parentId = infos[i].ParentId;
+            if (parentId < 0 || !ids.Contains(parentId) || parentId == infos[i].Id)
+            {
+                roots.Add(i);
+                continue;
+            }
+            if (!children.TryGetValue(parentId, out System.Collections.Generic.List<int>? list))
+            {
+                list = new System.Collections.Generic.List<int>();
+                children[parentId] = list;
+            }
+            list.Add(i);
+        }
+
+        TreeItem root = nodeTree.CreateItem();
+        var seen = new System.Collections.Generic.HashSet<int>();
+
+        void Build(int index, TreeItem parent)
+        {
+            if (!seen.Add(index))
+            {
+                return;
+            }
+
+            HiveNodeInfo node = infos[index];
+            TreeItem item = nodeTree.CreateItem(parent);
+            item.SetText(0, names[index].Length > 0 ? names[index] : "（无名）");
+            item.SetText(1, node.Id.ToString());
+            item.SetText(2, NodeType(node.Flags));
+            item.SetText(3, $"{node.TranslationKeys} / {node.RotationKeys} / {node.ScalingKeys}");
+            item.SetText(4, NodeFlags(node.Flags));
+
+            if (children.TryGetValue(node.Id, out System.Collections.Generic.List<int>? list))
+            {
+                foreach (int child in list)
+                {
+                    Build(child, item);
+                }
+            }
+        }
+
+        foreach (int index in roots)
+        {
+            Build(index, root);
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            Build(i, root);
+        }
+    }
+
+    private static string BlendMode(uint mode) => mode switch
+    {
+        0 => "无",
+        1 => "透明",
+        2 => "混合",
+        3 => "叠加",
+        4 => "加 alpha",
+        5 => "调制",
+        6 => "调制 2x",
+        _ => $"未知 {mode}",
+    };
+
+    private static string ShaderName(uint shader) => shader switch
+    {
+        0 => "SD",
+        1 => "HD",
+        2 => "SD on HD",
+        3 => "HD 水晶",
+        _ => $"未知 {shader}",
+    };
+
+    private static string MaterialFlags(uint flags)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        if ((flags & 0x1) != 0) parts.Add("恒定色");
+        if ((flags & 0x2) != 0) parts.Add("双面");
+        if ((flags & 0x8) != 0) parts.Add("近处优先");
+        if ((flags & 0x10) != 0) parts.Add("远处优先");
+        if ((flags & 0x20) != 0) parts.Add("全分辨率");
+        return parts.Count == 0 ? "无" : string.Join("，", parts);
+    }
+
+    private static string ShadingFlags(uint flags)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        if ((flags & 0x1) != 0) parts.Add("无光照");
+        if ((flags & 0x2) != 0) parts.Add("球面环境");
+        if ((flags & 0x10) != 0) parts.Add("双面");
+        if ((flags & 0x20) != 0) parts.Add("无雾");
+        if ((flags & 0x40) != 0) parts.Add("不测深度");
+        if ((flags & 0x80) != 0) parts.Add("不写深度");
+        return parts.Count == 0 ? "无" : string.Join("，", parts);
+    }
+
+    private static string NodeType(int flags)
+    {
+        if ((flags & 0x100) != 0) return "骨骼";
+        if ((flags & 0x200) != 0) return "灯光";
+        if ((flags & 0x800) != 0) return "挂点";
+        if ((flags & 0x2000) != 0) return "碰撞体";
+        if ((flags & 0x4000) != 0) return "丝带发射器";
+        if ((flags & 0x1000) != 0) return "粒子发射器";
+        if ((flags & 0x400) != 0) return "辅助";
+        return "节点";
+    }
+
+    private static string NodeFlags(int flags)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        if ((flags & 0x1) != 0) parts.Add("不继承位移");
+        if ((flags & 0x2) != 0) parts.Add("不继承旋转");
+        if ((flags & 0x4) != 0) parts.Add("不继承缩放");
+        if ((flags & 0x8) != 0) parts.Add("始终面向相机");
+        if ((flags & 0x10) != 0) parts.Add("锁定 X");
+        if ((flags & 0x20) != 0) parts.Add("锁定 Y");
+        if ((flags & 0x40) != 0) parts.Add("锁定 Z");
+        if ((flags & 0x80) != 0) parts.Add("贴着相机");
+        if ((flags & 0x8000) != 0) parts.Add("无光照");
+        if ((flags & 0x10000) != 0) parts.Add("远处优先");
+        if ((flags & 0x40000) != 0) parts.Add("无雾");
+        if ((flags & 0x80000) != 0) parts.Add("模型空间");
+        if ((flags & 0x100000) != 0) parts.Add("XY 四边形");
+        return parts.Count == 0 ? "无" : string.Join("，", parts);
+    }
+
+    private static string TextureSlot(int slot) => slot switch
+    {
+        0 => "漫反射",
+        1 => "法线",
+        2 => "ORM",
+        3 => "自发光",
+        4 => "队伍色",
+        5 => "环境",
+        _ => "其他",
+    };
+
+    private static string WrapFlags(uint flags)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        if ((flags & 0x1) != 0) parts.Add("横向");
+        if ((flags & 0x2) != 0) parts.Add("纵向");
+        return parts.Count == 0 ? "无" : string.Join("，", parts);
     }
 
     private void BuildBox(HiveModelInfo info)
@@ -354,6 +666,45 @@ public partial class ModelWindow : AcceptDialog
         if (mesh != null)
         {
             instance.Mesh = mesh;
+        }
+    }
+
+    public string Describe()
+    {
+        int materials = 0;
+        int layers = 0;
+        int slots = 0;
+        for (TreeItem? material = materialTree.GetRoot()?.GetFirstChild(); material != null; material = material.GetNext())
+        {
+            materials++;
+            for (TreeItem? layer = material.GetFirstChild(); layer != null; layer = layer.GetNext())
+            {
+                layers++;
+                slots += layer.GetChildCount();
+            }
+        }
+
+        int textures = 0;
+        for (TreeItem? texture = textureTree.GetRoot()?.GetFirstChild(); texture != null; texture = texture.GetNext())
+        {
+            textures++;
+        }
+
+        int nodes = 0;
+        CountNodes(nodeTree.GetRoot(), ref nodes);
+        return $"材质 {materials} 项（{layers} 层 {slots} 个贴图槽），贴图 {textures} 项，节点 {nodes} 个";
+    }
+
+    private static void CountNodes(TreeItem? parent, ref int count)
+    {
+        if (parent == null)
+        {
+            return;
+        }
+        for (TreeItem? item = parent.GetFirstChild(); item != null; item = item.GetNext())
+        {
+            count++;
+            CountNodes(item, ref count);
         }
     }
 

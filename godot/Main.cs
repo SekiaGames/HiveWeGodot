@@ -68,6 +68,7 @@ public partial class Main : Node3D
     private readonly string resizeTest = OS.GetEnvironment("HIVE_RESIZE_TEST");
     private readonly string triggerTest = OS.GetEnvironment("HIVE_TRIGGER_TEST");
     private readonly string regionTest = OS.GetEnvironment("HIVE_REGION_TEST");
+    private ModelWindow? modelWindow;
     private string customTestId = string.Empty;
     private int customTestCategory;
     private int frames;
@@ -2069,7 +2070,8 @@ public partial class Main : Node3D
         {
             if (frames == 8)
             {
-                ShowModelWindow(modelTest);
+                modelWindow = ShowModelWindow(modelTest);
+                GD.Print($"模型三栏：{modelWindow.Describe()}");
             }
             else if (frames == 24)
             {

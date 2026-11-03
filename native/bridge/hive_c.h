@@ -317,6 +317,46 @@ typedef struct HiveGeosetInfo {
 	float alpha;
 } HiveGeosetInfo;
 
+typedef struct HiveMaterialInfo {
+	int32_t priority_plane;
+	uint32_t flags;
+	int32_t layer_count;
+} HiveMaterialInfo;
+
+typedef struct HiveLayerInfo {
+	uint32_t blend_mode;
+	/* ShaderType：0 SD、1 HD、2 SD on HD、3 HD Crystal。 */
+	uint32_t shader;
+	uint32_t shading_flags;
+	uint32_t coord_id;
+	/* 指向 texture_animations，-1 表示没有。 */
+	int32_t texture_animation_id;
+	int32_t texture_count;
+	float alpha;
+	float emissive_gain;
+} HiveLayerInfo;
+
+typedef struct HiveTextureInfo {
+	uint32_t replaceable_id;
+	uint32_t flags;
+	/* 解不出图片时是 0。 */
+	int32_t width;
+	int32_t height;
+} HiveTextureInfo;
+
+typedef struct HiveNodeInfo {
+	int32_t id;
+	/* 父节点 id，-1 是根。 */
+	int32_t parent_id;
+	int32_t flags;
+	int32_t translation_keys;
+	int32_t rotation_keys;
+	int32_t scaling_keys;
+	/* InterpolationType：0 none、1 linear、2 hermite、3 bezier。 */
+	int32_t interpolation;
+	int32_t global_sequence;
+} HiveNodeInfo;
+
 /* 打开模型，返回 >= 0 的句柄，失败返回 -1。句柄在 hive_close 前一直有效。 */
 int32_t hive_model_from_doodad(void* handle, int32_t doodad_index);
 int32_t hive_model_from_unit(void* handle, int32_t unit_index);
@@ -325,6 +365,20 @@ int32_t hive_model_info(void* handle, int32_t model, HiveModelInfo* out);
 int32_t hive_model_geoset(void* handle, int32_t model, int32_t geoset, HiveGeosetInfo* out);
 /* 该 geoset 用的 BLP 路径，没有贴图返回 NULL。 */
 const char* hive_model_geoset_texture(void* handle, int32_t model, int32_t geoset);
+
+/* 材质、层、层里的贴图槽。 */
+int32_t hive_model_material(void* handle, int32_t model, int32_t material, HiveMaterialInfo* out);
+int32_t hive_model_layer(void* handle, int32_t model, int32_t material, int32_t layer, HiveLayerInfo* out);
+int32_t hive_model_layer_texture(void* handle, int32_t model, int32_t material, int32_t layer, int32_t index,
+								 int32_t* slot, int32_t* texture);
+
+/* 模型的贴图表。名字是 BLP 路径，可替换贴图给 ReplaceableTextures 下的路径。 */
+const char* hive_model_texture_name(void* handle, int32_t model, int32_t index);
+int32_t hive_model_texture(void* handle, int32_t model, int32_t index, HiveTextureInfo* out);
+
+/* 节点按 for_each_node 的顺序编号，父节点不一定排在子节点前面。 */
+const char* hive_model_node_name(void* handle, int32_t model, int32_t index);
+int32_t hive_model_node(void* handle, int32_t model, int32_t index, HiveNodeInfo* out);
 
 int32_t hive_copy_model_positions(void* handle, int32_t model, float* out, int32_t capacity);
 int32_t hive_copy_model_normals(void* handle, int32_t model, float* out, int32_t capacity);
