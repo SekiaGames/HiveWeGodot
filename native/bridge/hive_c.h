@@ -264,6 +264,11 @@ const char* hive_unit_id(void* handle, int32_t index);
 /* 玩家队伍色（RGB 0..1），player 是 0..23，超出返回 -1。 */
 int32_t hive_player_color(int32_t player, float* rgb);
 
+/* 模型的材质、贴图、节点数量。 */
+int32_t hive_model_material_count(void* handle, int32_t model);
+int32_t hive_model_texture_count(void* handle, int32_t model);
+int32_t hive_model_node_count(void* handle, int32_t model);
+
 /* 模型的动画序列：数量、名字、起止帧。 */
 int32_t hive_model_sequence_count(void* handle, int32_t model);
 const char* hive_model_sequence_name(void* handle, int32_t model, int32_t index);

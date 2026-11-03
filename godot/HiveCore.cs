@@ -379,6 +379,15 @@ public static class HiveCore
     private static extern int hive_model_from_path(IntPtr hive, [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_material_count(IntPtr hive, int model);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_texture_count(IntPtr hive, int model);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_model_node_count(IntPtr hive, int model);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_model_sequence_count(IntPtr hive, int model);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1198,6 +1207,12 @@ public static class HiveCore
     public static int ModelFromUnit(int unitIndex) => hive_model_from_unit(handle, unitIndex);
 
     public static int ModelFromPath(string path) => hive_model_from_path(handle, path);
+
+    public static int ModelMaterialCount(int model) => hive_model_material_count(handle, model);
+
+    public static int ModelTextureCount(int model) => hive_model_texture_count(handle, model);
+
+    public static int ModelNodeCount(int model) => hive_model_node_count(handle, model);
 
     public static int ModelSequenceCount(int model) => hive_model_sequence_count(handle, model);
 

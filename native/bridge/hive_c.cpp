@@ -4755,6 +4755,50 @@ const char* hive_map_global_script(void* handle) {
 	return hive->transient_string.c_str();
 }
 
+/// 模型里各类数据的条数，界面上做概览用。
+int32_t hive_model_material_count(void* handle, const int32_t model) {
+	if (handle == nullptr || model < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return 0;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	return source == nullptr ? 0 : static_cast<int32_t>(source->materials.size());
+}
+
+int32_t hive_model_texture_count(void* handle, const int32_t model) {
+	if (handle == nullptr || model < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return 0;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	return source == nullptr ? 0 : static_cast<int32_t>(source->textures.size());
+}
+
+int32_t hive_model_node_count(void* handle, const int32_t model) {
+	if (handle == nullptr || model < 0) {
+		return 0;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	if (static_cast<std::size_t>(model) >= hive->models.size()) {
+		return 0;
+	}
+	const auto& source = hive->models[static_cast<std::size_t>(model)]->source;
+	if (source == nullptr) {
+		return 0;
+	}
+	int32_t count = 0;
+	source->for_each_node([&](const mdx::Node& node) {
+		count++;
+	});
+	return count;
+}
+
 int32_t hive_model_sequence_count(void* handle, const int32_t model) {
 	if (handle == nullptr || model < 0) {
 		return 0;

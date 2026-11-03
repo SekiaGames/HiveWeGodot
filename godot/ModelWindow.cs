@@ -14,6 +14,12 @@ public partial class ModelWindow : AcceptDialog
     private SubViewport preview = null!;
     private MeshInstance3D instance = null!;
 
+    private CheckBox boxToggle = null!;
+    private CheckBox gridToggle = null!;
+    private Tree geosetTree = null!;
+    private MeshInstance3D? boxNode;
+    private MeshInstance3D? gridNode;
+
     private int model = -1;
     private int sequence;
     private int start;
@@ -70,6 +76,26 @@ public partial class ModelWindow : AcceptDialog
         playBox = new CheckBox { Text = "播放", ButtonPressed = true };
         controlRow.AddChild(playBox);
 
+        boxToggle = new CheckBox { Text = "包围盒" };
+        boxToggle.Toggled += on =>
+        {
+            if (boxNode != null)
+            {
+                boxNode.Visible = on;
+            }
+        };
+        controlRow.AddChild(boxToggle);
+
+        gridToggle = new CheckBox { Text = "网格", ButtonPressed = true };
+        gridToggle.Toggled += on =>
+        {
+            if (gridNode != null)
+            {
+                gridNode.Visible = on;
+            }
+        };
+        controlRow.AddChild(gridToggle);
+
         frameSlider = new HSlider
         {
             MinValue = 0,
@@ -121,6 +147,24 @@ public partial class ModelWindow : AcceptDialog
 
         instance = new MeshInstance3D { Name = "Preview" };
         preview.AddChild(instance);
+
+        var split = new VSplitContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        column.AddChild(split);
+
+        geosetTree = new Tree
+        {
+            Columns = 6,
+            ColumnTitlesVisible = true,
+            HideRoot = true,
+            CustomMinimumSize = new Vector2(0, 140),
+        };
+        string[] titles = { "层", "顶点", "面", "贴图", "双面", "alpha" };
+        for (int i = 0; i < titles.Length; i++)
+        {
+            geosetTree.SetColumnTitle(i, titles[i]);
+            geosetTree.SetColumnExpandRatio(i, i == 3 ? 4 : 1);
+        }
+        split.AddChild(geosetTree);
 
         status = new Label { Text = "输入模型路径后打开" };
         column.AddChild(status);
@@ -190,7 +234,110 @@ public partial class ModelWindow : AcceptDialog
         camera.LookAt(center, Vector3.Up);
 
         Apply(start);
-        status.Text = $"{path}　{info.GeosetCount} 层　{info.VertexCount} 顶点　{count} 个序列";
+        BuildBox(info);
+        BuildGrid();
+        FillGeosets(info);
+        status.Text = $"{path}　{info.GeosetCount} 层　{info.VertexCount} 顶点　{count} 个序列"
+            + $"　{HiveCore.ModelMaterialCount(model)} 材质　{HiveCore.ModelTextureCount(model)} 贴图"
+            + $"　{HiveCore.ModelNodeCount(model)} 节点";
+    }
+
+    private void FillGeosets(HiveModelInfo info)
+    {
+        geosetTree.Clear();
+        TreeItem root = geosetTree.CreateItem();
+        for (int i = 0; i < info.GeosetCount; i++)
+        {
+            HiveGeosetInfo geoset = HiveCore.ModelGeoset(model, i);
+            TreeItem item = geosetTree.CreateItem(root);
+            item.SetText(0, i.ToString());
+            item.SetText(1, geoset.VertexCount.ToString());
+            item.SetText(2, (geoset.IndexCount / 3).ToString());
+            item.SetText(3, HiveCore.ModelGeosetTexture(model, i) ?? "（无）");
+            item.SetText(4, geoset.TwoSided != 0 ? "是" : "否");
+            item.SetText(5, geoset.Alpha.ToString("F2"));
+        }
+    }
+
+    private void BuildBox(HiveModelInfo info)
+    {
+        if (boxNode != null)
+        {
+            preview.RemoveChild(boxNode);
+            boxNode.QueueFree();
+            boxNode = null;
+        }
+
+        const float scale = 1f / 128f;
+        var min = new Vector3(info.MinX, info.MinZ, info.MinY) * scale;
+        var max = new Vector3(info.MaxX, info.MaxZ, info.MaxY) * scale;
+
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        mesh.SurfaceSetColor(new Color(1f, 0.85f, 0.2f));
+        Vector3[] corners =
+        {
+            new(min.X, min.Y, min.Z), new(max.X, min.Y, min.Z), new(max.X, min.Y, max.Z), new(min.X, min.Y, max.Z),
+            new(min.X, max.Y, min.Z), new(max.X, max.Y, min.Z), new(max.X, max.Y, max.Z), new(min.X, max.Y, max.Z),
+        };
+        int[] edges =
+        {
+            0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7,
+        };
+        foreach (int index in edges)
+        {
+            mesh.SurfaceAddVertex(corners[index]);
+        }
+        mesh.SurfaceEnd();
+
+        boxNode = new MeshInstance3D
+        {
+            Mesh = mesh,
+            Visible = boxToggle.ButtonPressed,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                VertexColorUseAsAlbedo = true,
+            },
+        };
+        preview.AddChild(boxNode);
+    }
+
+    private void BuildGrid()
+    {
+        if (gridNode != null)
+        {
+            preview.RemoveChild(gridNode);
+            gridNode.QueueFree();
+            gridNode = null;
+        }
+
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        mesh.SurfaceSetColor(new Color(0.45f, 0.47f, 0.5f));
+        const int extent = 4;
+        for (int i = -extent; i <= extent; i++)
+        {
+            mesh.SurfaceAddVertex(new Vector3(i, 0f, -extent));
+            mesh.SurfaceAddVertex(new Vector3(i, 0f, extent));
+            mesh.SurfaceAddVertex(new Vector3(-extent, 0f, i));
+            mesh.SurfaceAddVertex(new Vector3(extent, 0f, i));
+        }
+        mesh.SurfaceEnd();
+
+        gridNode = new MeshInstance3D
+        {
+            Mesh = mesh,
+            Visible = gridToggle.ButtonPressed,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                VertexColorUseAsAlbedo = true,
+            },
+        };
+        preview.AddChild(gridNode);
     }
 
     private void Apply(int frame)
