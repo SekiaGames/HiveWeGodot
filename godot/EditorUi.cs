@@ -49,6 +49,7 @@ public partial class EditorUi : CanvasLayer
     public event Action? TriggerRequested;
     public event Action? RegionRequested;
     public event Action? ModelRequested;
+    public event Action<string>? CliffTypeSelected;
     public event Action<int>? DoodadRandomChanged;
     public event Action<int, int>? PathingBrushRequested;
     public event Action<int>? StartLocationRequested;
@@ -65,6 +66,7 @@ public partial class EditorUi : CanvasLayer
     private Button doodadButton = null!;
     private Button unitButton = null!;
     private SpinBox startPlayer = null!;
+    private OptionButton cliffTypeBox = null!;
 
     private PanelContainer objectPanel = null!;
     private Label objectTitle = null!;
@@ -327,6 +329,15 @@ public partial class EditorUi : CanvasLayer
         cliffGrid.AddThemeConstantOverride("h_separation", 4);
         cliffGrid.AddThemeConstantOverride("v_separation", 4);
         column.AddChild(cliffGrid);
+        cliffGrid.AddChild(new Label { Text = "悬崖类型" });
+        cliffTypeBox = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        for (int i = 0; i < HiveCore.CliffsetCount(); i++)
+        {
+            cliffTypeBox.AddItem(HiveCore.CliffsetId(i) ?? "?");
+        }
+        cliffTypeBox.ItemSelected += _ => CliffTypeSelected?.Invoke(CurrentCliffType());
+        cliffGrid.AddChild(cliffTypeBox);
+
         cliffGrid.AddChild(ToolButton("升一级", ToolMode.CliffRaise));
         cliffGrid.AddChild(ToolButton("降一级", ToolMode.CliffLower));
         cliffGrid.AddChild(ToolButton("抹平", ToolMode.CliffLevel));
@@ -608,6 +619,9 @@ public partial class EditorUi : CanvasLayer
     public void SetActiveTool(string name) => toolLabel.Text = name;
 
     public void SetBrushSize(int size) => brushSize.Value = size;
+
+    public string CurrentCliffType()
+        => cliffTypeBox.ItemCount == 0 ? string.Empty : HiveCore.CliffsetId(cliffTypeBox.Selected) ?? string.Empty;
 
     public void SetDoodadTypes(int count) => doodadButton.TooltipText = $"可放置 {count} 种";
 

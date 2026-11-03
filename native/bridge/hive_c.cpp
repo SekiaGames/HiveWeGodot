@@ -1436,6 +1436,26 @@ int32_t hive_set_height_tool(void* handle, const int32_t deformation) {
 	return 0;
 }
 
+int32_t hive_cliffset_count(void* handle) {
+	if (handle == nullptr) {
+		return 0;
+	}
+	return static_cast<int32_t>(static_cast<HiveHandle*>(handle)->map->terrain.cliffset_ids.size());
+}
+
+const char* hive_cliffset_id(void* handle, const int32_t index) {
+	if (handle == nullptr || index < 0) {
+		return nullptr;
+	}
+	auto* hive = static_cast<HiveHandle*>(handle);
+	const auto& ids = hive->map->terrain.cliffset_ids;
+	if (static_cast<std::size_t>(index) >= ids.size()) {
+		return nullptr;
+	}
+	hive->transient_string = ids[static_cast<std::size_t>(index)];
+	return hive->transient_string.c_str();
+}
+
 int32_t hive_set_cliff_tool(void* handle, const int32_t operation, const char* cliff_id) {
 	if (handle == nullptr || operation < 0 || operation > 7) {
 		return -1;

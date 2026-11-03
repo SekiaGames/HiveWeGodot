@@ -48,6 +48,7 @@ public partial class Main : Node3D
     private int startPlayer;
     private int pathingMask;
     private int pathingOperation;
+    private string cliffType = string.Empty;
     private readonly string animTest = OS.GetEnvironment("HIVE_ANIM_TEST");
     private readonly string modelTest = OS.GetEnvironment("HIVE_MODEL_TEST");
     private readonly string startTest = OS.GetEnvironment("HIVE_START_TEST");
@@ -218,6 +219,12 @@ public partial class Main : Node3D
         doodadTypes = HiveCore.DoodadTypes();
         ui.SetDoodadTypes(doodadTypes.Length);
         ui.DoodadPickerRequested += () => ShowObjectPicker(false);
+        ui.CliffTypeSelected += id =>
+        {
+            cliffType = id;
+            ApplyTool();
+            UpdateStatus();
+        };
         ui.PathingBrushRequested += (mask, operation) =>
         {
             if (HiveCore.SetPathingTool(mask, operation) != 0)
@@ -252,6 +259,7 @@ public partial class Main : Node3D
         unitTypes = HiveCore.UnitTypes();
         ui.SetUnitTypes(unitTypes.Length);
         ui.UnitPickerRequested += () => ShowObjectPicker(true);
+        cliffType = ui.CurrentCliffType();
         ui.SetBrushSize(brushSize);
         if (OS.GetEnvironment("HIVE_SHOW_PATHING").Length > 0)
         {
@@ -363,20 +371,20 @@ public partial class Main : Node3D
                 name = "去水";
                 break;
             case EditorUi.ToolMode.CliffRaise:
-                HiveCore.SetCliffTool(3, null);
-                name = "悬崖升一级";
+                HiveCore.SetCliffTool(3, CliffOrNull());
+                name = $"悬崖升一级（{cliffType}）";
                 break;
             case EditorUi.ToolMode.CliffLower:
-                HiveCore.SetCliffTool(1, null);
-                name = "悬崖降一级";
+                HiveCore.SetCliffTool(1, CliffOrNull());
+                name = $"悬崖降一级（{cliffType}）";
                 break;
             case EditorUi.ToolMode.CliffLevel:
-                HiveCore.SetCliffTool(2, null);
-                name = "悬崖抹平";
+                HiveCore.SetCliffTool(2, CliffOrNull());
+                name = $"悬崖抹平（{cliffType}）";
                 break;
             case EditorUi.ToolMode.CliffRamp:
-                HiveCore.SetCliffTool(7, null);
-                name = "悬崖斜坡";
+                HiveCore.SetCliffTool(7, CliffOrNull());
+                name = $"悬崖斜坡（{cliffType}）";
                 break;
             case EditorUi.ToolMode.DoodadPlace:
                 name = $"放置装饰物 {doodadType}";
@@ -613,6 +621,8 @@ public partial class Main : Node3D
             }
         }
     }
+
+    private string? CliffOrNull() => cliffType.Length == 0 ? null : cliffType;
 
     private void ShowBrush(Vector3 hit)
     {

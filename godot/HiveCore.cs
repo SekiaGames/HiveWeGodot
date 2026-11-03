@@ -265,6 +265,12 @@ public static class HiveCore
     private static extern int hive_set_cell_tool(IntPtr hive, int operation);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int hive_cliffset_count(IntPtr hive);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr hive_cliffset_id(IntPtr hive, int index);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hive_terrain_brush_flags(IntPtr hive);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -1010,6 +1016,10 @@ public static class HiveCore
     public static bool SetCliffTool(int operation, string? cliffId) => hive_set_cliff_tool(handle, operation, cliffId) == 0;
 
     public static bool SetCellTool(int operation) => hive_set_cell_tool(handle, operation) == 0;
+
+    public static int CliffsetCount() => hive_cliffset_count(handle);
+
+    public static string? CliffsetId(int index) => ReadString(hive_cliffset_id(handle, index));
 
     public static int TerrainBrushFlags() => hive_terrain_brush_flags(handle);
 

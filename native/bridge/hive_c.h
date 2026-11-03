@@ -155,6 +155,10 @@ int32_t hive_set_cliff_tool(void* handle, int32_t operation, const char* cliff_i
 int32_t hive_set_cell_tool(void* handle, int32_t operation);
 
 /* 一次绘制。begin 会快照整张地形用于撤销，apply 可以按帧连调多次，end 收尾并入撤销栈。 */
+/* 地图里能用的悬崖类型（w3e 的 cliffset 列表）。 */
+int32_t hive_cliffset_count(void* handle);
+const char* hive_cliffset_id(void* handle, int32_t index);
+
 /* 地形笔刷的联动开关：bit0 限水面高度、bit1 更新装饰物高度、bit2 相对悬崖高度、
    bit3 应用悬崖路径、bit4 应用地面路径、bit5 应用水面路径、bit6 改地面、bit7 改水面。 */
 int32_t hive_terrain_brush_flags(void* handle);
