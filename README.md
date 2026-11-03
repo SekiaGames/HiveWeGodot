@@ -110,7 +110,7 @@ bash tools/build_godot_lib.sh                       # 编 dylib 并拷到 godot/
 
 工具条的「模型」可以按路径打开任意 MDX，选序列播放、拖帧看姿势，下面还有几何体表和材质/贴图/节点数概览，可以叠包围盒与网格。
 
-「触发器」按分类列出 wtg 里的触发器和变量，能改名称、描述、启用与初始开启。右边是事件/条件/动作的树，If/Then/Else 这类容器会拆成三段，选中一条可改参数值；第二个标签页是全局 JASS 脚本。
+「触发器」按分类列出 wtg 里的触发器和变量，能改名称、描述、启用与初始开启，脚本页带 JASS 高亮。右边是事件/条件/动作的树，If/Then/Else 这类容器会拆成三段，选中一条可改参数值；第二个标签页是全局 JASS 脚本。
 
 左侧面板可直接点：纹理墙、五个高度工具、加水去水、四种悬崖操作、笔刷尺寸与形状。面板底部是小地图，点哪里相机跳到哪里。
 
@@ -134,6 +134,8 @@ HIVE_MODEL_TEST="Units/creeps/TimberWolf/TimberWolf.mdx" HIVE_SCREENSHOT=/tmp/mo
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开模型预览窗口
 HIVE_ANIM_TEST=1 HIVE_SCREENSHOT=/tmp/anim.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 放一个会动的模型，隔 1 秒存两张
+HIVE_JASS_TEST=1 HIVE_SCREENSHOT=/tmp/jass.png \
+  /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 校验 JASS 高亮的词表
 HIVE_OBJECT_EDITOR_TEST=1 HIVE_SCREENSHOT=/tmp/object_editor.png \
   /Applications/Godot_mono.app/Contents/MacOS/Godot --path godot    # 打开对象编辑器，打印七类对象数
 HIVE_NEWMAP_TEST=1 HIVE_SCREENSHOT=/tmp/newmap.png \

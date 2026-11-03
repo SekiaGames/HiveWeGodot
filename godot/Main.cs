@@ -58,6 +58,7 @@ public partial class Main : Node3D
     private readonly string constantTest = OS.GetEnvironment("HIVE_CONSTANT_TEST");
     private readonly string newMapTest = OS.GetEnvironment("HIVE_NEWMAP_TEST");
     private readonly string objectEditorTest = OS.GetEnvironment("HIVE_OBJECT_EDITOR_TEST");
+    private readonly string jassTest = OS.GetEnvironment("HIVE_JASS_TEST");
     private string[] doodadTypes = Array.Empty<string>();
     private string[] unitTypes = Array.Empty<string>();
     private readonly string selectTest = OS.GetEnvironment("HIVE_SELECT_TEST");
@@ -1895,6 +1896,27 @@ public partial class Main : Node3D
             else if (frames == 20)
             {
                 Capture(selectTest);
+                GetTree().Quit();
+            }
+            return;
+        }
+
+        if (jassTest.Length > 0)
+        {
+            if (frames == 8)
+            {
+                const string sample = "globals\n    constant integer MAX = 3\nendglobals\n"
+                    + "native CreateUnit takes player id, integer unitid, real x, real y, real face returns unit\n"
+                    + "function Init takes nothing returns nothing\n    local unit u = CreateUnit(null, 0, 0, 0, 0)\n"
+                    + "    // 注释\n    call KillUnit(u)\nendfunction\n";
+                CodeHighlighter highlighter = JassHighlighter.Build(sample);
+                GD.Print($"JASS 高亮：call 有没有颜色 {highlighter.HasKeywordColor("call")}，"
+                    + $"integer {highlighter.HasKeywordColor("integer")}，"
+                    + $"CreateUnit {highlighter.HasKeywordColor("CreateUnit")}，"
+                    + $"Init {highlighter.HasKeywordColor("Init")}，"
+                    + $"MAX {highlighter.HasKeywordColor("MAX")}");
+                GD.Print($"CreateUnit 颜色 {highlighter.GetKeywordColor("CreateUnit")}，"
+                    + $"MAX 颜色 {highlighter.GetKeywordColor("MAX")}");
                 GetTree().Quit();
             }
             return;

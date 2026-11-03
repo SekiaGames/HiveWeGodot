@@ -186,6 +186,7 @@ public partial class TriggerWindow : AcceptDialog
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             GuttersDrawLineNumbers = true,
         };
+        globalScript.TextChanged += () => globalScript.SyntaxHighlighter = JassHighlighter.Build(globalScript.Text);
         scriptPage.AddChild(globalScript);
 
         var scriptButtons = new HBoxContainer();
@@ -209,6 +210,7 @@ public partial class TriggerWindow : AcceptDialog
     private void ReloadScript()
     {
         globalScript.Text = HiveCore.MapGlobalScript ?? string.Empty;
+        globalScript.SyntaxHighlighter = JassHighlighter.Build(globalScript.Text);
     }
 
     public void Reload()
@@ -375,6 +377,8 @@ public partial class TriggerWindow : AcceptDialog
                 CustomMinimumSize = new Vector2(0, 110),
                 GuttersDrawLineNumbers = true,
             };
+            edit.SyntaxHighlighter = JassHighlighter.Build(edit.Text);
+            edit.TextChanged += () => edit.SyntaxHighlighter = JassHighlighter.Build(edit.Text);
             edit.FocusExited += () => HiveCore.SetTriggerCustomText(index, edit.Text);
             scriptBox.AddChild(edit);
         }
